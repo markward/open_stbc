@@ -1,69 +1,303 @@
-# Prerequisites
-*.d
+# =============================================================================
+# open_stbc — .gitignore
+# =============================================================================
 
-# Compiled Object files
-*.slo
-*.lo
+# =============================================================================
+# COPYRIGHTED GAME MATERIALS — NEVER COMMIT
+# Original Bridge Commander game files and SDK content
+# =============================================================================
+game/
+sdk/
+
+# Specific file types that may contain copyrighted content if placed
+# outside the above directories
+*.nif
+*.tga
+*.wav
+*.mp3
+*.ogg
+*.wma
+*.bik
+*.tgl
+*.max
+*.dlu
+*.dot
+*.nif
+*.pyd
+*.pyc
+# BC compiled scripts
+Appc.dll
+Appc.pyd
+*.exe
+*.dll
+
+# =============================================================================
+# PYTHON
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+.eggs/
+
+# uv
+.python-version
+uv.lock.bak
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+nosetests.xml
+pytest.xml
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb
+
+# =============================================================================
+# C++
+# =============================================================================
+
+# Compiled objects
 *.o
+*.ko
 *.obj
+*.elf
 
-# Precompiled Headers
+# Precompiled headers
 *.gch
 *.pch
 
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-*.so.*
-
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
+# Libraries
 *.lib
+*.a
+*.la
+*.lo
 
-# Executables
-*.exe
+# Shared objects and DLLs (except those explicitly committed)
+*.so
+*.so.*
+*.dylib
+
+# Executables (except those explicitly committed)
 *.out
 *.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# CMake
+native/build/
+native/CMakeCache.txt
+native/CMakeFiles/
+native/CMakeScripts/
+native/Testing/
+native/Makefile
+native/cmake_install.cmake
+native/install_manifest.txt
+native/compile_commands.json
+native/CTestTestfile.cmake
+native/_deps/
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
 
 # Build directories
 build/
 Build/
-build-*/
+out/
+bin/
+lib/
 
-# CMake generated files
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
-install_manifest.txt
-compile_commands.json
+# Ninja
+.ninja_deps
+.ninja_log
 
-# Temporary files
-*.tmp
-*.log
-*.bak
-*.swp
+# Conan package manager
+.conan/
+conan.lock
+conanbuildinfo.*
+conaninfo.txt
+graph_info.json
 
 # vcpkg
 vcpkg_installed/
 
-# debug information files
-*.dwo
+# =============================================================================
+# INSTRUMENTATION AND SESSION LOGS
+# Logged game sessions may contain copyrighted dialogue/asset references
+# =============================================================================
+sessions/
+*.session
+*.capture
+*.log
+logs/
+captures/
 
-# test output & cache
-Testing/
-.cache/
+# Test fixtures generated from live sessions should be committed
+# selectively — raw captures should not
+tests/fixtures/raw/
+
+# =============================================================================
+# IDE AND EDITOR
+# =============================================================================
+
+# JetBrains (CLion, PyCharm)
+.idea/
+*.iml
+*.iws
+*.ipr
+cmake-build-*/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Visual Studio
+.vs/
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.VC.opendb
+
+# Vim/Neovim
+*.swp
+*.swo
+*~
+.netrwhist
+tags
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# =============================================================================
+# OPERATING SYSTEM
+# =============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encdata
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# ENVIRONMENT AND SECRETS
+# =============================================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+secrets/
+
+# =============================================================================
+# DOCUMENTATION BUILD OUTPUT
+# =============================================================================
+docs/_build/
+docs/site/
+site/
+
+# =============================================================================
+# EXCEPTIONS — force-include these even if caught by rules above
+# =============================================================================
+
+# Keep placeholder files in otherwise-empty tracked directories
+!**/.gitkeep
+
+# Keep the example env file
+!.env.example
