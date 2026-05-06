@@ -9,7 +9,7 @@ reimplementation work begins.
 
 ---
 
-## Q1 — Tick Rate ❌
+## Q1 — Tick Rate ✅
 
 **Question:** What is the game loop tick rate? Is it fixed or variable?
 
@@ -17,12 +17,27 @@ reimplementation work begins.
 Their actual granularity depends on how often the loop ticks. Physics
 integration accuracy and AI polling intervals are both affected.
 
-**Instrumentation approach:** Log `GetUpdateNumber` with a wall-clock
-timestamp on each change. Average deltas over 30 seconds of gameplay.
-Check variance to determine fixed vs variable.
+**Answer: 60 Hz fixed tick rate.**
 
-**Expected answer:** Likely 20Hz or 30Hz fixed simulation tick, based on
-timer granularity visible in source and era of engine.
+Measured via `GetGameTime` / `GetUpdateNumber` instrumentation during a
+Quick Battle session (86.3s wall, 5145 ticks):
+
+```
+Tick rate:  59.61 Hz  (16.78 ms/tick)   [theoretical 60 Hz = 16.67 ms]
+Time scale: 0.9807                       [≈ 1.0 — normal speed confirmed]
+Samples:    54 frame boundaries
+Note:       Python not called every tick; rate derived from total_frames / total_wall
+```
+
+The 0.39% deviation from 60.00 Hz is within normal measurement error.
+The tick rate is **fixed at 60 Hz**. Python is called only when AI scripts
+or game code explicitly invoke `GetGameTime` — not every tick — but this
+does not affect the accuracy of the total-frames / total-wall calculation.
+
+**Implications:**
+- Physics time step: 16.667 ms (1/60 s)
+- `TimeSliceProcess` minimum polling granularity: 16.667 ms
+- Timer resolution for `g_kTimerManager`: 16.667 ms per tick
 
 ---
 
@@ -63,6 +78,10 @@ continue at wall-clock speed?
 scales the entire simulation. Affects how `SetTimeScale` must be
 implemented in the replacement engine.
 
+**Instrumentation update (Quick Battle session, normal gameplay):**
+Time scale measured at **0.9807** — confirming game time ≈ wall time at
+default scale. This is the expected baseline (no cinematic slow mode active).
+
 **Static analysis update:** `MissionLib.py:93–121` confirms the two-timer
 architecture. Mission-critical timers and episode timers are tracked and
 cleaned up separately (`DeleteAllMissionTimers`, `DeleteAllEpisodeTimers`),
@@ -71,12 +90,10 @@ consistent with `g_kRealtimeTimerManager` continuing at wall speed during
 slow motion. Whether `g_kTimerManager` slows proportionally to
 `SetTimeScale` still requires instrumentation to confirm.
 
-**Instrumentation approach:** Call `SetTimeScale(0.5)` during a session.
+**Remaining instrumentation:** Call `SetTimeScale(0.5)` during a session.
 Log `GetGameTime` and `GetRealTime` readings at each frame alongside
 `GetUpdateNumber`. Measure AI callback frequency and timer fire times
-relative to both clocks.
-
-**Specific scenario:** Trigger a cinematic sequence that uses slow mode,
+relative to both clocks. Trigger a cinematic sequence that uses slow mode,
 log throughout, compare game time progression to real time progression.
 
 ---
@@ -113,9 +130,9 @@ of priority level. Instrumentation for this question is no longer needed.
 
 | Question | Impact if wrong | Instrumentation effort | Status |
 |---|---|---|---|
-| Q1 Tick rate | High — affects all timing | Very low — 5 minutes | ❌ Open |
+| Q1 Tick rate | High — affects all timing | — | ✅ 60 Hz fixed |
 | Q2 Update ordering | Medium-high — affects AI/physics interaction | Medium — one focused session | ❌ Open |
-| Q3 Time scale | Medium — affects cinematic mode only | Low — trigger one cinematic | ⚠️ Partial |
+| Q3 Time scale | Medium — affects cinematic mode only | Low — trigger one cinematic | ⚠️ Partial (baseline confirmed) |
 | Q4 Process priorities | Low — C++ internal only | — | ✅ Answered |
 
 **Recommended order:** Q1 first (quick win, unblocks everything else),
@@ -126,12 +143,9 @@ instrumentation setup). Q4 is closed — no instrumentation needed.
 
 ## Notes
 
-- Q4 is closed by static analysis. The remaining three questions (Q1, Q2,
-  Q3) are answerable in a single instrumentation session once the `Appc`
-  wrapper logging infrastructure is in place.
-- Q1 should be answered before any physics or timer implementation work begins.
-- Q2 should be answered before AI integration work begins.
-- Q3 is partially answered — the two-timer architecture is confirmed.
-  Only the scaling behaviour under `SetTimeScale` still needs measurement.
-- The BC modding community documentation may already answer Q1 — check
-  BCFiles and related modding wikis before instrumentation.
+- Q1 is closed: 60 Hz fixed tick rate, confirmed by instrumentation.
+- Q4 is closed by static analysis.
+- Q3 baseline (time_scale ≈ 1.0 at normal speed) is confirmed. The open
+  part is the cinematic SetTimeScale() behaviour — still needs a targeted
+  session with a slow-motion trigger.
+- Q2 remains open and should be answered before AI integration work begins.

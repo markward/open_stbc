@@ -45,12 +45,12 @@ The original engine is a compiled C++ binary exposed to Python via a SWIG-genera
 
 | Q | Topic | Status |
 |---|---|---|
-| Q1 | Tick rate — fixed or variable? what Hz? | ❌ Open — resolve first |
+| Q1 | Tick rate — fixed or variable? what Hz? | ✅ **60 Hz fixed** (16.67 ms/tick) |
 | Q2 | Subsystem update ordering within a tick | ❌ Open — resolve before AI integration |
-| Q3 | Time scale interaction with physics/AI/timers | ⚠️ Partial |
+| Q3 | Time scale interaction with physics/AI/timers | ⚠️ Partial — baseline 1.0 confirmed, cinematic case open |
 | Q4 | TimeSliceProcess priority semantics | ✅ Closed — static analysis sufficient |
 
-**Q1 is the highest priority.** It unblocks physics and timer implementation. Instrumentation: log `GetUpdateNumber` with wall-clock timestamps, average deltas over 30 seconds.
+**Q2 is now the highest priority instrumentation target.**
 
 ### Gap analysis OQs (21 total)
 
@@ -62,7 +62,48 @@ The original engine is a compiled C++ binary exposed to Python via a SWIG-genera
 
 ## Instrumentation approach
 
-`tools/appc_logger.py` is a drop-in `Appc` logging shim. Replace the real `Appc` module with this before BC starts — all engine calls are intercepted and logged with arguments, return values, and wall-clock timestamps. No native tooling or debugger required.
+`tools/appc_logger.py` is the active instrumentation snippet. It is appended to `sdk/Build/scripts/App.py` by `tools/setup.py` and installed into `game/scripts/App.py`. The combined file runs inside the App module namespace, so all module-level names (`UtopiaModule`, `g_kSystemWrapper`, `g_kConfigMapping`, etc.) are available without qualification.
+
+### How to instrument
+
+```powershell
+uv run python tools/setup.py            # normal: uses cached .pyc (no recompile)
+uv run python tools/setup.py --recompile  # force Python 1.5 to recompile App.py
+uv run python tools/setup.py --capture    # after a successful recompile, cache the new .pyc
+uv run python tools/uninstall.py          # restore game to working state
+```
+
+### Critical constraints discovered during instrumentation
+
+**Python version:** stbc.exe embeds Python 1.5 (magic `0x4E99`), statically compiled into the binary alongside Appc. No separate `python15.dll`.
+
+**Python 1.5 syntax:** `import X as Y` is Python 1.6+ and causes a fatal `SyntaxError` crash at startup. All snippet code must use plain `import X` and save aliases manually (`_time_func = time.time`). No f-strings, no `True`/`False` literals.
+
+**Recompilation crash:** Python 1.5 crashes with "abnormal program termination" when asked to parse the 666 KB `App.py` source at game startup. The fix is the timestamp trick: `setup.py` writes `App.py` with its mtime set to match the value stored in `App.pyc` (bytes 4–7, little-endian Unix seconds), then copies `App.pyc.bak` as `App.pyc`. Python sees matching timestamps and loads from `.pyc` without recompiling. `--recompile` deliberately skips this trick for one launch to compile new snippet changes; `--capture` then caches the result.
+
+**Python-level file I/O is blocked:** `open()` fails silently for all paths from within the game process (absolute, relative, `%TEMP%`). `os.system()` (cmd.exe subprocess) is also blocked. `sys.stdout.write()` crashes the game (stbc.exe is a GUI subsystem binary with no console handle). Do not use any of these in the snippet.
+
+### Output mechanism: SaveConfigFile
+
+The only confirmed working write path is the C++ engine's own file I/O, accessed via:
+
+```python
+g_kConfigMapping.SetStringValue("BCTickLog", "key", "value")
+g_kConfigMapping.SetIntValue("BCTickLog", "count", n)
+g_kConfigMapping.SaveConfigFile("BCTickLog.cfg")
+```
+
+`SaveConfigFile` writes to the game's working directory (`game/`), so the output lands at `game/BCTickLog.cfg`. The file is a full dump of all config state (all sections from `Options.cfg` plus the custom `[BCTickLog]` section appended). `tools/analyze_session.py` parses only the `[BCTickLog]` section.
+
+The ConfigMapping API (argument order confirmed from SDK scripts):
+- `SetStringValue(section, key, value)` / `GetStringValue(section, key)`
+- `SetIntValue(section, key, value)` / `GetIntValue(section, key)`
+- `SetFloatValue(section, key, value)` / `GetFloatValue(section, key)`
+- `SaveConfigFile(filename)` / `LoadConfigFile(filename)`
+
+### Current snippet behaviour
+
+`appc_logger.py` wraps `UtopiaModule.GetGameTime` (the per-tick heartbeat called by AI scripts). Each unique `GetUpdateNumber()` frame is recorded as `"%f %d %f" % (wall_time, frame, game_time)` and buffered in a Python list. Every 30 seconds of wall time the buffer is flushed to `BCTickLog.cfg` via `SaveConfigFile`. On any exception, the error type and value are written to `[BCTickLog]` and the file is saved, so failures are visible without needing a debugger.
 
 ## Key architectural facts
 

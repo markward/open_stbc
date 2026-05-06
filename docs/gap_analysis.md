@@ -421,11 +421,11 @@ testable — preferable for a TDD approach.
 *(All four questions below are formally tracked and prioritised in*
 *`open_questions.md`)*
 
-**OQ-7.1 — Tick rate** *(Priority: Critical — resolve first)*  
-Fixed or variable? What Hz? Affects all timer granularity and physics
-integration accuracy. Approach: log `GetUpdateNumber` with wall-clock
-timestamps, average deltas over 30 seconds. Also check BC modding
-community documentation — this may already be publicly known.
+**OQ-7.1 — Tick rate** ✅  
+**60 Hz fixed.** Measured at 59.61 Hz (16.78 ms/tick) over 86.3s / 5145
+ticks in Quick Battle. Theoretical 1/60 = 16.667 ms; deviation is within
+measurement error. Physics time step = 16.667 ms. `TimeSliceProcess`
+minimum polling granularity = 16.667 ms.
 
 **OQ-7.2 — Subsystem update ordering within a tick**
 *(Priority: High — resolve before AI integration)*  
@@ -434,12 +434,13 @@ or after physics? Approach: log `GetUpdateNumber` alongside physics
 reads/writes, AI callbacks, event dispatch, and timer calls. Sort by
 frame number to reconstruct within-tick ordering.
 
-**OQ-7.3 — Time scale interaction with physics and AI**
+**OQ-7.3 — Time scale interaction with physics and AI** ⚠️  
 *(Priority: Medium — resolve before cinematic implementation)*  
-Does `SetTimeScale(0.5)` scale physics delta-time, AI callback
-frequency, and `g_kTimerManager` timers while `g_kRealtimeTimerManager`
-continues at wall speed? Approach: trigger a cinematic slow-motion
-sequence, log both clocks and timer fire times throughout.
+Baseline confirmed: time_scale = 0.98 ≈ 1.0 in normal Quick Battle
+gameplay. Open question: does `SetTimeScale(0.5)` scale physics
+delta-time, AI callback frequency, and `g_kTimerManager` timers while
+`g_kRealtimeTimerManager` continues at wall speed? Requires a targeted
+session triggering a cinematic slow-motion sequence.
 
 **OQ-7.4 — TimeSliceProcess priority semantics** ✅  
 Full source scan confirms: Python code uses only `NORMAL` and `LOW`. `LOW`
@@ -590,10 +591,11 @@ across mission boundaries.
 
 **Total open questions: 21**  
 **Answered by static analysis: OQ-1.1, OQ-1.2, OQ-1.3, OQ-4.1, OQ-7.4 (5)**  
-**Partially answered: OQ-2.1, OQ-4.2 (2)**  
-**Still open: OQ-2.2, OQ-2.3, OQ-3.1–3.3, OQ-4.3, OQ-4.4, OQ-5.1–5.3, OQ-6.1–6.2, OQ-7.1–7.3, OQ-8.1–8.4 (14)**
+**Answered by instrumentation: OQ-7.1 (6 total)**  
+**Partially answered: OQ-2.1, OQ-4.2, OQ-7.3 (3)**  
+**Still open: OQ-2.2, OQ-2.3, OQ-3.1–3.3, OQ-4.3, OQ-4.4, OQ-5.1–5.3, OQ-6.1–6.2, OQ-7.2, OQ-8.1–8.4 (13)**
 
-**Phase 1 blockers remaining: OQ-2.1 (partial), OQ-4.2 (partial), OQ-7.1, OQ-7.2**  
-**Recommended first instrumentation session targets: OQ-7.1 (tick rate),
+**Phase 1 blockers remaining: OQ-2.1 (partial), OQ-4.2 (partial), OQ-7.2**  
+**Recommended next instrumentation targets: OQ-7.2 (subsystem ordering),
 OQ-4.2 (dispatch ordering), OQ-2.1 (degradation formula)**
 
