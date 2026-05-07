@@ -93,3 +93,62 @@ def run_mission_with_loop(
         _set_current_game(None)
         for key in [k for k in sys.modules if k not in _mh._BASELINE_MODULES]:
             del sys.modules[key]
+
+
+def _loop_error_key(exc: Exception) -> str:
+    msg = (str(exc).splitlines() or [""])[0]
+    return f"{type(exc).__name__}: {msg[:80]}"
+
+
+def main(n_ticks: int = _DEFAULT_TICKS) -> None:
+    _mh.setup_sdk()
+    missions = _mh.discover_missions()
+
+    print("open_stbc game-loop harness")
+    print("=" * 50)
+    print(f"Found {len(missions)} missions, {n_ticks} ticks each (~{n_ticks / 60:.1f}s)\n")
+
+    results: dict[str, tuple[str, "Exception | None", int]] = {}
+    for name in missions:
+        status, exc, ticks = run_mission_with_loop(name, n_ticks)
+        results[name] = (status, exc, ticks)
+        if status == "pass":
+            print(f"  PASS  {name} ({ticks}/{n_ticks} ticks)")
+        elif status == "init_fail":
+            err = (str(exc).splitlines() or [""])[0][:80]
+            print(f"  INIT  {name}")
+            print(f"         {type(exc).__name__}: {err}")
+        else:
+            err = (str(exc).splitlines() or [""])[0][:80]
+            print(f"  LOOP  {name} ({ticks}/{n_ticks} ticks)")
+            print(f"         {type(exc).__name__}: {err}")
+
+    passed = sum(1 for s, _, _ in results.values() if s == "pass")
+    init_fail = sum(1 for s, _, _ in results.values() if s == "init_fail")
+    loop_fail = sum(1 for s, _, _ in results.values() if s == "loop_fail")
+
+    print(f"\n{'=' * 50}")
+    print(f"PASS:      {passed:3d}")
+    print(f"INIT FAIL: {init_fail:3d}")
+    print(f"LOOP FAIL: {loop_fail:3d}")
+    print(f"Total:     {len(results):3d}")
+
+    if init_fail + loop_fail:
+        from collections import Counter
+        errors: Counter[str] = Counter()
+        for status, exc, ticks in results.values():
+            if exc is not None:
+                errors[_loop_error_key(exc)] += 1
+        print(f"\nTop errors ({len(errors)} distinct):")
+        for msg, count in errors.most_common(15):
+            print(f"  [{count:2d}]  {msg}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="open_stbc game-loop harness")
+    parser.add_argument(
+        "--ticks", type=int, default=_DEFAULT_TICKS,
+        help=f"ticks per mission (default {_DEFAULT_TICKS} = ~5s at 60 Hz)"
+    )
+    args = parser.parse_args()
+    main(args.ticks)
