@@ -101,16 +101,28 @@ class _SDKFinder(importlib.abc.MetaPathFinder):
     """Find modules in sdk/Build/scripts/ and load them via _SDKLoader."""
 
     def find_spec(self, fullname, path, target=None):
-        # Project root modules take priority — let normal finders handle them
-        project_module = PROJECT_ROOT / (fullname.replace(".", "/") + ".py")
-        if project_module.exists():
+        rel = fullname.replace(".", "/")
+        # Project root modules/packages take priority
+        if (PROJECT_ROOT / (rel + ".py")).exists():
             return None
-        candidate = SDK_SCRIPTS / (fullname.replace(".", "/") + ".py")
+        if (PROJECT_ROOT / rel).is_dir() and (PROJECT_ROOT / rel / "__init__.py").exists():
+            return None
+        # Regular SDK module
+        candidate = SDK_SCRIPTS / (rel + ".py")
         if candidate.exists():
             loader = _SDKLoader(str(candidate))
             return importlib.machinery.ModuleSpec(
                 fullname, loader, origin=str(candidate)
             )
+        # SDK package (directory with __init__.py)
+        pkg_init = SDK_SCRIPTS / rel / "__init__.py"
+        if pkg_init.exists():
+            loader = _SDKLoader(str(pkg_init))
+            spec = importlib.machinery.ModuleSpec(
+                fullname, loader, origin=str(pkg_init)
+            )
+            spec.submodule_search_locations = [str(pkg_init.parent)]
+            return spec
         return None
 
 
