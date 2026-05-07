@@ -353,18 +353,44 @@ logic is already written in the Conditions folder.
 
 ### Open questions requiring investigation
 
-**OQ-5.1 — ProximityCheck update frequency**  
-`CheckProximity()` can be called explicitly to force an immediate check,
-implying the proximity manager updates on a schedule rather than
-continuously. The update frequency is unknown. Approach: instrument
-proximity event fire times relative to frame numbers across sessions
-with known object movements.
+**OQ-5.1 — ProximityCheck update frequency ✅**  
+`ProximityManager` is updated by the C++ engine every physics tick (60 Hz).
+Python never calls `ProximityManager.Update()` during gameplay.
+`ConditionInRange` is entirely event-driven — it creates a C++ `ProximityCheck`
+object, attaches it to the primary ship, and waits for `ET_AI_INTERNAL_PROX_EVENT`.
+No `PythonMethodProcess` polling loop exists.
 
-**OQ-5.2 — TorpedoTube arc geometry**  
-`TorpedoTube.CanHit()` and `IsInArc()` are in `Appc` but torpedo tube
-arc data follows the same pattern as phasers. Approach: read a torpedo
-tube hardpoints definition and confirm the arc parameter pattern matches
-the phaser implementation.
+`CheckProximity(pObject)` is called only at setup time to handle objects already
+inside/outside the radius before the next C++ cycle
+(`ConditionInRange.py:251`).
+
+`ProximityManager.UpdateObject(ship)` is called from Python only after manual
+teleports (`SetTranslate` + `UpdateNodeOnly`), where C++ has not yet seen the
+new position — explicit call-sites in `QuickBattle.py:2726,2830,2915` and
+`Multiplayer/Episode/Mission5/Mission5.py:1503` all follow that teleport pattern,
+with comments confirming "update the proximity manager with this object's new position."
+
+**Implementation:** attach each `ProximityCheck` to its primary object in the
+PyBullet scene; run all proximity checks inside the physics step callback (post-integrate,
+pre-event-dispatch). `CheckProximity` → immediate single-object re-check; `UpdateObject`
+→ reinsert into spatial index after a forced position change.
+
+**OQ-5.2 — TorpedoTube arc geometry ✅**  
+Torpedo tubes use a **different geometry from phasers**. `TorpedoTubeProperty`
+stores only `SetDirection(vec)` + `SetRight(vec)` — no `SetArcWidthAngles` /
+`SetArcHeightAngles`. All 22 hardpoint files follow this pattern.
+
+`TorpedoTube.CanHit()` and `IsInArc()` are SWIG-exposed C++ methods but are
+**never called from Python** — zero call sites across all 1228 scripts.
+
+Python AI handles torpedo firing eligibility entirely through maneuvering:
+`TorpedoRun.py` flies the ship until it is within `fIdealFacingThreshold = PI/16`
+(~11°) of the target before the preprocessor fires. No Python arc query occurs.
+
+**Implementation:** implement `TorpedoTube.CanHit(target_pos)` as a hemisphere
+(or narrow cone) test using `dot(normalize(target_pos − tube_pos), direction)`.
+Exact threshold not visible from Python, but it is not called by Python game logic —
+only needed as a C++ internal for Phase 2 firing validation.
 
 **OQ-5.3 — Warp radius during warp transition** ✅  
 **`GetRadius()` is inflated during warp; use `GetClonedModelRadius()` instead.**
@@ -645,10 +671,10 @@ across mission boundaries.
 | 8. Animation | No (Phase 2) | Medium | OpenMW + rhubarb-lip-sync | OQ-8.1 to 8.4 |
 
 **Total open questions: 21**  
-**Answered by static analysis: OQ-1.1, OQ-1.2, OQ-1.3, OQ-2.1, OQ-4.1, OQ-4.2, OQ-4.3, OQ-4.4, OQ-5.3, OQ-7.4 (10)**  
+**Answered by static analysis: OQ-1.1, OQ-1.2, OQ-1.3, OQ-2.1, OQ-4.1, OQ-4.2, OQ-4.3, OQ-4.4, OQ-5.1, OQ-5.2, OQ-5.3, OQ-7.4 (12)**  
 **Answered by instrumentation: OQ-7.1, OQ-7.2, OQ-7.3 (3)**  
 **Partially answered: OQ-2.2 (teleport model confirmed; warp-exit velocity Phase 2)**  
-**Still open: OQ-2.3, OQ-3.1–3.3, OQ-5.1, OQ-5.2, OQ-6.1–6.2, OQ-8.1–8.4 (8)**
+**Still open: OQ-2.3, OQ-3.1–3.3, OQ-6.1–6.2, OQ-8.1–8.4 (6)**
 
 **Phase 1 blockers: all resolved. Ready to begin Phase 1 implementation.**
 
