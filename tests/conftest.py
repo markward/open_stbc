@@ -27,6 +27,16 @@ class _MoveGlobalsToTop(ast.NodeTransformer):
     visit_AsyncFunctionDef = visit_FunctionDef
 
 
+class _StubModule(types.ModuleType):
+    """Module where any attribute access returns a no-op callable returning None.
+
+    Used for SDK-side modules whose implementations are pure UI/bridge and
+    irrelevant to Phase 1 headless logic.
+    """
+    def __getattr__(self, name):
+        return lambda *args, **kwargs: None
+
+
 class _SDKLoader(importlib.abc.Loader):
     """Load an SDK script with Python 2 compatibility fixes applied."""
 
@@ -76,10 +86,31 @@ def pytest_configure(config):
     if not any(isinstance(f, _SDKFinder) for f in sys.meta_path):
         sys.meta_path.insert(0, _SDKFinder())
 
-    # Stub out SDK modules that MissionLib imports but we don't implement yet
-    _stub_modules = [
+    # Callable stubs: attributes must be callable (return None).
+    # loadspacehelper.CreateShip etc. are called by MissionLib; returning None
+    # keeps the pPlayer != None guards false so creation branches are skipped.
+    _callable_stubs = [
         "loadspacehelper",
-        "Bridge",
+        "LoadBridge",
+    ]
+    for name in _callable_stubs:
+        if name not in sys.modules:
+            sys.modules[name] = _StubModule(name)
+
+    # Bridge.HelmMenuHandlers: callable stub that must also be accessible as an
+    # attribute on the Bridge module (import Bridge.HelmMenuHandlers; then
+    # Bridge.HelmMenuHandlers.attr = x). Pre-populate both sys.modules and the
+    # parent module attribute so Python's import fast-path works without
+    # requiring Bridge to have __path__.
+    if "Bridge" not in sys.modules:
+        sys.modules["Bridge"] = types.ModuleType("Bridge")
+    if "Bridge.HelmMenuHandlers" not in sys.modules:
+        _helm = _StubModule("Bridge.HelmMenuHandlers")
+        sys.modules["Bridge.HelmMenuHandlers"] = _helm
+        sys.modules["Bridge"].HelmMenuHandlers = _helm  # type: ignore[attr-defined]
+
+    # Plain stubs: imported but no attributes accessed in Phase 1 code paths.
+    _plain_stubs = [
         "Bridge.TacticalCharacterHandlers",
         "Bridge.HelmCharacterHandlers",
         "Bridge.XOCharacterHandlers",
@@ -89,6 +120,6 @@ def pytest_configure(config):
         "Actions",
         "Actions.MissionScriptActions",
     ]
-    for name in _stub_modules:
+    for name in _plain_stubs:
         if name not in sys.modules:
             sys.modules[name] = types.ModuleType(name)
