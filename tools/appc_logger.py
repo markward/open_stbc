@@ -1,53 +1,29 @@
 ###############################################################################
-# appc_logger.py
-#
-# Appended to game/scripts/App.py by setup.py.
-# Runs inside the App module namespace (UtopiaModule, g_kSystemWrapper,
-# g_kConfigMapping all available directly).
-#
-# Wraps GetGameTime to sample wall time / frame / game time every tick.
-# Buffers in memory; flushes to BCTickLog.cfg every 30s via SaveConfigFile
-# (C++ file I/O - bypasses whatever blocks Python-level open()).
-#
-# Python 1.5 compatible: no f-strings, no True/False, no import X as Y.
+# appc_logger.py - environment diagnostic
+# Python 1.5 compatible - runs at module import time
 ###############################################################################
 try:
-    import time
+    import sys
 
-    _time_func = time.clock
-    _last_frame = -1
-    _ticks = []
-    _orig_GetGameTime = UtopiaModule.GetGameTime
+    g_kConfigMapping.SetStringValue("BCEnv", "alive", "1")
 
-    def _flush():
-        i = 0
-        for line in _ticks:
-            g_kConfigMapping.SetStringValue("BCTickLog", "t" + str(i), line)
-            i = i + 1
-        g_kConfigMapping.SetIntValue("BCTickLog", "count", len(_ticks))
-        g_kConfigMapping.SaveConfigFile("BCTickLog.cfg")
+    _appc = dir(Appc)
+    _n    = len(_appc)
+    _s    = _n / 16
 
-    def _on_get_game_time(self):
-        global _last_frame, _last_save
-        game_time = _orig_GetGameTime(self)
-        frame = g_kSystemWrapper.GetUpdateNumber()
-        wall = _time_func()
-        if frame != _last_frame:
-            _ticks.append("%f %d %f" % (wall, frame, game_time))
-            _last_frame = frame
-            if wall - _last_save >= 30.0:
-                _flush()
-                _last_save = wall
-        return game_time
+    # Last 10 names before each window boundary - fills the alphabetical gaps
+    g_kConfigMapping.SetStringValue("BCEnv", "tail02", str(_appc[_s*3-10:_s*3])[:250])
+    g_kConfigMapping.SetStringValue("BCEnv", "tail03", str(_appc[_s*4-10:_s*4])[:250])
+    g_kConfigMapping.SetStringValue("BCEnv", "tail04", str(_appc[_s*5-10:_s*5])[:250])
+    g_kConfigMapping.SetStringValue("BCEnv", "tail12", str(_appc[_s*13-10:_s*13])[:250])
+    g_kConfigMapping.SetStringValue("BCEnv", "tail13", str(_appc[_s*14-10:_s*14])[:250])
 
-    _last_save = _time_func()
-    UtopiaModule.GetGameTime = _on_get_game_time
+    g_kConfigMapping.SaveConfigFile("BCEnv.cfg")
 
 except:
     try:
-        import sys
-        g_kConfigMapping.SetStringValue("BCTickLog", "err_type", str(sys.exc_type))
-        g_kConfigMapping.SetStringValue("BCTickLog", "err_value", str(sys.exc_value))
-        g_kConfigMapping.SaveConfigFile("BCTickLog.cfg")
+        g_kConfigMapping.SetStringValue("BCEnv", "err",
+            str(sys.exc_type) + ": " + str(sys.exc_value))
+        g_kConfigMapping.SaveConfigFile("BCEnv.cfg")
     except:
         pass

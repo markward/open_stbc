@@ -47,6 +47,8 @@ def apply_timestamp_trick(combined: bytes) -> None:
     """
     pyc_data = DEST_PYC_BAK.read_bytes()
     stored_mtime = struct.unpack_from("<I", pyc_data, 4)[0]
+    if DEST_APP.exists():
+        DEST_APP.chmod(0o666)  # game marks App.py read-only after compiling it
     DEST_APP.write_bytes(combined)
     os.utime(str(DEST_APP), (stored_mtime, stored_mtime))
     if DEST_PYC.exists():
@@ -90,6 +92,8 @@ def main() -> None:
         # Preserves App.pyc.bak so normal setup.py can restore if game crashes.
         if DEST_PYC.exists():
             DEST_PYC.unlink()
+        if DEST_APP.exists():
+            DEST_APP.chmod(0o666)
         DEST_APP.write_bytes(combined)
         print(f"Installed: {DEST_APP}")
         print("Removed:   App.pyc (Python will recompile on next launch)")
