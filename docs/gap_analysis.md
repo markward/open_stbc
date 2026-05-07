@@ -269,18 +269,38 @@ already run. Key evidence:
 after the Python AI window (consistent with Q2: Python runs at ~2% into tick,
 events drain after AI completes).
 
-**OQ-4.3 — Handler priority and cancellation**  
-Whether handlers can consume events to prevent other handlers seeing
-them, and whether handler registration order affects invocation order,
-is not documented. Approach: register multiple handlers for the same
-event type, log invocation order across sessions.
+**OQ-4.3 — Handler priority and cancellation** ✅  
+**Skipping `CallNextHandler` consumes the event** — confirmed by static analysis.
+`BridgeHandlers.py:249–258` (`QuickSave`) has two explicit code paths: multiplayer
+calls `CallNextHandler` (passes through); non-debug single-player returns without it
+(consuming). The cheat-command guards in `TacticalInterfaceHandlers.py:1050–51`
+(`KillTarget`, `RepairShip`) use the same pattern — only meaningful if not calling
+`CallNextHandler` actually stops propagation. `SkipEvents` (line 1045) never calls
+it at all by design.
 
-**OQ-4.4 — Sequence execution model**  
-Whether sequences block the caller, yield, or run asynchronously is
-not specified. The `TGScriptAction` description explains what it does
-but not the threading/callback model. Approach: instrument sequence
-start, action completion, and sequence completion events with
-frame-accurate timestamps.
+No priority mechanism exists — `BridgeHandlers.py:75–77` registers a batch of
+handlers via a plain loop with no priority argument.
+
+**Phase 1 implementation:** Ordered list per event type. Handlers called in
+registration order (FIFO). A handler that does not call `CallNextHandler` breaks
+the chain — no subsequent handlers see the event.
+
+**OQ-4.4 — Sequence execution model** ✅  
+**`TGSequence.Play()` is non-blocking** — confirmed by static analysis across
+40+ call sites. `XOCharacterHandlers.py:122–124` is the clearest example: a
+6-action sequence is started with `Play()` and the function returns immediately.
+`Effects.py:583` and all other call sites follow the same pattern.
+
+When a sequence needs to signal completion, the caller attaches a completion event
+via `AddCompletedEvent()` *before* calling `Play()` — confirming asynchronous
+execution (`XOCharacterHandlers.py:128–134`). `TGScriptAction` Python callbacks
+return an int: the sequence engine advances to the next action when the callback
+returns (cooperative, tick-driven).
+
+**Phase 1 implementation:** Sequence is a queue of actions driven by the tick
+loop. `Play()` enqueues the sequence; does not block. Each tick, the sequence
+manager advances running sequences one step. Completion fires `ET_ACTION_COMPLETED`
+into the event queue (consistent with OQ-4.2: queued dispatch).
 
 ---
 
@@ -609,10 +629,10 @@ across mission boundaries.
 | 8. Animation | No (Phase 2) | Medium | OpenMW + rhubarb-lip-sync | OQ-8.1 to 8.4 |
 
 **Total open questions: 21**  
-**Answered by static analysis: OQ-1.1, OQ-1.2, OQ-1.3, OQ-2.1, OQ-4.1, OQ-4.2, OQ-7.4 (7)**  
+**Answered by static analysis: OQ-1.1, OQ-1.2, OQ-1.3, OQ-2.1, OQ-4.1, OQ-4.2, OQ-4.3, OQ-4.4, OQ-7.4 (9)**  
 **Answered by instrumentation: OQ-7.1, OQ-7.2 (2)**  
 **Partially answered: OQ-7.3 (1)**  
-**Still open: OQ-2.2, OQ-2.3, OQ-3.1–3.3, OQ-4.3, OQ-4.4, OQ-5.1–5.3, OQ-6.1–6.2, OQ-8.1–8.4 (10)**
+**Still open: OQ-2.2, OQ-2.3, OQ-3.1–3.3, OQ-5.1–5.3, OQ-6.1–6.2, OQ-8.1–8.4 (8)**
 
 **Phase 1 blockers: all resolved. Ready to begin Phase 1 implementation.**
 
