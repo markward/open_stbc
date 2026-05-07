@@ -27,6 +27,43 @@ class _MoveGlobalsToTop(ast.NodeTransformer):
     visit_AsyncFunctionDef = visit_FunctionDef
 
 
+class _FixDottedImport(ast.NodeTransformer):
+    """Rewrite bare __import__(x) → importlib.import_module(x).
+
+    Python 1.5 returned the leaf module for a dotted __import__; Python 3
+    returns the root. SDK scripts depend on the 1.5 behaviour for paths like
+    "Systems.Biranu.Biranu1" in MissionLib.SetupSpaceSet and Systems.Utils.
+
+    Only the single-argument no-keyword form is rewritten; __import__ calls
+    with fromlist/level arguments are left unchanged.
+    """
+    def visit_Module(self, node):
+        self.generic_visit(node)
+        node.body.insert(0, ast.Import(
+            names=[ast.alias(name="importlib", asname="_sdk_importlib")]
+        ))
+        return node
+
+    def visit_Call(self, node):
+        self.generic_visit(node)
+        if (
+            isinstance(node.func, ast.Name)
+            and node.func.id == "__import__"
+            and len(node.args) == 1
+            and not node.keywords
+        ):
+            return ast.Call(
+                func=ast.Attribute(
+                    value=ast.Name(id="_sdk_importlib", ctx=ast.Load()),
+                    attr="import_module",
+                    ctx=ast.Load(),
+                ),
+                args=node.args,
+                keywords=[],
+            )
+        return node
+
+
 class _StubModule(types.ModuleType):
     """Module where any attribute access returns a no-op callable returning None.
 
@@ -54,6 +91,7 @@ class _SDKLoader(importlib.abc.Loader):
             warnings.simplefilter("ignore")
             tree = ast.parse(source, filename=self.path)
         tree = _MoveGlobalsToTop().visit(tree)
+        tree = _FixDottedImport().visit(tree)
         ast.fix_missing_locations(tree)
         code = compile(tree, self.path, "exec")
         exec(code, module.__dict__)
