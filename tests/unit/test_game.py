@@ -24,3 +24,17 @@ def test_no_game_returns_none():
 def test_mission_is_event_handler():
     mission = Mission()
     assert isinstance(mission, TGEventHandlerObject)
+
+
+def test_game_get_player_initially_none():
+    from engine.core.game import Game
+    g = Game()
+    assert g.GetPlayer() is None
+
+
+def test_game_set_and_get_player():
+    from engine.core.game import Game
+    g = Game()
+    sentinel = object()
+    g.SetPlayer(sentinel)
+    assert g.GetPlayer() is sentinel

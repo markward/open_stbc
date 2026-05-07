@@ -33,9 +33,16 @@ class Game(TGObject):
     def __init__(self):
         super().__init__()
         self._current_episode: Episode | None = None
+        self._player = None
 
     def GetCurrentEpisode(self) -> Episode | None:
         return self._current_episode
 
     def SetCurrentEpisode(self, episode: Episode) -> None:
         self._current_episode = episode
+
+    def GetPlayer(self):
+        return self._player
+
+    def SetPlayer(self, player) -> None:
+        self._player = player
