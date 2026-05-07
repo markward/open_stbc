@@ -1,0 +1,41 @@
+from engine.core.ids import TGObject
+from engine.appc.events import TGEventHandlerObject
+
+_current_game: "Game | None" = None
+
+
+def Game_GetCurrentGame() -> "Game | None":
+    return _current_game
+
+
+def _set_current_game(game: "Game | None") -> None:
+    global _current_game
+    _current_game = game
+
+
+class Mission(TGEventHandlerObject):
+    pass
+
+
+class Episode(TGObject):
+    def __init__(self):
+        super().__init__()
+        self._current_mission: Mission | None = None
+
+    def GetCurrentMission(self) -> Mission | None:
+        return self._current_mission
+
+    def SetCurrentMission(self, mission: Mission) -> None:
+        self._current_mission = mission
+
+
+class Game(TGObject):
+    def __init__(self):
+        super().__init__()
+        self._current_episode: Episode | None = None
+
+    def GetCurrentEpisode(self) -> Episode | None:
+        return self._current_episode
+
+    def SetCurrentEpisode(self, episode: Episode) -> None:
+        self._current_episode = episode
