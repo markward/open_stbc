@@ -1,1 +1,0 @@
-# TGSequence, TGAction types
