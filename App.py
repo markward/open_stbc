@@ -10,6 +10,17 @@ from engine.appc.ships import (
     ShipClass, ShipClass_Create, ShipClass_GetObject,
     ShipClass_Cast, ShipClass_GetObjectByID,
 )
+from engine.appc.actions import (
+    TGAction, TGNullAction, TGAction_CreateNull, TGAction_Cast,
+    TGScriptAction, TGScriptAction_Create,
+    TGSequence, TGSequence_Create,
+    TGTimedAction, TGSoundAction, TGSoundAction_Create,
+    TGAnimAction, TGAnimAction_Create,
+    SubtitleAction, SubtitleAction_Create,
+    TGActionManager,
+    TGObjPtrEvent, TGObjPtrEvent_Create,
+    TGObject_GetTGObjectPtr,
+)
 from engine.core.game import Game, Episode, Mission, Game_GetCurrentGame, _set_current_game, Game_GetDifficulty
 
 # ── Numeric constants ──────────────────────────────────────────────────────────
@@ -23,6 +34,7 @@ g_kEventManager = TGEventManager()
 g_kTimerManager = TGTimerManager(g_kEventManager)
 g_kRealtimeTimerManager = TGTimerManager(g_kEventManager)
 g_kSetManager = SetManager()
+g_kTGActionManager = TGActionManager()
 
 # ── Event-type constants (integers; values are arbitrary but stable) ───────────
 # Only the subset needed for Phase 1.  Add more as SDK scripts demand them.

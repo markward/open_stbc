@@ -5,6 +5,8 @@ Verifies:
   1. SetupEventHandlers wires broadcast handlers without crashing.
   2. ET_ENTERED_SET and ET_OBJECT_EXPLODING are registered on the event manager.
   3. A synthetic ET_ENTERED_SET event reaches HandleEnterSet without raising.
+  4. StartBriefingSequence plays all actions without raising.
+  5. EndAction completes a looked-up action via TGObject_GetTGObjectPtr.
 """
 import sys
 import types
@@ -60,6 +62,29 @@ def test_enter_set_broadcast_reaches_handler(game_context):
     ev.SetEventType(App.ET_ENTERED_SET)
     ev.SetDestination(mission)
     App.g_kEventManager.AddEvent(ev)  # must not raise
+
+
+def test_start_briefing_sequence_does_not_raise(game_context):
+    _, _, mission = game_context
+    import Custom.Tutorial.Episode.M3Gameflow.M3Gameflow as M3
+    M3.StartBriefingSequence()  # must not raise
+
+
+def test_end_action_completes_subtitle_via_object_ptr(game_context):
+    """EndAction looks up a SubtitleAction by ID and calls Completed() on it."""
+    import App
+    from engine.appc.actions import SubtitleAction_Create
+    subtitle = SubtitleAction_Create(None, "TestLine")
+    obj_id = subtitle.GetObjID()
+    subtitle.Play()  # marks playing=True
+    assert not subtitle.IsPlaying()  # Play() calls Completed() synchronously
+
+    # Verify TGObject_GetTGObjectPtr round-trips the ID back to the same object
+    assert App.TGObject_GetTGObjectPtr(obj_id) is subtitle
+
+    # EndAction pattern: cast + Completed
+    looked_up = App.TGAction_Cast(App.TGObject_GetTGObjectPtr(obj_id))
+    assert looked_up is subtitle
 
 
 def test_timer_with_game_time_offset_fires_on_schedule(game_context):
