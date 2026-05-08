@@ -1,17 +1,62 @@
 # NIF Loader — Design Spec
 
 **Date:** 2026-05-08
-**Status:** Approved
+**Status:** Approved (with v3.1 amendment, see below)
 **Phase:** 2 (Full C++ engine), first sub-project
+
+## v3.1 amendment (post-discovery, 2026-05-08)
+
+During Task 4 of the implementation plan, we confirmed by inspecting
+`Galaxy.nif` that **BC uses NIF version 3.1**, not v4.x or v10+/v20+ as the
+original spec assumed. NifSkope's nifxml schema names BC explicitly under
+`<version id="V3_1" num="3.1" supported="false">` — the format is documented
+but unsupported by NifSkope's renderer. OpenMW targets Morrowind v4.0.0.2+
+and does not parse v3.x; the diff oracle relationship described below is
+therefore not viable on BC's actual files.
+
+**Approved adjustments to this spec:**
+
+1. **Oracle replaced with snapshot tests + structural block-walker.** The
+   OpenMW-as-diff-oracle relationship is dropped. Correctness is established
+   by:
+   - A small structural walker that reads only block boundaries (offset, type
+     name, declared size) from each NIF — this is trivially correct because
+     v3.1's format walks blocks linearly with inline length-prefixed type
+     names. Our parser must agree with the walker on every block boundary.
+   - Snapshot tests against committed canonical-text dumps, validated once
+     by hand using a hex viewer cross-referenced with NifSkope's nifxml schema
+     (the schema is authoritative even where NifSkope's renderer falls
+     short).
+2. **OpenMW mirror retained as algorithmic reference.** Block-parsing logic
+   for types that persisted across NIF versions (NiNode field order, vertex
+   array layout in NiTriShapeData, etc.) draws on OpenMW's mirrored source.
+   The mirror stops being a build target — it's documentation we can read
+   alongside the schema.
+3. **Success criterion #2 rewritten** as: "structural walker agrees with our
+   parser on every block boundary in the four sample files; canonical-text
+   dumps match committed snapshots."
+4. **NIF version constants in `nif/version.h`** target v3.1 specifically:
+   `kBcVersionValue = 0x03010000` (or whatever the inventory tool reports).
+5. **Header parsing format is the pre-v10 path:** magic line, 4-byte version,
+   then blocks walked linearly. No block-type table, no block-size table, no
+   string table. Each block is prefixed with a `uint32_t length` and that
+   many ASCII bytes naming the type, then the block body.
+
+The rest of this spec stands as written; treat any reference to "OpenMW
+oracle" as "structural walker + snapshot," and any reference to "post-v10
+header parsing" as "v3.1 header parsing" per item 5 above.
+
+---
 
 ## Goal
 
 Build a fresh C++20 NIF parser library, `nif::`, that reads four representative
 BC asset files end-to-end into an in-memory representation. The parser is the
 foundation for every subsequent Phase 2 sub-project (asset pipeline, scene
-graph, render pipeline). Correctness of the loader is established by diffing
-its output against a mirrored copy of OpenMW's NIF parser on shared block
-types, and by per-block unit tests on BC-specific extensions.
+graph, render pipeline). Correctness of the loader is established by a
+structural block-walker that agrees with our parser on every block boundary,
+and by snapshot tests on canonical-text dumps validated once by hand using a
+hex viewer cross-referenced with NifSkope's nifxml schema.
 
 ## Non-goals
 
