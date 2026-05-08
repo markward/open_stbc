@@ -12,6 +12,7 @@ include(GoogleTest)
 add_executable(nif_tests
     nif/sanity_test.cc
     nif/types_test.cc
+    nif/reader_test.cc
 )
 
 target_link_libraries(nif_tests

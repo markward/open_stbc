@@ -1,5 +1,6 @@
 add_library(nif STATIC
     src/empty.cc
+    src/reader.cc
 )
 
 target_include_directories(nif
