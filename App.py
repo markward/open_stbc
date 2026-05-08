@@ -127,6 +127,38 @@ def TGStringEvent_Create(): return _TGStringEvent()
 def TGFloatEvent_Create(): return _TGFloatEvent()
 
 
+# ── Stub call tracker ─────────────────────────────────────────────────────────
+class _StubTracker:
+    def __init__(self):
+        self._data = {}      # {name: {mission: call_count}}
+        self._mission = None
+
+    def set_mission(self, name):
+        self._mission = name
+
+    def reset_mission(self):
+        self._mission = None
+
+    def record(self, name):
+        if self._mission is None:
+            return
+        self._data.setdefault(name, {}).setdefault(self._mission, 0)
+        self._data[name][self._mission] += 1
+
+    def report(self):
+        rows = []
+        for name, missions in self._data.items():
+            rows.append((name, len(missions), sum(missions.values())))
+        rows.sort(key=lambda r: (-r[1], -r[2], r[0]))
+        return rows
+
+    def clear(self):
+        self._data.clear()
+        self._mission = None
+
+_stub_tracker = _StubTracker()
+
+
 # ── Fallback stub ──────────────────────────────────────────────────────────────
 class _Stub:
     """Returned for any App attribute not yet implemented.
