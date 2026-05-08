@@ -26,3 +26,21 @@ def test_tracker_counts_calls_per_mission():
     assert name == "Foo"
     assert mission_count == 2
     assert total_calls == 3
+
+
+def test_named_stub_records_on_call():
+    App._stub_tracker.set_mission("test_mission")
+    App._NamedStub("Foo")()
+    _ = App._NamedStub("Foo").Bar  # attribute access without calling — must not record
+    rows = App._stub_tracker.report()
+    names = [name for name, _, _ in rows]
+    assert "Foo" in names
+    assert "Foo.Bar" not in names
+
+
+def test_named_stub_chain():
+    App._stub_tracker.set_mission("test_mission")
+    App._NamedStub("A").B.C()
+    rows = App._stub_tracker.report()
+    assert len(rows) == 1
+    assert rows[0][0] == "A.B.C"

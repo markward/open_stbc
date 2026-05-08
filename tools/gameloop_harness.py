@@ -20,6 +20,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 import tools.mission_harness as _mh
+import App as _App  # imported at module level so App is in _BASELINE_MODULES and persists across runs
 
 _LOOP_TIMEOUT = 30  # seconds — longer than initialize-only (15 s)
 _DEFAULT_TICKS = 36000  # ~10 minutes at 60 Hz

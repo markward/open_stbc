@@ -86,7 +86,7 @@ class _UtopiaModule:
         return g_kTimerManager.get_time()
 
     def __getattr__(self, name):
-        return _Stub()
+        return _NamedStub(name)
 
 g_kUtopiaModule = _UtopiaModule()
 
@@ -229,5 +229,17 @@ class _Stub:
     def __ne__(self, o):    return not isinstance(o, type(self))
 
 
+class _NamedStub(_Stub):
+    def __init__(self, name):
+        self._name = name
+
+    def __getattr__(self, attr):
+        return _NamedStub(f"{self._name}.{attr}")
+
+    def __call__(self, *args, **kwargs):
+        _stub_tracker.record(self._name)
+        return _NamedStub(f"{self._name}()")
+
+
 def __getattr__(name):
-    return _Stub()
+    return _NamedStub(name)
