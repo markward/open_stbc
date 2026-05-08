@@ -2,7 +2,6 @@
 #include <gtest/gtest.h>
 #include "../../src/nif/src/reader.h"
 
-#include <cstdint>
 #include <vector>
 
 namespace {

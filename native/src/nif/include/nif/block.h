@@ -4,7 +4,6 @@
 #include <nif/types.h>
 
 #include <variant>
-#include <vector>
 
 namespace nif {
 
