@@ -45,6 +45,7 @@ from engine.core.game import (
 )
 from engine.appc.localization import TGLocalizationManager, TGLocalizationDatabase, _TGString
 from engine.appc.var_manager import TGVarManager
+from engine.appc.save_load import SaveLoadManager
 from engine.appc.ai import (
     ArtificialIntelligence,
     TGCondition, TGConditionHandler,
@@ -250,6 +251,34 @@ class _UtopiaModule:
     def IsMultiplayer(self) -> int: return 0
     def GetNetwork(self): return None  # SDK callers guard with `if pNetwork:`
 
+    # ── Save/Load delegation ────────────────────────────────────────────────
+    # The actual save/load machinery lives in engine.appc.save_load.SaveLoadManager;
+    # UtopiaModule just delegates so the SDK call surface
+    # (g_kUtopiaModule.SaveToFile etc.) stays unchanged.
+    def SaveToFile(self, filename) -> int:
+        return _save_load_manager.SaveToFile(filename)
+
+    def LoadFromFile(self, filename) -> int:
+        return _save_load_manager.LoadFromFile(filename)
+
+    def SaveMissionState(self) -> int:
+        return _save_load_manager.SaveMissionState()
+
+    def LoadMissionState(self, module_name) -> int:
+        return _save_load_manager.LoadMissionState(module_name)
+
+    def SetLoadFromFileName(self, filename) -> None:
+        _save_load_manager.SetLoadFromFileName(filename)
+
+    def SetInternalLoadFileName(self, filename) -> None:
+        _save_load_manager.SetInternalLoadFileName(filename)
+
+    def GetSaveFilename(self):
+        return _save_load_manager.GetSaveFilename()
+
+    def GetLoadFilename(self):
+        return _save_load_manager.GetLoadFilename()
+
     # Event-type allocator on the UtopiaModule receiver as well, matching the
     # SDK pattern App.g_kUtopiaModule.GetNextEventType() (in addition to the
     # module-level App.UtopiaModule_GetNextEventType form).
@@ -259,6 +288,7 @@ class _UtopiaModule:
     def __getattr__(self, name):
         return _NamedStub(name)
 
+_save_load_manager = SaveLoadManager()
 g_kUtopiaModule = _UtopiaModule()
 
 
