@@ -45,6 +45,21 @@ from engine.core.game import (
 )
 from engine.appc.localization import TGLocalizationManager, TGLocalizationDatabase, _TGString
 from engine.appc.var_manager import TGVarManager
+from engine.appc.ai import (
+    ArtificialIntelligence,
+    TGCondition, TGConditionHandler,
+    ConditionScript, ConditionScript_Create, ConditionScript_Cast,
+    PlainAI, PlainAI_Create,
+    PriorityListAI, PriorityListAI_Create,
+    SequenceAI, SequenceAI_Create,
+    PreprocessingAI, PreprocessingAI_Create, PreprocessingAI_Cast,
+    ConditionalAI, ConditionalAI_Create,
+    ConditionEventCreator,
+    BuilderAI, BuilderAI_Create,
+    ProximityCheck, ProximityCheck_Create, ProximityCheck_CreateWithEvent,
+    CharacterAction, CharacterAction_Create, CharacterAction_CreateByName,
+    CSP_LOW, CSP_NORMAL, CSP_HIGH,
+)
 from engine.appc.subsystems import (
     ShipSubsystem, PoweredSubsystem, WeaponSystem,
     TorpedoSystem, PhaserSystem, PulseWeaponSystem, TractorBeamSystem,
