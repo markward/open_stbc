@@ -111,6 +111,27 @@ def Waypoint_Create(name: str, set_name: str, parent=None) -> Waypoint:
     return wp
 
 
+def PlacementObject_Create(name: str, set_name: str, parent=None) -> PlacementObject:
+    """Create a generic PlacementObject and register it in the named set.
+
+    Mirrors ``App.PlacementObject_Create(name, set_name, parent)``.  SDK callers
+    (WarpSequence.py, Maelstrom placement scripts) build placement nodes that
+    aren't full waypoints — they have position + orientation but no
+    next/prev chain.  Same global-registry behaviour as Waypoint_Create so
+    PlaceObjectByName lookups find them.
+    """
+    p = PlacementObject()
+    p.SetName(name)
+    _waypoint_registry[name] = p
+
+    import App
+    s = App.g_kSetManager.GetSet(set_name)
+    if s is not None:
+        s.AddObjectToSet(p, name)
+
+    return p
+
+
 def Waypoint_Cast(obj) -> "Waypoint | None":
     """Return ``obj`` if it's a Waypoint, else None.  Mirrors Appc.Waypoint_Cast."""
     return obj if isinstance(obj, Waypoint) else None

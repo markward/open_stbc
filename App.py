@@ -21,6 +21,7 @@ from engine.appc.sets import SetClass, SetManager, SetClass_Create, SetClass_Get
 from engine.appc.placement import (
     PlacementObject, Waypoint, Waypoint_Create,
     Waypoint_Cast, PlacementObject_Cast,
+    PlacementObject_Create,
     PlacementObject_GetObjectBySetName, PlacementObject_GetObject,
 )
 from engine.appc.ships import (

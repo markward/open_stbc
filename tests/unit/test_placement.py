@@ -213,6 +213,57 @@ def test_placement_object_get_object_with_none_set_falls_back_to_registry():
     assert PlacementObject_GetObject(None, "RegistryWP") is wp
 
 
+# ── PlacementObject_Create factory ────────────────────────────────────────────
+
+from engine.appc.placement import PlacementObject_Create
+
+
+def test_placement_object_create_returns_placement_object():
+    p = PlacementObject_Create("WarpIn1", "DeepSpace", None)
+    assert isinstance(p, PlacementObject)
+    assert p.GetName() == "WarpIn1"
+
+
+def test_placement_object_create_registers_in_global_registry():
+    """PlaceObjectByName uses the global _waypoint_registry — placement
+    objects must register so the lookup succeeds."""
+    p = PlacementObject_Create("RegisteredP", "AnySet", None)
+    assert _waypoint_registry["RegisteredP"] is p
+
+
+def test_placement_object_create_registers_in_named_set():
+    s = App.SetClass_Create()
+    App.g_kSetManager.AddSet(s, "BiranuP")
+    p = PlacementObject_Create("PInBiranuP", "BiranuP", None)
+    assert s.GetObject("PInBiranuP") is p
+    App.g_kSetManager.DeleteSet("BiranuP")
+
+
+def test_placement_object_create_handles_missing_set():
+    """If the named set hasn't been added to the SetManager, the placement
+    is still created and registered in the global registry — only the per-set
+    addition is skipped (mirrors Waypoint_Create behaviour)."""
+    p = PlacementObject_Create("OrphanP", "DefinitelyNoSuchSet", None)
+    assert isinstance(p, PlacementObject)
+    assert _waypoint_registry["OrphanP"] is p
+
+
+def test_placement_object_create_then_place_object_by_name():
+    """End-to-end: create placement, then use it as a PlaceObjectByName target."""
+    from engine.appc.objects import ObjectClass
+    from engine.appc.math import TGPoint3
+    p = PlacementObject_Create("TargetWP", "AnySet2", None)
+    p.SetTranslateXYZ(10.0, 20.0, 30.0)
+    obj = ObjectClass()
+    obj.PlaceObjectByName("TargetWP")
+    loc = obj.GetWorldLocation()
+    assert (loc.x, loc.y, loc.z) == (10.0, 20.0, 30.0)
+
+
+def test_app_exposes_placement_object_create():
+    assert App.PlacementObject_Create is PlacementObject_Create
+
+
 # ── Waypoint.InsertAfterObj ──────────────────────────────────────────────────
 
 def test_insert_after_obj_links_pair():
