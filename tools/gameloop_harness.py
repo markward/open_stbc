@@ -27,7 +27,7 @@ _DEFAULT_TICKS = 36000  # ~10 minutes at 60 Hz
 
 
 def run_mission_with_loop(
-    module_name: str, n_ticks: int = _DEFAULT_TICKS
+    module_name: str, n_ticks: int = _DEFAULT_TICKS, profile: bool = False
 ) -> "tuple[str, Exception | None, int]":
     """Initialize mission, fire ET_MISSION_START, advance GameLoop for n_ticks.
 
@@ -58,6 +58,8 @@ def run_mission_with_loop(
     App.g_kSetManager._sets.clear()
     _waypoint_registry.clear()
     App._next_event_type_id = 200
+    if profile:
+        App._stub_tracker.set_mission(module_name)
 
     ticks_done = 0
 
@@ -91,6 +93,8 @@ def run_mission_with_loop(
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, old_handler)
+        if profile:
+            App._stub_tracker.reset_mission()
         _set_current_game(None)
         for key in [k for k in sys.modules if k not in _mh._BASELINE_MODULES]:
             del sys.modules[key]
@@ -101,7 +105,21 @@ def _loop_error_key(exc: Exception) -> str:
     return f"{type(exc).__name__}: {msg[:80]}"
 
 
-def main(n_ticks: int = _DEFAULT_TICKS) -> None:
+_PROFILE_ROWS = 50
+
+
+def _print_profile_report(n_ticks: int, n_missions: int) -> None:
+    rows = _App._stub_tracker.report()
+    print(f"\nStub call profile  ({n_ticks} ticks × {n_missions} missions)")
+    print("─" * 62)
+    print(f"  {'Rank':>4}  {'Stub method':<40}  {'Missions':>8}  {'Calls':>5}")
+    for rank, (name, mission_count, total_calls) in enumerate(rows[:_PROFILE_ROWS], 1):
+        print(f"  {rank:>4}  {name:<40}  {mission_count:>8}  {total_calls:>5}")
+    if len(rows) > _PROFILE_ROWS:
+        print(f"  ... {len(rows) - _PROFILE_ROWS} more rows omitted")
+
+
+def main(n_ticks: int = _DEFAULT_TICKS, profile: bool = False) -> None:
     _mh.setup_sdk()
     missions = _mh.discover_missions()
 
@@ -111,7 +129,7 @@ def main(n_ticks: int = _DEFAULT_TICKS) -> None:
 
     results: dict[str, tuple[str, "Exception | None", int]] = {}
     for name in missions:
-        status, exc, ticks = run_mission_with_loop(name, n_ticks)
+        status, exc, ticks = run_mission_with_loop(name, n_ticks, profile=profile)
         results[name] = (status, exc, ticks)
         if status == "pass":
             print(f"  PASS  {name} ({ticks}/{n_ticks} ticks)")
@@ -144,6 +162,9 @@ def main(n_ticks: int = _DEFAULT_TICKS) -> None:
         for msg, count in errors.most_common(15):
             print(f"  [{count:2d}]  {msg}")
 
+    if profile:
+        _print_profile_report(n_ticks, len(missions))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="open_stbc game-loop harness")
@@ -151,5 +172,9 @@ if __name__ == "__main__":
         "--ticks", type=int, default=_DEFAULT_TICKS,
         help=f"ticks per mission (default {_DEFAULT_TICKS} = ~5s at 60 Hz)"
     )
+    parser.add_argument(
+        "--profile", action="store_true",
+        help="print ranked stub call profile after the run"
+    )
     args = parser.parse_args()
-    main(args.ticks)
+    main(args.ticks, profile=args.profile)

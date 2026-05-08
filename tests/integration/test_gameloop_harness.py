@@ -97,3 +97,19 @@ def test_idempotent(sdk_setup):
     )
     assert s1 == s2 == "pass"
     assert t1 == t2 == 60
+
+
+def test_profile_flag_produces_report(sdk_setup):
+    import App
+    App._stub_tracker.clear()
+    from tools.gameloop_harness import run_mission_with_loop
+    status, exc, ticks = run_mission_with_loop(
+        "Custom.Tutorial.Episode.M1Basic.M1Basic", n_ticks=60, profile=True
+    )
+    assert status == "pass"
+    rows = App._stub_tracker.report()
+    assert len(rows) > 0
+    for name, mission_count, total_calls in rows:
+        assert isinstance(name, str)
+        assert isinstance(mission_count, int)
+        assert isinstance(total_calls, int)
