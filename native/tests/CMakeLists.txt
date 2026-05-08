@@ -19,6 +19,7 @@ add_executable(nif_tests
     nif/header_test.cc
     nif/error_test.cc
     nif/resolver_test.cc
+    nif/ni_node_test.cc
 )
 
 target_link_libraries(nif_tests
@@ -26,6 +27,20 @@ target_link_libraries(nif_tests
         nif
         GTest::gtest_main
 )
+
+# Block parsers self-register via static initializers in libnif.a. Without
+# force-load, the linker drops object files that aren't otherwise referenced,
+# and the registrations never run. Force-load the whole archive so every
+# block parser registers its dispatch entry.
+if(APPLE)
+    target_link_options(nif_tests PRIVATE
+        "LINKER:-force_load,$<TARGET_FILE:nif>")
+elseif(UNIX)
+    target_link_options(nif_tests PRIVATE
+        "LINKER:--whole-archive"
+        "$<TARGET_FILE:nif>"
+        "LINKER:--no-whole-archive")
+endif()
 
 target_include_directories(nif_tests
     PRIVATE

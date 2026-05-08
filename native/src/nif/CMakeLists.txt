@@ -4,6 +4,7 @@ add_library(nif STATIC
     src/header.cc
     src/reader.cc
     src/resolver.cc
+    src/blocks/ni_node.cc
 )
 
 target_include_directories(nif
