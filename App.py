@@ -54,6 +54,7 @@ from engine.core.game import (
 from engine.appc.localization import TGLocalizationManager, TGLocalizationDatabase, _TGString
 from engine.appc.var_manager import TGVarManager
 from engine.appc.save_load import SaveLoadManager
+from engine.appc.config_mapping import TGConfigMapping
 from engine.appc.characters import (
     CharacterClass, CharacterClass_Create, CharacterClass_CreateNull,
     CharacterClass_Cast, CharacterClass_GetObject,
@@ -123,6 +124,7 @@ g_kSetManager = SetManager()
 g_kTGActionManager = TGActionManager()
 g_kModelPropertyManager = TGModelPropertyManager()
 g_kLocalizationManager = TGLocalizationManager()
+g_kConfigMapping = TGConfigMapping()
 # VarManager shares the event-type allocator with Game_GetNextEventType so
 # IDs returned by MakeEpisodeEventType are unique across all event-type sources.
 # Lambda indirection — Game_GetNextEventType is defined further down in this
