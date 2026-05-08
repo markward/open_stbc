@@ -102,6 +102,32 @@ struct NiAlphaProperty {
     std::uint8_t threshold = 0;
 };
 
+/// Texture-stage configuration (legacy pre-10.1 property).
+/// v3.1: flags(uint16) + ps2_l(int16) + ps2_k(int16).
+struct NiTextureModeProperty {
+    ObjectNetBase obj;
+    std::uint16_t flags = 0;
+    std::int16_t ps2_l = 0;
+    std::int16_t ps2_k = -75;
+};
+
+/// Image data block (legacy pre-10.1). Either references an external file
+/// path or a NiRawImageData block via image_data_link.
+struct NiImage {
+    std::uint8_t use_external = 0;       // 0 = embedded, !=0 = external file
+    std::string file_name;                // populated when use_external != 0
+    std::uint32_t image_data_link = 0;    // populated when use_external == 0
+    std::uint32_t unknown_int = 7;
+    float unknown_float = 128.5f;         // since 3.1
+};
+
+/// Single-texture property. v3.1: flags + image link.
+struct NiTextureProperty {
+    ObjectNetBase obj;
+    std::uint16_t flags = 0;
+    std::uint32_t image_link = 0;
+};
+
 using Block = std::variant<
     std::monostate,
     NiNode,
@@ -109,7 +135,10 @@ using Block = std::variant<
     NiTriShapeData,
     NiZBufferProperty,
     NiVertexColorProperty,
-    NiAlphaProperty
+    NiAlphaProperty,
+    NiTextureModeProperty,
+    NiImage,
+    NiTextureProperty
 >;
 
 struct BlockHandle {

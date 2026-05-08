@@ -8,6 +8,7 @@ add_library(nif STATIC
     src/blocks/ni_node.cc
     src/blocks/ni_tri_shape.cc
     src/blocks/properties.cc
+    src/blocks/textures.cc
 )
 
 target_include_directories(nif
