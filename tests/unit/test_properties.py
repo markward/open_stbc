@@ -217,3 +217,36 @@ def test_remove_template(mgr):
     mgr.RemoveTemplate(p)
     assert mgr.FindByName("Hull", TGModelPropertyManager.LOCAL_TEMPLATES) is None
     assert mgr.IsLocalTemplate(p) is False
+
+
+from engine.appc.properties import TGModelPropertySet
+
+
+def test_property_set_starts_empty():
+    s = TGModelPropertySet()
+    items = list(s.GetPropertyList())
+    assert items == []
+
+
+def test_property_set_add_to_set_appends():
+    s = TGModelPropertySet()
+    hull = HullProperty("Hull")
+    shield = ShieldProperty("Shield Generator")
+    s.AddToSet("Scene Root", hull)
+    s.AddToSet("Scene Root", shield)
+    items = list(s.GetPropertyList())
+    assert items == [hull, shield]
+
+
+def test_property_set_get_properties_by_type():
+    s = TGModelPropertySet()
+    hull = HullProperty("Hull")
+    shield = ShieldProperty("Shield Generator")
+    phaser = PhaserProperty("Forward Phaser")
+    s.AddToSet("Scene Root", hull)
+    s.AddToSet("Scene Root", shield)
+    s.AddToSet("Scene Root", phaser)
+    weapons = list(s.GetPropertiesByType(WeaponProperty))
+    assert weapons == [phaser]
+    subsystems = list(s.GetPropertiesByType(SubsystemProperty))
+    assert subsystems == [hull, shield, phaser]

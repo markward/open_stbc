@@ -183,3 +183,21 @@ class TGModelPropertyManager:
     def RemoveTemplate(self, prop):
         self._local  = {k: v for k, v in self._local.items()  if v is not prop}
         self._global = {k: v for k, v in self._global.items() if v is not prop}
+
+
+# ── TGModelPropertySet ────────────────────────────────────────────────────────
+# Holds (node_name, prop) pairs. node_name (e.g. "Scene Root") is a renderer
+# concept stored but unused in Phase 1.
+
+class TGModelPropertySet:
+    def __init__(self):
+        self._entries: list = []
+
+    def AddToSet(self, node_name, prop):
+        self._entries.append((node_name, prop))
+
+    def GetPropertyList(self):
+        return iter([prop for _node, prop in self._entries])
+
+    def GetPropertiesByType(self, type_cls):
+        return iter([prop for _node, prop in self._entries if isinstance(prop, type_cls)])
