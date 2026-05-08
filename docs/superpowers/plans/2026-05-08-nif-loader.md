@@ -14,21 +14,26 @@ these changes when reading the rest of the plan:
   `native/third_party/openmw_nif/` stays committed as algorithmic reference
   but is not compiled. Remove its `add_subdirectory(third_party/openmw_nif)`
   from `native/CMakeLists.txt` if/when it would be added.
-- **Replace Task 6 (oracle compilation) with `Task 6'`:** structural-walker
-  oracle. A standalone tool/library that walks v3.1 blocks linearly,
-  emitting `(offset, type-name, byte-size)` for each block. Implementable in
-  ~50 lines of C++ since v3.1's format is "read length-prefixed type name,
-  read fixed bytes for that block, repeat."
+- **Task 6 is dropped entirely.** A "structural walker" oracle was
+  considered but isn't viable: v3.1 files store no block-size info anywhere,
+  so block boundaries are only knowable by parsing each block to its end. A
+  walker would have to be the parser itself. **Skip Task 6 — proceed
+  directly from Task 5 to Task 7.**
 - **Replace Task 20 (diff harness)** with a snapshot-test harness. For each
-  sample file, our parser produces a canonical-text dump; the dump is
-  compared against a committed `<sample>.golden.txt`. The structural walker
-  produces a much smaller `(offset, type, size)` listing that's also
-  compared against a committed `<sample>.boundaries.txt`. Both gold files
-  are validated once by hand using a hex viewer + `nifxml`.
-- **Header parsing (Task 16) targets v3.1's format:** magic line ending in
-  `\n`, 4-byte version, no block-type table, no block-size table, no string
-  table. Blocks are walked linearly, each prefixed with `uint32_t length` +
-  that many ASCII bytes naming the block type.
+  sample file: our parser produces a canonical-text dump that is compared
+  against a committed `<sample>.golden.txt`. There is also one sanity
+  assertion per file: parsing reaches the `"End Of File"` sentinel block
+  (which closes every BC NIF) and consumes all bytes. A misread block-body
+  length anywhere desyncs parsing and fails this check, so it catches whole
+  categories of structural bugs cheaply. Golden files are validated once by
+  hand using a hex viewer + nifxml schema.
+- **Header parsing (Task 16) targets v3.1's format:** several lines of
+  vendor text each ending in `\n` (line 1 is `"NetImmerse File Format,
+  Version 3.1"`, then studio/copyright lines), 4-byte version, no
+  block-type table, no block-size table, no string table. Blocks are
+  walked linearly, each prefixed with `uint32_t name_length` + that many
+  ASCII bytes naming the block type, then the block body. Loop terminates
+  on the `"End Of File"` block.
 - **Block dispatch (Task 18)** keys on the inline type-name string read at
   each block boundary, not on a header table.
 - **Resolver (Task 17)** still applies — block-index references between

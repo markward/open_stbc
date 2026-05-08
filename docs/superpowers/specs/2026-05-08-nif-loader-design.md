@@ -16,31 +16,40 @@ therefore not viable on BC's actual files.
 
 **Approved adjustments to this spec:**
 
-1. **Oracle replaced with snapshot tests + structural block-walker.** The
-   OpenMW-as-diff-oracle relationship is dropped. Correctness is established
-   by:
-   - A small structural walker that reads only block boundaries (offset, type
-     name, declared size) from each NIF — this is trivially correct because
-     v3.1's format walks blocks linearly with inline length-prefixed type
-     names. Our parser must agree with the walker on every block boundary.
+1. **Oracle replaced with snapshot tests + End-Of-File sanity check.** The
+   OpenMW-as-diff-oracle relationship is dropped. A separate "structural
+   walker" oracle was briefly considered but isn't viable: v3.1's format
+   stores no block-size info — block boundaries are only knowable by parsing
+   each block to its end. So a thin walker would have to be the parser
+   itself. Correctness is therefore established by:
    - Snapshot tests against committed canonical-text dumps, validated once
-     by hand using a hex viewer cross-referenced with NifSkope's nifxml schema
-     (the schema is authoritative even where NifSkope's renderer falls
-     short).
+     by hand using a hex viewer cross-referenced with NifSkope's nifxml
+     schema (the schema is authoritative even where NifSkope's renderer
+     falls short).
+   - One sanity test per sample file: the parser reaches the `End Of File`
+     sentinel block (which closes every BC NIF) and consumes all bytes
+     exactly. A misread block-body length anywhere in the file desynchronizes
+     parsing and fails this check — so it catches whole categories of
+     structural bugs cheaply.
 2. **OpenMW mirror retained as algorithmic reference.** Block-parsing logic
    for types that persisted across NIF versions (NiNode field order, vertex
    array layout in NiTriShapeData, etc.) draws on OpenMW's mirrored source.
    The mirror stops being a build target — it's documentation we can read
    alongside the schema.
-3. **Success criterion #2 rewritten** as: "structural walker agrees with our
-   parser on every block boundary in the four sample files; canonical-text
-   dumps match committed snapshots."
+3. **Success criterion #2 rewritten** as: "canonical-text dumps from our
+   parser match committed snapshots for each of the four sample files; the
+   parser reaches `End Of File` and consumes all bytes for each."
 4. **NIF version constants in `nif/version.h`** target v3.1 specifically:
    `kBcVersionValue = 0x03010000` (or whatever the inventory tool reports).
-5. **Header parsing format is the pre-v10 path:** magic line, 4-byte version,
-   then blocks walked linearly. No block-type table, no block-size table, no
-   string table. Each block is prefixed with a `uint32_t length` and that
-   many ASCII bytes naming the type, then the block body.
+5. **Header parsing format is the pre-v10 path.** v3.1 files start with
+   several lines of vendor text, each ending in `\n` — line 1 is the magic
+   line `"NetImmerse File Format, Version 3.1"`, followed by studio /
+   copyright lines (e.g., "Numerical Design Limited, Chapel Hill, NC 27514"
+   and "Copyright (c) 1996-2000"). After the text, blocks are walked
+   linearly. No block-type table, no block-size table, no string table.
+   Each block is prefixed with a `uint32_t name_length` and that many ASCII
+   bytes naming the type, then the block body. The file ends with a sentinel
+   block named `"End Of File"`.
 
 The rest of this spec stands as written; treat any reference to "OpenMW
 oracle" as "structural walker + snapshot," and any reference to "post-v10
