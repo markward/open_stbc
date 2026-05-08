@@ -55,6 +55,13 @@ from engine.appc.localization import TGLocalizationManager, TGLocalizationDataba
 from engine.appc.var_manager import TGVarManager
 from engine.appc.save_load import SaveLoadManager
 from engine.appc.config_mapping import TGConfigMapping
+from engine.appc.debug import (
+    CPyDebug, TGProfilingInfo,
+    TGProfilingInfo_EnableProfiling, TGProfilingInfo_DisableProfiling,
+    TGProfilingInfo_IsProfilingEnabled,
+    TGProfilingInfo_StartTiming, TGProfilingInfo_StopTiming,
+    TGProfilingInfo_GetTotalTime, TGProfilingInfo_ResetTimings,
+)
 from engine.appc.planet import (
     Planet, Sun,
     Planet_Create, Sun_Create, Planet_GetObject, Planet_Cast,
