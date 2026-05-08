@@ -112,6 +112,9 @@ def _print_profile_report(n_ticks: int, n_missions: int) -> None:
     rows = _App._stub_tracker.report()
     print(f"\nStub call profile  ({n_ticks} ticks × {n_missions} missions)")
     print("─" * 62)
+    if not rows:
+        print("  (no stub calls recorded)")
+        return
     print(f"  {'Rank':>4}  {'Stub method':<40}  {'Missions':>8}  {'Calls':>5}")
     for rank, (name, mission_count, total_calls) in enumerate(rows[:_PROFILE_ROWS], 1):
         print(f"  {rank:>4}  {name:<40}  {mission_count:>8}  {total_calls:>5}")
@@ -170,7 +173,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="open_stbc game-loop harness")
     parser.add_argument(
         "--ticks", type=int, default=_DEFAULT_TICKS,
-        help=f"ticks per mission (default {_DEFAULT_TICKS} = ~5s at 60 Hz)"
+        help=f"ticks per mission (default {_DEFAULT_TICKS} = ~10 min at 60 Hz)"
     )
     parser.add_argument(
         "--profile", action="store_true",
