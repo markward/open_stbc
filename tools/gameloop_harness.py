@@ -22,7 +22,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 import tools.mission_harness as _mh
 
 _LOOP_TIMEOUT = 30  # seconds — longer than initialize-only (15 s)
-_DEFAULT_TICKS = 300  # ~5 seconds at 60 Hz
+_DEFAULT_TICKS = 36000  # ~10 minutes at 60 Hz
 
 
 def run_mission_with_loop(

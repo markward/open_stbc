@@ -265,11 +265,11 @@ class _SDKLoader(importlib.abc.Loader):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             tree = ast.parse(source, filename=self.path)
-        tree = _MoveGlobalsToTop().visit(tree)
-        tree = _FixDottedImport().visit(tree)
-        tree = _FixPy2Sort().visit(tree)
-        ast.fix_missing_locations(tree)
-        code = compile(tree, self.path, "exec")
+            tree = _MoveGlobalsToTop().visit(tree)
+            tree = _FixDottedImport().visit(tree)
+            tree = _FixPy2Sort().visit(tree)
+            ast.fix_missing_locations(tree)
+            code = compile(tree, self.path, "exec")
         module.__dict__.setdefault('apply', lambda f, a=(), kw={}: f(*a, **kw))
         module.__dict__.setdefault('reload', lambda m: m)  # Python 2 builtin; no-op in Phase 1
         module.__dict__.setdefault('BORG', 0x00000200)  # QuickBattle.py omits this; BORG_CUBE = 0x200
