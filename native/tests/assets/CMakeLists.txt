@@ -1,6 +1,7 @@
 add_executable(assets_tests
     cpu/sanity_test.cc
     cpu/header_compile_test.cc
+    cpu/animation_build_test.cc
     cpu/material_build_test.cc
     cpu/mesh_build_test.cc
     cpu/path_resolver_test.cc
