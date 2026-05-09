@@ -100,24 +100,50 @@ def _iter_ships() -> Iterable:
                 yield obj
 
 
-def _ship_nif_path(ship) -> Optional[str]:
-    """Return absolute path to the ship's high-LOD NIF, or None if not found."""
+def _ship_nif_path(ship, *, verbose: bool = False) -> Optional[str]:
+    """Return absolute path to the ship's high-LOD NIF, or None if not found.
+
+    When verbose is True, prints the specific reason for any None return
+    (script lookup, import, stats access, file-not-found) so the host's
+    diagnostic mode can surface why ships aren't getting render instances.
+    """
     try:
         script_name = ship.GetScript()
-    except Exception:
+    except Exception as e:
+        if verbose:
+            print(f"[host_loop]   skip: ship.GetScript() raised: {e!r}", flush=True)
         return None
     if not script_name:
+        if verbose:
+            print(f"[host_loop]   skip: ship.GetScript() returned empty: {script_name!r}", flush=True)
         return None
     try:
         mod = importlib.import_module(script_name)
-        stats = mod.GetShipStats()
-    except Exception:
+    except Exception as e:
+        if verbose:
+            print(f"[host_loop]   skip: import_module({script_name!r}) raised: {type(e).__name__}: {e}", flush=True)
         return None
-    rel = stats.get("FilenameHigh") if isinstance(stats, dict) else None
+    try:
+        stats = mod.GetShipStats()
+    except Exception as e:
+        if verbose:
+            print(f"[host_loop]   skip: {script_name}.GetShipStats() raised: {type(e).__name__}: {e}", flush=True)
+        return None
+    if not isinstance(stats, dict):
+        if verbose:
+            print(f"[host_loop]   skip: {script_name}.GetShipStats() returned non-dict: {type(stats).__name__}", flush=True)
+        return None
+    rel = stats.get("FilenameHigh")
     if not rel:
+        if verbose:
+            print(f"[host_loop]   skip: {script_name}.GetShipStats() missing 'FilenameHigh' (keys: {list(stats.keys())})", flush=True)
         return None
     abs_path = PROJECT_ROOT / "game" / rel
-    return str(abs_path) if abs_path.is_file() else None
+    if not abs_path.is_file():
+        if verbose:
+            print(f"[host_loop]   skip: NIF file not found at {abs_path}", flush=True)
+        return None
+    return str(abs_path)
 
 
 def _world_matrix_row_major(ship) -> list:
@@ -166,8 +192,17 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         # Per-NIF cache so the same mesh isn't reloaded once per ship.
         nif_to_handle: dict[str, int] = {}
         instances: dict[object, object] = {}  # ship -> InstanceId
+        ships_seen = 0
         for ship in _iter_ships():
-            nif_path = _ship_nif_path(ship)
+            ships_seen += 1
+            if verbose:
+                cls = type(ship).__name__
+                try:
+                    sn = ship.GetScript()
+                except Exception:
+                    sn = "<no script>"
+                print(f"[host_loop] consider ship: class={cls} script={sn!r}", flush=True)
+            nif_path = _ship_nif_path(ship, verbose=verbose)
             if nif_path is None:
                 continue
             handle = nif_to_handle.get(nif_path)
@@ -175,12 +210,18 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                 tex_search = str(PROJECT_ROOT / "game" / DEFAULT_TEXTURE_SEARCH)
                 try:
                     handle = r.load_model(nif_path, tex_search)
-                except Exception:
+                except Exception as e:
+                    if verbose:
+                        print(f"[host_loop]   skip: load_model({nif_path}) raised: "
+                              f"{type(e).__name__}: {e}", flush=True)
                     continue
                 nif_to_handle[nif_path] = handle
             iid = r.create_instance(handle)
             r.set_world_transform(iid, _world_matrix_row_major(ship))
             instances[ship] = iid
+        if verbose:
+            print(f"[host_loop] ships seen by iterator: {ships_seen}; "
+                  f"instances created: {len(instances)}", flush=True)
 
         # Player ship for camera follow.
         player_set = App.g_kSetManager.GetSet(DEFAULT_PLAYER_SET)
