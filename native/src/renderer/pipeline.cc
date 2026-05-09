@@ -17,7 +17,13 @@ Pipeline::Pipeline() {
     glDepthFunc(GL_LESS);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    glFrontFace(GL_CCW);
+    // NIFs come from Gamebryo/NetImmerse, which targeted Direct3D first;
+    // BC's triangle indices are wound clockwise for front-facing triangles
+    // (D3D default). With glFrontFace(GL_CCW) — OpenGL's default — every
+    // front face would be culled and only the back faces drawn, which from
+    // outside the model looks like the inside of the hull (the original
+    // "inside-out" report).
+    glFrontFace(GL_CW);
 }
 
 }  // namespace renderer
