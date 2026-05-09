@@ -12,20 +12,27 @@
 #include "host_bindings.h"
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include <glad/glad.h>
 #include <renderer/window.h>
+#include <scenegraph/world.h>
+#include <scenegraph/camera.h>
 
 #include <cstdlib>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <tuple>
+#include <vector>
 
 namespace py = pybind11;
 
 namespace {
 
 std::unique_ptr<renderer::Window> g_window;
+scenegraph::World g_world;
+scenegraph::Camera g_camera;
 
 void init(int width, int height, const std::string& title) {
     if (g_window) {
@@ -65,4 +72,53 @@ PYBIND11_MODULE(_open_stbc_host, m) {
     m.def("shutdown", &shutdown);
     m.def("should_close", &should_close);
     m.def("frame", &frame);
+
+    py::class_<scenegraph::InstanceId>(m, "InstanceId")
+        .def_readonly("index", &scenegraph::InstanceId::index)
+        .def_readonly("generation", &scenegraph::InstanceId::generation);
+
+    m.def("create_instance",
+          [](scenegraph::ModelHandle h) { return g_world.create_instance(h); },
+          py::arg("model"));
+    m.def("destroy_instance",
+          [](scenegraph::InstanceId id) { g_world.destroy_instance(id); },
+          py::arg("id"));
+    m.def("set_world_transform",
+          [](scenegraph::InstanceId id, const std::vector<float>& m) {
+              if (m.size() != 16) {
+                  throw std::runtime_error("set_world_transform: need 16 floats");
+              }
+              glm::mat4 mat;
+              // Row-major from Python; glm is column-major. Transpose on input.
+              for (int r = 0; r < 4; ++r)
+                  for (int c = 0; c < 4; ++c)
+                      mat[c][r] = m[r * 4 + c];
+              g_world.set_world_transform(id, mat);
+          },
+          py::arg("id"), py::arg("mat4"));
+    m.def("set_visible",
+          [](scenegraph::InstanceId id, bool v) { g_world.set_visible(id, v); },
+          py::arg("id"), py::arg("visible"));
+    m.def("set_camera",
+          [](std::tuple<float,float,float> eye,
+             std::tuple<float,float,float> target,
+             std::tuple<float,float,float> up,
+             float fov_y_rad, float near, float far) {
+              g_camera.eye = {std::get<0>(eye), std::get<1>(eye), std::get<2>(eye)};
+              g_camera.target = {std::get<0>(target), std::get<1>(target), std::get<2>(target)};
+              g_camera.up = {std::get<0>(up), std::get<1>(up), std::get<2>(up)};
+              g_camera.fov_y_rad = fov_y_rad;
+              g_camera.near = near;
+              g_camera.far = far;
+              if (g_window) {
+                  int fw = 0, fh = 0;
+                  g_window->framebuffer_size(&fw, &fh);
+                  if (fh > 0) g_camera.aspect = static_cast<float>(fw) / static_cast<float>(fh);
+              }
+          },
+          py::arg("eye"), py::arg("target"), py::arg("up"),
+          py::arg("fov_y_rad"), py::arg("near"), py::arg("far"));
+    m.def("set_skybox",
+          [](scenegraph::ModelHandle h) { g_world.set_skybox(h); },
+          py::arg("model"));
 }
