@@ -21,6 +21,19 @@ target_link_libraries(assets_tests
         glfw
 )
 
+# Block parsers in libnif.a self-register via static initializers. Without
+# force-load, the linker drops object files that aren't otherwise referenced
+# and the registrations never run. Mirror the pattern used by nif_tests.
+if(APPLE)
+    target_link_options(assets_tests PRIVATE
+        "LINKER:-force_load,$<TARGET_FILE:nif>")
+elseif(UNIX)
+    target_link_options(assets_tests PRIVATE
+        "LINKER:--whole-archive"
+        "$<TARGET_FILE:nif>"
+        "LINKER:--no-whole-archive")
+endif()
+
 target_include_directories(assets_tests
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}

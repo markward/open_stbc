@@ -1,4 +1,5 @@
 #include "skeleton_build.h"
+#include "link_resolver.h"
 
 #include <nif/block.h>
 
@@ -8,41 +9,13 @@ namespace assets::detail {
 
 namespace {
 
-struct ParentMap {
-    /// nif block index → parent nif block index (or -1 for root)
-    std::unordered_map<std::uint32_t, std::int64_t> parents;
-};
-
-ParentMap compute_parent_map(const nif::File& f) {
-    ParentMap map;
-    for (std::uint32_t i = 0; i < f.blocks.size(); ++i) {
-        const auto* node = std::get_if<nif::NiNode>(&f.blocks[i]);
-        if (!node) continue;
-        for (auto child : node->child_links) {
-            map.parents[child] = static_cast<std::int64_t>(i);
-        }
-    }
-    return map;
-}
-
-std::set<std::uint32_t> gather_bone_block_indices(const nif::File& f) {
-    std::set<std::uint32_t> bones;
-    for (auto& b : f.blocks) {
-        const auto* skin = std::get_if<nif::NiTriShapeSkinController>(&b);
-        if (!skin) continue;
-        for (auto link : skin->bone_links) bones.insert(link);
-    }
-    return bones;
-}
-
-const nif::NiNode* node_at(const nif::File& f, std::uint32_t idx) {
-    if (idx >= f.blocks.size()) return nullptr;
-    return std::get_if<nif::NiNode>(&f.blocks[idx]);
+const nif::NiNode* node_at(const nif::File& f, std::uint32_t block_index) {
+    if (block_index >= f.blocks.size()) return nullptr;
+    return std::get_if<nif::NiNode>(&f.blocks[block_index]);
 }
 
 glm::mat4 av_to_local_transform(const nif::AvObjectBase& av) {
     glm::mat4 m(1.0f);
-    // nif::Mat3x3 is row-major; glm::mat4 columns are vec4s. Transpose to columns.
     m[0] = glm::vec4(av.rotation.m[0], av.rotation.m[3], av.rotation.m[6], 0.0f);
     m[1] = glm::vec4(av.rotation.m[1], av.rotation.m[4], av.rotation.m[7], 0.0f);
     m[2] = glm::vec4(av.rotation.m[2], av.rotation.m[5], av.rotation.m[8], 0.0f);
@@ -55,39 +28,68 @@ glm::mat4 av_to_local_transform(const nif::AvObjectBase& av) {
     return m;
 }
 
+/// Maps block index → parent block index (or std::uint32_t::max for root).
+std::unordered_map<std::uint32_t, std::uint32_t>
+compute_parent_map(const nif::File& f, const LinkResolver& resolver) {
+    std::unordered_map<std::uint32_t, std::uint32_t> parents;
+    for (std::uint32_t i = 0; i < f.blocks.size(); ++i) {
+        const auto* node = std::get_if<nif::NiNode>(&f.blocks[i]);
+        if (!node) continue;
+        for (auto child_link : node->child_links) {
+            auto child_idx = resolver.resolve(child_link);
+            if (child_idx == LinkResolver::kInvalidIndex) continue;
+            parents[child_idx] = i;
+        }
+    }
+    return parents;
+}
+
+std::set<std::uint32_t> gather_bone_block_indices(
+    const nif::File& f, const LinkResolver& resolver)
+{
+    std::set<std::uint32_t> bones;
+    for (auto& b : f.blocks) {
+        const auto* skin = std::get_if<nif::NiTriShapeSkinController>(&b);
+        if (!skin) continue;
+        for (auto link : skin->bone_links) {
+            auto idx = resolver.resolve(link);
+            if (idx != LinkResolver::kInvalidIndex) bones.insert(idx);
+        }
+    }
+    return bones;
+}
+
 }  // namespace
 
 SkeletonBuildResult build_skeleton(const nif::File& f) {
     SkeletonBuildResult out;
-    auto bone_indices = gather_bone_block_indices(f);
+    LinkResolver resolver(f);
+    auto bone_indices = gather_bone_block_indices(f, resolver);
     if (bone_indices.empty()) return out;
 
-    auto parents = compute_parent_map(f);
+    auto parents = compute_parent_map(f, resolver);
 
     int next_index = 0;
-    for (auto nif_idx : bone_indices) {
-        auto* node = node_at(f, nif_idx);
+    for (auto block_idx : bone_indices) {
+        auto* node = node_at(f, block_idx);
         if (!node) continue;
         Bone b;
         b.name = node->av.obj.name;
         b.local_transform = av_to_local_transform(node->av);
-        // inverse_bind_pose left as identity in v1; computed by walking world
-        // transforms when the scene-graph runtime arrives.
         out.skeleton.bones.push_back(std::move(b));
-        out.nif_block_to_bone_index[nif_idx] = next_index++;
+        out.nif_block_to_bone_index[block_idx] = next_index++;
     }
 
-    for (auto nif_idx : bone_indices) {
-        auto bit = out.nif_block_to_bone_index.find(nif_idx);
+    for (auto block_idx : bone_indices) {
+        auto bit = out.nif_block_to_bone_index.find(block_idx);
         if (bit == out.nif_block_to_bone_index.end()) continue;
         int self_bone = bit->second;
-        auto pit = parents.parents.find(nif_idx);
-        if (pit == parents.parents.end() || pit->second < 0) {
+        auto pit = parents.find(block_idx);
+        if (pit == parents.end()) {
             out.skeleton.bones[self_bone].parent_index = -1;
             continue;
         }
-        auto parent_nif = static_cast<std::uint32_t>(pit->second);
-        auto parent_bit = out.nif_block_to_bone_index.find(parent_nif);
+        auto parent_bit = out.nif_block_to_bone_index.find(pit->second);
         out.skeleton.bones[self_bone].parent_index =
             (parent_bit != out.nif_block_to_bone_index.end())
                 ? parent_bit->second
