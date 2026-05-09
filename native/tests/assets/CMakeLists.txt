@@ -8,12 +8,15 @@ add_executable(assets_tests
     cpu/raw_image_decode_test.cc
     cpu/skeleton_build_test.cc
     cpu/texture_decode_test.cc
+    gpu/gl_fixture.cc
+    gpu/fixture_smoke_test.cc
 )
 
 target_link_libraries(assets_tests
     PRIVATE
         assets
         GTest::gtest_main
+        glfw
 )
 
 target_include_directories(assets_tests
