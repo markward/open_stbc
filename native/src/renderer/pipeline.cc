@@ -5,11 +5,14 @@
 
 #include "embedded_opaque_vs.h"
 #include "embedded_opaque_fs.h"
+#include "embedded_skybox_vs.h"
+#include "embedded_skybox_fs.h"
 
 namespace renderer {
 
 Pipeline::Pipeline() {
     opaque_ = std::make_unique<Shader>(shader_src::opaque_vs, shader_src::opaque_fs);
+    skybox_ = std::make_unique<Shader>(shader_src::skybox_vs, shader_src::skybox_fs);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glEnable(GL_CULL_FACE);

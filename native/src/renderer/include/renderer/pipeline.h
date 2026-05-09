@@ -12,9 +12,11 @@ public:
     Pipeline();
 
     Shader& opaque_shader() noexcept { return *opaque_; }
+    Shader& skybox_shader() noexcept { return *skybox_; }
 
 private:
     std::unique_ptr<Shader> opaque_;
+    std::unique_ptr<Shader> skybox_;
 };
 
 }  // namespace renderer
