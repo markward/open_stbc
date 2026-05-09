@@ -1814,8 +1814,9 @@ scenegraph::World g_world;
 scenegraph::Camera g_camera;
 ```
 
-Add includes near the other includes:
+Add includes near the other includes (note: `<pybind11/stl.h>` is required for the `std::vector<float>` and `std::tuple<float,float,float>` conversions used below — without it, calls fail at runtime with "incompatible function arguments"):
 ```cpp
+#include <pybind11/stl.h>
 #include <scenegraph/world.h>
 #include <scenegraph/camera.h>
 ```
