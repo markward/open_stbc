@@ -215,6 +215,65 @@ struct NiTriShapeSkinController {
     std::vector<std::vector<OldSkinWeight>> bone_weights;
 };
 
+/// Keyframe animation data block. Holds rotation, translation, scale
+/// keyframe arrays referenced by NiKeyframeController.
+struct NiKeyframeData {
+    std::uint32_t num_rotation_keys = 0;
+    std::uint32_t rotation_type = 0;     // 1=linear, 2=quadratic, 3=TBC, 4=XYZ
+    /// Per-rotation keyframe; raw fields preserved for fidelity. Layout
+    /// per niflib's Key<Quaternion> NifStream spec.
+    struct QuatKey {
+        float time = 0.0f;
+        Quat value{};
+        float tension = 0.0f, bias = 0.0f, continuity = 0.0f;  // only for rotation_type == TBC
+    };
+    std::vector<QuatKey> quaternion_keys;
+    /// Used only when rotation_type == 4 and version <= 10.1.0.0.
+    float unknown_float = 0.0f;
+    struct FloatKeyArray {
+        std::uint32_t num_keys = 0;
+        std::uint32_t interpolation = 0;
+        struct K {
+            float time = 0.0f, value = 0.0f;
+            float fwd_tan = 0.0f, bwd_tan = 0.0f;       // QUADRATIC
+            float tension = 0.0f, bias = 0.0f, continuity = 0.0f;  // TBC
+        };
+        std::vector<K> keys;
+    };
+    /// xyz_rotations[0..2] only populated when rotation_type == 4.
+    std::array<FloatKeyArray, 3> xyz_rotations;
+    struct Vec3KeyArray {
+        std::uint32_t num_keys = 0;
+        std::uint32_t interpolation = 0;
+        struct K {
+            float time = 0.0f;
+            Vec3 value{};
+            Vec3 fwd_tan{}, bwd_tan{};                  // QUADRATIC
+            float tension = 0.0f, bias = 0.0f, continuity = 0.0f;
+        };
+        std::vector<K> keys;
+    };
+    Vec3KeyArray translations;
+    FloatKeyArray scales;
+};
+
+/// Texture-flip controller — cycles through a list of NiImage links over time.
+struct NiFlipController {
+    // NiTimeController:
+    std::uint32_t next_controller_link = 0;
+    std::uint16_t flags = 0;
+    float frequency = 1.0f;
+    float phase = 0.0f;
+    float start_time = 0.0f;
+    float stop_time = 0.0f;
+    std::uint32_t unknown_integer = 0;
+    // body:
+    std::uint32_t texture_slot = 0;
+    float delta = 0.0f;
+    std::uint32_t num_sources = 0;
+    std::vector<std::uint32_t> image_links;
+};
+
 /// Keyframe animation controller (NiTimeController + data ref).
 /// v3.1 body: next_controller_link, flags, frequency, phase, start_time,
 /// stop_time, unknown_integer (only since v3.1 and earlier), data_link.
@@ -227,6 +286,13 @@ struct NiKeyframeController {
     float stop_time = 0.0f;
     std::uint32_t unknown_integer = 0;
     std::uint32_t data_link = 0;
+};
+
+/// String-typed extra data attached to a node (legacy pre-v10).
+struct NiStringExtraData {
+    std::uint32_t next_extra_data_link = 0;
+    std::uint32_t bytes_remaining = 0;
+    std::string string_data;
 };
 
 /// Surface material property. v3.1: flags + 4 colors + glossiness + alpha.
@@ -256,7 +322,10 @@ using Block = std::variant<
     NiKeyframeController,
     NiTriShapeSkinController,
     NiTexturingProperty,
-    NiMultiTextureProperty
+    NiMultiTextureProperty,
+    NiKeyframeData,
+    NiStringExtraData,
+    NiFlipController
 >;
 
 struct BlockHandle {

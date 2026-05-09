@@ -86,6 +86,96 @@ NiTriShapeSkinController parse_NiTriShapeSkinController_body(Reader& r) {
     return c;
 }
 
+// Per niflib's Key<T> NifStream specialization:
+//   time (float)
+//   data (T) — the per-key value
+//   if interpolation == 2 (QUADRATIC): forward_tangent + backward_tangent (T-typed)
+//   if interpolation == 3 (TBC): tension + bias + continuity (3 floats)
+// Quaternion key specialization skips QUADRATIC tangents (TBC only).
+template <typename Reader>
+void read_float_key(Reader& r, NiKeyframeData::FloatKeyArray::K& k,
+                    std::uint32_t interp) {
+    k.time = r.read_float();
+    k.value = r.read_float();
+    if (interp == 2) {
+        k.fwd_tan = r.read_float();
+        k.bwd_tan = r.read_float();
+    } else if (interp == 3) {
+        k.tension = r.read_float();
+        k.bias = r.read_float();
+        k.continuity = r.read_float();
+    }
+}
+
+template <typename Reader>
+void read_vec3_key(Reader& r, NiKeyframeData::Vec3KeyArray::K& k,
+                   std::uint32_t interp) {
+    k.time = r.read_float();
+    k.value = r.read_vec3();
+    if (interp == 2) {
+        k.fwd_tan = r.read_vec3();
+        k.bwd_tan = r.read_vec3();
+    } else if (interp == 3) {
+        k.tension = r.read_float();
+        k.bias = r.read_float();
+        k.continuity = r.read_float();
+    }
+}
+
+NiKeyframeData parse_NiKeyframeData_body(Reader& r) {
+    NiKeyframeData d;
+    d.num_rotation_keys = r.read_uint32();
+    if (d.num_rotation_keys != 0) {
+        d.rotation_type = r.read_uint32();
+    }
+    if (d.rotation_type != 4) {
+        d.quaternion_keys.resize(d.num_rotation_keys);
+        for (auto& k : d.quaternion_keys) {
+            k.time = r.read_float();
+            k.value = r.read_quat();
+            // Quaternion keys: QUADRATIC tangents are SKIPPED per niflib's
+            // specialization. Only TBC adds extra fields.
+            if (d.rotation_type == 3) {
+                k.tension = r.read_float();
+                k.bias = r.read_float();
+                k.continuity = r.read_float();
+            }
+        }
+    }
+    // unknown_float is read for v3.1 (version <= 0x0A010000) only when
+    // rotation_type == 4.
+    if (d.rotation_type == 4) {
+        d.unknown_float = r.read_float();
+        for (auto& xyz : d.xyz_rotations) {
+            xyz.num_keys = r.read_uint32();
+            if (xyz.num_keys != 0) {
+                xyz.interpolation = r.read_uint32();
+            }
+            xyz.keys.resize(xyz.num_keys);
+            for (auto& k : xyz.keys) {
+                read_float_key(r, k, xyz.interpolation);
+            }
+        }
+    }
+    d.translations.num_keys = r.read_uint32();
+    if (d.translations.num_keys != 0) {
+        d.translations.interpolation = r.read_uint32();
+    }
+    d.translations.keys.resize(d.translations.num_keys);
+    for (auto& k : d.translations.keys) {
+        read_vec3_key(r, k, d.translations.interpolation);
+    }
+    d.scales.num_keys = r.read_uint32();
+    if (d.scales.num_keys != 0) {
+        d.scales.interpolation = r.read_uint32();
+    }
+    d.scales.keys.resize(d.scales.num_keys);
+    for (auto& k : d.scales.keys) {
+        read_float_key(r, k, d.scales.interpolation);
+    }
+    return d;
+}
+
 }  // namespace
 
 NIF_REGISTER_BLOCK(NiKeyframeController, [](Reader& r) -> Block {
@@ -94,6 +184,32 @@ NIF_REGISTER_BLOCK(NiKeyframeController, [](Reader& r) -> Block {
 
 NIF_REGISTER_BLOCK(NiTriShapeSkinController, [](Reader& r) -> Block {
     return parse_NiTriShapeSkinController_body(r);
+});
+
+NIF_REGISTER_BLOCK(NiKeyframeData, [](Reader& r) -> Block {
+    return parse_NiKeyframeData_body(r);
+});
+
+// NiFlipController v3.1: NiTimeController fields + textureSlot + delta +
+// numSources + images (uint32 × numSources). The unknownInt2 + sources
+// array fields are version >= 4.0.0.0 only — absent in v3.1.
+NIF_REGISTER_BLOCK(NiFlipController, [](Reader& r) -> Block {
+    NiFlipController c;
+    c.next_controller_link = r.read_uint32();
+    c.flags = r.read_uint16();
+    c.frequency = r.read_float();
+    c.phase = r.read_float();
+    c.start_time = r.read_float();
+    c.stop_time = r.read_float();
+    c.unknown_integer = r.read_uint32();
+    c.texture_slot = r.read_uint32();
+    c.delta = r.read_float();
+    c.num_sources = r.read_uint32();
+    c.image_links.reserve(c.num_sources);
+    for (std::uint32_t i = 0; i < c.num_sources; ++i) {
+        c.image_links.push_back(r.read_uint32());
+    }
+    return c;
 });
 
 }  // namespace nif
