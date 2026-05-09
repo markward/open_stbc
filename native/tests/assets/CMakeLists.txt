@@ -10,6 +10,7 @@ add_executable(assets_tests
     cpu/texture_decode_test.cc
     gpu/gl_fixture.cc
     gpu/fixture_smoke_test.cc
+    gpu/mesh_upload_test.cc
     gpu/texture_upload_test.cc
 )
 

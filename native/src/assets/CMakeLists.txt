@@ -4,6 +4,7 @@ add_library(assets STATIC
     src/material_build.cc
     src/mesh_build.cc
     src/mesh_lifetime.cc
+    src/mesh_upload.cc
     src/path_resolver.cc
     src/skeleton_build.cc
     src/texture_decode.cc
