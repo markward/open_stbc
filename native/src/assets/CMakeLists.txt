@@ -1,6 +1,7 @@
 add_library(assets STATIC
     src/gl_handle.cc
     src/mesh_lifetime.cc
+    src/path_resolver.cc
     src/texture_lifetime.cc
 )
 target_include_directories(assets PUBLIC include)
