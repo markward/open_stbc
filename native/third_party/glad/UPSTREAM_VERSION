@@ -1,0 +1,10 @@
+Generated from https://glad.dav1d.de/ on 2026-05-09 with:
+  spec: OpenGL
+  api: gl=3.3
+  profile: core
+  extensions: (none)
+  options: loader=on
+
+Generator command (reproducible):
+  python3 -m glad --profile core --api gl=3.3 --generator c --spec gl \
+      --out-path native/third_party/glad

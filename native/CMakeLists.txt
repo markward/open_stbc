@@ -14,8 +14,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
 endif()
 
-# Public library.
+# Third-party vendored libraries.
+add_subdirectory(third_party/stb)
+add_subdirectory(third_party/glad)
+add_subdirectory(third_party/glm)
+
+# Public libraries.
 add_subdirectory(src/nif)
+add_subdirectory(src/assets)
 
 # Diagnostic tools that consume the public library.
 add_subdirectory(tools/scan_nifs)
@@ -23,5 +29,10 @@ add_subdirectory(tools/scan_nifs)
 option(OPEN_STBC_BUILD_TESTS "Build native tests for open_stbc" ON)
 if(OPEN_STBC_BUILD_TESTS)
   enable_testing()
+  set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+  set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+  set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+  set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+  add_subdirectory(third_party/glfw)
   add_subdirectory(tests)
 endif()

@@ -37,3 +37,39 @@ but niflib's auto-gen `Read` methods capture quirks the schema doesn't
 `NiMultiTextureProperty`'s actual field layout). niflib is BSD-licensed
 (GPLv3-compatible); none of niflib's code is linked into open_stbc, only
 read as documentation.
+
+## stb_image (native/third_party/stb)
+
+Single-header image loader by Sean Barrett. Used by the `assets` library
+for TGA (and optionally PNG/JPEG/BMP) decoding.
+
+- Upstream: https://github.com/nothings/stb
+- Pinned commit: see `native/third_party/stb/UPSTREAM_VERSION`
+- License: dual public-domain / MIT (see `LICENSE` in vendor dir)
+
+## GLAD (native/third_party/glad)
+
+Generated OpenGL function loader by David Herberth. Used by the `assets`
+library to load GL 3.3 core function pointers.
+
+- Upstream: https://github.com/Dav1dde/glad / https://glad.dav1d.de/
+- Generation parameters: see `native/third_party/glad/UPSTREAM_VERSION`
+- License: MIT (see `LICENSE` in vendor dir)
+
+## glm (native/third_party/glm)
+
+Header-only math library for OpenGL. Used by the `assets` library for
+matrix / quaternion math.
+
+- Upstream: https://github.com/g-truc/glm
+- Pinned release: see `native/third_party/glm/UPSTREAM_VERSION`
+- License: MIT (see `LICENSE` in vendor dir)
+
+## GLFW (native/third_party/glfw)
+
+Multi-platform window/context library. Used **test-only** by the `assets`
+library to create offscreen GL contexts in GPU tests.
+
+- Upstream: https://github.com/glfw/glfw
+- Pinned release: 3.4
+- License: zlib/libpng (see `LICENSE.md` in vendor dir)
