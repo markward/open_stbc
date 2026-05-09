@@ -46,3 +46,12 @@ for TGA (and optionally PNG/JPEG/BMP) decoding.
 - Upstream: https://github.com/nothings/stb
 - Pinned commit: see `native/third_party/stb/UPSTREAM_VERSION`
 - License: dual public-domain / MIT (see `LICENSE` in vendor dir)
+
+## GLAD (native/third_party/glad)
+
+Generated OpenGL function loader by David Herberth. Used by the `assets`
+library to load GL 3.3 core function pointers.
+
+- Upstream: https://github.com/Dav1dde/glad / https://glad.dav1d.de/
+- Generation parameters: see `native/third_party/glad/UPSTREAM_VERSION`
+- License: MIT (see `LICENSE` in vendor dir)
