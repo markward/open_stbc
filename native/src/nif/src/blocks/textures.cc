@@ -140,6 +140,26 @@ NIF_REGISTER_BLOCK(NiTextureProperty, [](Reader& r) -> Block {
     return parse_NiTextureProperty_body(r);
 });
 
+// NiRawImageData: legacy embedded-image data (referenced by NiImage when
+// use_external == 0). width, height, image_type (1=RGB, 2=RGBA), then
+// width × height × {3|4} bytes of pixel data. Per niflib's auto-gen Read.
+NIF_REGISTER_BLOCK(NiRawImageData, [](Reader& r) -> Block {
+    NiRawImageData d;
+    d.width = r.read_uint32();
+    d.height = r.read_uint32();
+    d.image_type = r.read_uint32();
+    std::size_t channels = 0;
+    if (d.image_type == 1) channels = 3;
+    else if (d.image_type == 2) channels = 4;
+    if (channels > 0 && d.width > 0 && d.height > 0) {
+        std::size_t total = static_cast<std::size_t>(d.width) *
+                            static_cast<std::size_t>(d.height) * channels;
+        d.pixels.resize(total);
+        r.read_bytes(d.pixels.data(), total);
+    }
+    return d;
+});
+
 NIF_REGISTER_BLOCK(NiTexturingProperty, [](Reader& r) -> Block {
     return parse_NiTexturingProperty_body(r);
 });

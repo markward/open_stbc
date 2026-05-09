@@ -52,6 +52,113 @@ struct NiTriShape {
     std::uint32_t data_link = 0;
 };
 
+/// Camera. v3.x body: NiAVObject + frustum bounds + viewport bounds +
+/// lod_adjust + scene_link + 2 unknown ints.
+struct NiCamera {
+    AvObjectBase av;
+    float frustum_left = 0.0f, frustum_right = 0.0f;
+    float frustum_top = 0.0f, frustum_bottom = 0.0f;
+    float frustum_near = 0.0f, frustum_far = 0.0f;
+    float viewport_left = 0.0f, viewport_right = 0.0f;
+    float viewport_top = 0.0f, viewport_bottom = 0.0f;
+    float lod_adjust = 0.0f;
+    std::uint32_t scene_link = 0;
+    std::uint32_t unknown_int = 0;
+    std::uint32_t unknown_int_3 = 0;  // only present in v3.x (until 3.1)
+};
+
+/// Common base fields for dynamic-effect (light) blocks. v3.x has
+/// NiAVObject base + num_affected_node_pointers + uint32 array.
+struct DynamicEffectBase {
+    AvObjectBase av;
+    std::uint32_t num_affected_node_pointers = 0;
+    std::vector<std::uint32_t> affected_node_pointers;
+};
+
+/// Light common fields: dimmer + 3 colors.
+struct LightCommon {
+    DynamicEffectBase dyn;
+    float dimmer = 1.0f;
+    Color3 ambient_color{};
+    Color3 diffuse_color{};
+    Color3 specular_color{};
+};
+
+/// Point light: LightCommon + 3 attenuation coefficients.
+struct NiPointLight {
+    LightCommon light;
+    float constant_attenuation = 0.0f;
+    float linear_attenuation = 0.0f;
+    float quadratic_attenuation = 0.0f;
+};
+
+/// Spot light: NiPointLight body + cutoff_angle + exponent.
+struct NiSpotLight {
+    LightCommon light;
+    float constant_attenuation = 0.0f;
+    float linear_attenuation = 0.0f;
+    float quadratic_attenuation = 0.0f;
+    float cutoff_angle = 0.0f;
+    float exponent = 0.0f;
+};
+
+/// Ambient light source: just the LightCommon body, no extra fields.
+struct NiAmbientLight {
+    LightCommon light;
+};
+
+/// Directional light source: just the LightCommon body, no extra fields.
+struct NiDirectionalLight {
+    LightCommon light;
+};
+
+/// Single visibility key: time + visibility byte (0 = hidden, !=0 = visible).
+struct VisKey {
+    float time = 0.0f;
+    std::uint8_t visible = 1;
+};
+
+/// Per-keyframe visibility data. v3.x: num_keys (uint32) + linear-typed keys.
+struct NiVisData {
+    std::uint32_t num_keys = 0;
+    std::vector<VisKey> keys;
+};
+
+/// Float-keyframe data block. Same shape as NiKeyframeData's FloatKeyArray
+/// but stored standalone (referenced by NiRollController and similar).
+struct NiFloatData {
+    std::uint32_t num_keys = 0;
+    std::uint32_t interpolation = 0;
+    struct K {
+        float time = 0.0f, value = 0.0f;
+        float fwd_tan = 0.0f, bwd_tan = 0.0f;       // QUADRATIC only
+        float tension = 0.0f, bias = 0.0f, continuity = 0.0f;  // TBC only
+    };
+    std::vector<K> keys;
+};
+
+/// Roll-axis animation controller. v3.x body: NiTimeController fields +
+/// data_link (ref to NiFloatData / NiPosData per niflib's link_stack).
+struct NiRollController {
+    std::uint32_t next_controller_link = 0;
+    std::uint16_t flags = 0;
+    float frequency = 1.0f;
+    float phase = 0.0f;
+    float start_time = 0.0f;
+    float stop_time = 0.0f;
+    std::uint32_t unknown_integer = 0;
+    std::uint32_t data_link = 0;
+};
+
+/// Embedded RGB or RGBA image data referenced by an NiImage block (when
+/// use_external == 0). 1 byte per channel, width × height pixels.
+struct NiRawImageData {
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+    std::uint32_t image_type = 0;       // 1 = RGB, 2 = RGBA
+    std::vector<std::uint8_t> pixels;   // row-major, channels-per-pixel = 3 or 4
+};
+
 /// Vertex / index / per-vertex-attribute storage for an NiTriShape.
 /// Inherits NiGeometryData → NiTriBasedGeomData → NiTriShapeData.
 /// Field layout for v3.1.
@@ -257,6 +364,31 @@ struct NiKeyframeData {
     FloatKeyArray scales;
 };
 
+/// Visibility-animation controller. v3.x body: NiTimeController fields +
+/// data_link (ref to NiVisData).
+struct NiVisController {
+    std::uint32_t next_controller_link = 0;
+    std::uint16_t flags = 0;
+    float frequency = 1.0f;
+    float phase = 0.0f;
+    float start_time = 0.0f;
+    float stop_time = 0.0f;
+    std::uint32_t unknown_integer = 0;
+    std::uint32_t data_link = 0;
+};
+
+/// Look-at constraint. v3.x body: NiTimeController fields + look_at_node_link.
+struct NiLookAtController {
+    std::uint32_t next_controller_link = 0;
+    std::uint16_t flags = 0;
+    float frequency = 1.0f;
+    float phase = 0.0f;
+    float start_time = 0.0f;
+    float stop_time = 0.0f;
+    std::uint32_t unknown_integer = 0;
+    std::uint32_t look_at_node_link = 0;
+};
+
 /// Texture-flip controller — cycles through a list of NiImage links over time.
 struct NiFlipController {
     // NiTimeController:
@@ -350,7 +482,18 @@ using Block = std::variant<
     NiStringExtraData,
     NiFlipController,
     NiBinaryVoxelExtraData,
-    NiBinaryVoxelData
+    NiBinaryVoxelData,
+    NiCamera,
+    NiPointLight,
+    NiSpotLight,
+    NiAmbientLight,
+    NiDirectionalLight,
+    NiRawImageData,
+    NiVisController,
+    NiVisData,
+    NiLookAtController,
+    NiRollController,
+    NiFloatData
 >;
 
 struct BlockHandle {

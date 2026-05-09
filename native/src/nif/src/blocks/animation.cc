@@ -190,6 +190,89 @@ NIF_REGISTER_BLOCK(NiKeyframeData, [](Reader& r) -> Block {
     return parse_NiKeyframeData_body(r);
 });
 
+// NiVisController v3.x: NiTimeController fields + data_link (NiVisData ref).
+NIF_REGISTER_BLOCK(NiVisController, [](Reader& r) -> Block {
+    NiVisController c;
+    c.next_controller_link = r.read_uint32();
+    c.flags = r.read_uint16();
+    c.frequency = r.read_float();
+    c.phase = r.read_float();
+    c.start_time = r.read_float();
+    c.stop_time = r.read_float();
+    c.unknown_integer = r.read_uint32();
+    c.data_link = r.read_uint32();
+    return c;
+});
+
+// NiLookAtController v3.x: NiTimeController fields + look_at_node_link.
+NIF_REGISTER_BLOCK(NiLookAtController, [](Reader& r) -> Block {
+    NiLookAtController c;
+    c.next_controller_link = r.read_uint32();
+    c.flags = r.read_uint16();
+    c.frequency = r.read_float();
+    c.phase = r.read_float();
+    c.start_time = r.read_float();
+    c.stop_time = r.read_float();
+    c.unknown_integer = r.read_uint32();
+    c.look_at_node_link = r.read_uint32();
+    return c;
+});
+
+// NiRollController v3.x: NiTimeController fields + data_link.
+NIF_REGISTER_BLOCK(NiRollController, [](Reader& r) -> Block {
+    NiRollController c;
+    c.next_controller_link = r.read_uint32();
+    c.flags = r.read_uint16();
+    c.frequency = r.read_float();
+    c.phase = r.read_float();
+    c.start_time = r.read_float();
+    c.stop_time = r.read_float();
+    c.unknown_integer = r.read_uint32();
+    c.data_link = r.read_uint32();
+    return c;
+});
+
+// NiFloatData v3.x: num_keys (uint32), interpolation (uint32 if num_keys>0),
+// then num_keys × float-key (time + value, with QUADRATIC/TBC tail).
+NIF_REGISTER_BLOCK(NiFloatData, [](Reader& r) -> Block {
+    NiFloatData d;
+    d.num_keys = r.read_uint32();
+    if (d.num_keys != 0) {
+        d.interpolation = r.read_uint32();
+    }
+    d.keys.reserve(d.num_keys);
+    for (std::uint32_t i = 0; i < d.num_keys; ++i) {
+        NiFloatData::K k;
+        k.time = r.read_float();
+        k.value = r.read_float();
+        if (d.interpolation == 2) {  // QUADRATIC
+            k.fwd_tan = r.read_float();
+            k.bwd_tan = r.read_float();
+        } else if (d.interpolation == 3) {  // TBC
+            k.tension = r.read_float();
+            k.bias = r.read_float();
+            k.continuity = r.read_float();
+        }
+        d.keys.push_back(k);
+    }
+    return d;
+});
+
+// NiVisData v3.x: num_keys (uint32) + linear visibility keys (time float +
+// visible byte each).
+NIF_REGISTER_BLOCK(NiVisData, [](Reader& r) -> Block {
+    NiVisData d;
+    d.num_keys = r.read_uint32();
+    d.keys.reserve(d.num_keys);
+    for (std::uint32_t i = 0; i < d.num_keys; ++i) {
+        VisKey k;
+        k.time = r.read_float();
+        k.visible = r.read_uint8();
+        d.keys.push_back(k);
+    }
+    return d;
+});
+
 // NiFlipController v3.1: NiTimeController fields + textureSlot + delta +
 // numSources + images (uint32 × numSources). The unknownInt2 + sources
 // array fields are version >= 4.0.0.0 only — absent in v3.1.
