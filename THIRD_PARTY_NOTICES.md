@@ -64,3 +64,12 @@ matrix / quaternion math.
 - Upstream: https://github.com/g-truc/glm
 - Pinned release: see `native/third_party/glm/UPSTREAM_VERSION`
 - License: MIT (see `LICENSE` in vendor dir)
+
+## GLFW (native/third_party/glfw)
+
+Multi-platform window/context library. Used **test-only** by the `assets`
+library to create offscreen GL contexts in GPU tests.
+
+- Upstream: https://github.com/glfw/glfw
+- Pinned release: 3.4
+- License: zlib/libpng (see `LICENSE.md` in vendor dir)
