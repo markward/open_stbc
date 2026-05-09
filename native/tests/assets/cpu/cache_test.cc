@@ -8,32 +8,20 @@ namespace fs = std::filesystem;
 
 namespace {
 
-bool game_data_present() {
-    fs::path p1 = fs::path(OPEN_STBC_PROJECT_ROOT)
-        / "game/data/Models/Ships/Galaxy/Galaxy.nif";
-    if (fs::exists(p1)) return true;
-    return fs::exists("/Users/mward/Documents/Projects/open_stbc/game/data/Models/Ships/Galaxy/Galaxy.nif");
-}
-
 fs::path galaxy_path() {
-    fs::path p = fs::path(OPEN_STBC_PROJECT_ROOT)
+    return fs::path(OPEN_STBC_PROJECT_ROOT)
         / "game/data/Models/Ships/Galaxy/Galaxy.nif";
-    if (fs::exists(p)) return p;
-    return "/Users/mward/Documents/Projects/open_stbc/game/data/Models/Ships/Galaxy/Galaxy.nif";
 }
-
 fs::path fed_high_path() {
-    fs::path p = fs::path(OPEN_STBC_PROJECT_ROOT)
+    return fs::path(OPEN_STBC_PROJECT_ROOT)
         / "game/data/Models/SharedTextures/FedShips/High";
-    if (fs::exists(p)) return p;
-    return "/Users/mward/Documents/Projects/open_stbc/game/data/Models/SharedTextures/FedShips/High";
 }
-
 fs::path fed_medium_path() {
-    fs::path p = fs::path(OPEN_STBC_PROJECT_ROOT)
+    return fs::path(OPEN_STBC_PROJECT_ROOT)
         / "game/data/Models/SharedTextures/FedShips/Medium";
-    if (fs::exists(p)) return p;
-    return "/Users/mward/Documents/Projects/open_stbc/game/data/Models/SharedTextures/FedShips/Medium";
+}
+bool game_data_present() {
+    return fs::exists(galaxy_path());
 }
 
 assets::AssetCache::Config stub_config() {

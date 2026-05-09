@@ -8,21 +8,12 @@
 
 namespace fs = std::filesystem;
 
-namespace {
-
-fs::path resolve_or_main_repo(const fs::path& rel) {
-    fs::path p = fs::path(OPEN_STBC_PROJECT_ROOT) / rel;
-    if (fs::exists(p)) return p;
-    return fs::path("/Users/mward/Documents/Projects/open_stbc") / rel;
-}
-
-}  // namespace
-
 class ModelSmokeTest : public assets_test::GLContext {};
 
 TEST_F(ModelSmokeTest, LoadsGalaxyEndToEnd) {
-    auto galaxy = resolve_or_main_repo("game/data/Models/Ships/Galaxy/Galaxy.nif");
-    auto fed_high = resolve_or_main_repo("game/data/Models/SharedTextures/FedShips/High");
+    fs::path root = OPEN_STBC_PROJECT_ROOT;
+    fs::path galaxy   = root / "game/data/Models/Ships/Galaxy/Galaxy.nif";
+    fs::path fed_high = root / "game/data/Models/SharedTextures/FedShips/High";
     if (!fs::exists(galaxy) || !fs::exists(fed_high))
         GTEST_SKIP() << "game/ not installed";
 
