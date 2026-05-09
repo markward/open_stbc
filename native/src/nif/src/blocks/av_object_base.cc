@@ -17,10 +17,7 @@ ObjectNetBase parse_object_net_base(Reader& r) {
 
 AvObjectBase parse_av_object_base(Reader& r, const char* block_type) {
     AvObjectBase a;
-    auto base = parse_object_net_base(r);
-    a.name = std::move(base.name);
-    a.extra_data_link = base.extra_data_link;
-    a.controller_link = base.controller_link;
+    a.obj = parse_object_net_base(r);
     a.flags = r.read_uint16();
     a.translation = r.read_vec3();
     a.rotation = r.read_mat3x3();
@@ -33,16 +30,10 @@ AvObjectBase parse_av_object_base(Reader& r, const char* block_type) {
         a.property_links.push_back(r.read_uint32());
     }
 
-    auto has_bv = r.read_uint32();
-    if (has_bv != 0 && has_bv != 1) {
-        ParseError e(std::string(block_type) +
-                     " has_bounding_volume not 0 or 1: " + std::to_string(has_bv));
-        e.file = r.source();
-        e.byte_offset = r.offset();
-        e.block_type = block_type;
-        throw e;
-    }
-    a.has_bounding_volume = (has_bv == 1);
+    // v3.x bools follow niflib's ReadBool(version <= 0x04010001) semantics:
+    // any non-zero uint32 is true. BC files use hash-like sentinel values
+    // (e.g. 0x03e54648) for true; do not strict-compare against 0/1.
+    a.has_bounding_volume = (r.read_uint32() != 0);
     if (a.has_bounding_volume) {
         ParseError e(std::string(block_type) +
                      " bounding_volume body not yet implemented");

@@ -62,11 +62,24 @@ NiBinaryVoxelData parse_NiBinaryVoxelData_body(Reader& r) {
     d.unknown_short2 = r.read_uint16();
     d.unknown_short3 = r.read_uint16();
     for (auto& f : d.unknown_7_floats) f = r.read_float();
+    // Reserve up to the remaining bytes (minus the marker we'll stop at)
+    // so push_back doesn't trigger O(log n) reallocations on the 230KB-class
+    // voxel payloads.
+    auto remaining = r.bytes_remaining();
+    if (remaining > kEofMarkerSize) {
+        d.raw_voxel_payload.reserve(remaining - kEofMarkerSize);
+    }
+    // First-byte quick reject: only pay for the 15-byte memcmp when the next
+    // byte is 0x0b (the EOF length-prefix's LSB). Cuts the per-byte cost on
+    // the 84 _vox files dramatically — almost every byte fails the cheap
+    // first-byte check.
     while (r.bytes_remaining() >= kEofMarkerSize) {
-        unsigned char buf[kEofMarkerSize];
-        r.peek_bytes(buf, kEofMarkerSize);
-        if (std::memcmp(buf, kEofMarker, kEofMarkerSize) == 0) {
-            break;  // walker resumes on the marker
+        if (r.peek_uint8() == kEofMarker[0]) {
+            unsigned char buf[kEofMarkerSize];
+            r.peek_bytes(buf, kEofMarkerSize);
+            if (std::memcmp(buf, kEofMarker, kEofMarkerSize) == 0) {
+                break;  // walker resumes on the marker
+            }
         }
         d.raw_voxel_payload.push_back(r.read_uint8());
     }

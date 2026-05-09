@@ -53,6 +53,9 @@ constexpr std::uint32_t kMaxTypeNameLen = 80;
 // file is then partially-parsed, which is the expected state during early
 // phases when only some parsers are registered.
 bool walk_blocks(File& f, Reader& r) {
+    // NIF_TRACE is process-wide and inspected once per load to avoid the
+    // per-block getenv cost (env-block walks aren't free).
+    static const bool kTrace = std::getenv("NIF_TRACE") != nullptr;
     auto& dispatch = Dispatch::instance();
     while (true) {
         if (r.bytes_remaining() < 4) {
@@ -91,7 +94,7 @@ bool walk_blocks(File& f, Reader& r) {
         auto link_id = r.read_uint32();
 
         if (!dispatch.has(type_name)) {
-            if (std::getenv("NIF_TRACE")) {
+            if (kTrace) {
                 std::fprintf(stderr,
                              "[nif] STOP: no parser for block %zu type=%s\n",
                              f.blocks.size(), type_name.c_str());
@@ -100,32 +103,22 @@ bool walk_blocks(File& f, Reader& r) {
             return false;
         }
 
-        if (std::getenv("NIF_TRACE")) {
+        if (kTrace) {
             std::fprintf(stderr,
                          "[nif] block %zu @ 0x%zx type=%s body_starts_at=0x%zx\n",
                          f.blocks.size(), r.offset() - 4 - type_name.size() - 4,
                          type_name.c_str(), r.offset());
         }
-        // During incremental parser development, registered parsers may
-        // have layout bugs on real BC blocks. Treat a parse failure as a
-        // walker stop (same as encountering an unknown type) rather than
-        // propagating — this keeps `nif::load` usable while we iterate on
-        // individual block layouts. Synthetic per-parser unit tests still
-        // catch correctness regressions on the parsers themselves.
-        try {
-            auto block = dispatch.get(type_name)(r);
-            if (std::getenv("NIF_TRACE")) {
-                std::fprintf(stderr, "[nif]   body_ended_at=0x%zx\n", r.offset());
-            }
-            f.block_ids.push_back(link_id);
-            f.blocks.push_back(std::move(block));
-        } catch (const ParseError& e) {
-            if (std::getenv("NIF_TRACE")) {
-                std::fprintf(stderr, "[nif]   parser error: %s\n", e.what());
-            }
-            f.stopped_at_block_type = "<parse error in " + type_name + ">: " + e.what();
-            return false;
+        // Parser exceptions propagate. During incremental development we
+        // caught ParseError to keep nif::load usable across many files;
+        // now that the corpus is fully covered, parser bugs should fail
+        // loud so tests catch them.
+        auto block = dispatch.get(type_name)(r);
+        if (kTrace) {
+            std::fprintf(stderr, "[nif]   body_ended_at=0x%zx\n", r.offset());
         }
+        f.block_ids.push_back(link_id);
+        f.blocks.push_back(std::move(block));
     }
 }
 

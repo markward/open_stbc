@@ -23,11 +23,11 @@ struct ObjectNetBase {
 };
 
 /// NiAVObject-derived block fields shared by NiNode and NiTriShape (and
-/// other scene-graph blocks). Field layout for v3.1.
+/// other scene-graph blocks). Field layout for v3.1. Composes the
+/// NiObjectNET base via `obj` rather than flattening the fields, matching
+/// the pattern used by property blocks (NiZBufferProperty etc.).
 struct AvObjectBase {
-    std::string name;
-    std::uint32_t extra_data_link = 0;   // 0 = no extra data
-    std::uint32_t controller_link = 0;   // 0 = no controller
+    ObjectNetBase obj;
     std::uint16_t flags = 0;
     Vec3 translation{};
     Mat3x3 rotation{ .m = {1, 0, 0, 0, 1, 0, 0, 0, 1} };

@@ -33,7 +33,11 @@ public:
     Color3        read_color3();
     Color4        read_color4();
 
-    std::string read_string_uint32();
+    /// Read a length-prefixed string. The uint32 length is sanity-capped to
+    /// `max_len` (default 64KB) — a malformed or adversarial file with a
+    /// huge length prefix would otherwise allocate gigabytes. Throws
+    /// nif::ParseError if length exceeds the cap.
+    std::string read_string_uint32(std::size_t max_len = 65536);
     std::string read_string_uint8();
     /// Read exactly `n` bytes as a string. Used for v3.x type-name reads
     /// where the length was already consumed.

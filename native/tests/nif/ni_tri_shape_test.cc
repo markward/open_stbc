@@ -65,7 +65,7 @@ TEST(NiTriShape, ParsesAvBaseAndDataLink) {
     nif::Block block = nif::Dispatch::instance().get("NiTriShape")(r);
     auto* shape = std::get_if<nif::NiTriShape>(&block);
     ASSERT_NE(shape, nullptr);
-    EXPECT_EQ(shape->av.name, "MyShape");
+    EXPECT_EQ(shape->av.obj.name, "MyShape");
     EXPECT_EQ(shape->data_link, 0xDEADBEEFu);
     EXPECT_EQ(r.bytes_remaining(), 0u);
 }

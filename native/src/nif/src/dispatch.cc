@@ -1,6 +1,5 @@
 // native/src/nif/src/dispatch.cc
 #include "dispatch.h"
-#include "reader.h"
 
 #include <nif/error.h>
 
@@ -29,24 +28,8 @@ const BlockParser& Dispatch::get(const std::string& type_name) const {
     return it->second;
 }
 
-// "End Of File" is a sentinel that closes every BC v3.1 NIF. Its body
-// consumes zero bytes — the walker uses encountering this block as the
-// signal to stop reading.
-NIF_REGISTER_BLOCK(EndOfFile, [](Reader&) -> Block {
-    return std::monostate{};
-});
+// "End Of File" is a v3.x sentinel handled directly in the walker (file.cc
+// stops the loop on that exact type name before dispatching). No parser is
+// registered for it — the walker never reaches dispatch for that name.
 
 }  // namespace nif
-
-// "End Of File" contains a space, so the macro-friendly form above
-// registers under "EndOfFile". Add the spaced alias the file format
-// actually uses.
-namespace {
-struct _nif_reg_eof_alias {
-    _nif_reg_eof_alias() {
-        ::nif::Dispatch::instance().register_parser(
-            "End Of File",
-            [](::nif::Reader&) -> ::nif::Block { return std::monostate{}; });
-    }
-} _nif_reg_eof_alias_instance;
-}

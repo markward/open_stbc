@@ -2,7 +2,16 @@
 #include "reader.h"
 
 #include <algorithm>
+#include <bit>
 #include <cstring>
+
+// NIF format is little-endian. The integer/float readers below memcpy bytes
+// into native types; on a big-endian host they would silently produce wrong
+// values. All current targets (x86, ARM macOS/Linux) are little-endian; if
+// that ever changes, byteswap the appropriate reads instead of just
+// firing this assert.
+static_assert(std::endian::native == std::endian::little,
+              "nif::Reader requires a little-endian host");
 
 namespace nif {
 
@@ -57,8 +66,15 @@ Mat3x3 Reader::read_mat3x3() {
 Color3 Reader::read_color3() { return {read_float(), read_float(), read_float()}; }
 Color4 Reader::read_color4() { return {read_float(), read_float(), read_float(), read_float()}; }
 
-std::string Reader::read_string_uint32() {
+std::string Reader::read_string_uint32(std::size_t max_len) {
     auto len = read_uint32();
+    if (len > max_len) {
+        ParseError e("string length " + std::to_string(len) +
+                     " exceeds cap " + std::to_string(max_len));
+        e.file = source_;
+        e.byte_offset = offset_;
+        throw e;
+    }
     require(len);
     std::string s(reinterpret_cast<const char*>(data_ + offset_), len);
     offset_ += len;
