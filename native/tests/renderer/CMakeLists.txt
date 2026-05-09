@@ -1,6 +1,7 @@
 add_executable(renderer_tests
     window_test.cc
     shader_test.cc
+    pipeline_test.cc
 )
 
 target_link_libraries(renderer_tests
