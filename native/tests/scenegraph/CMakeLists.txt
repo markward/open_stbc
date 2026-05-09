@@ -1,0 +1,9 @@
+add_executable(scenegraph_tests
+    camera_test.cc
+)
+target_link_libraries(scenegraph_tests
+    PRIVATE
+        scenegraph
+        GTest::gtest_main
+)
+gtest_discover_tests(scenegraph_tests)

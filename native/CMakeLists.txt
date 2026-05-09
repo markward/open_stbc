@@ -56,6 +56,9 @@ add_subdirectory(third_party/glfw)
 # Renderer library (window + GL context wrapper).
 add_subdirectory(src/renderer)
 
+# Scene-graph data + math (pure C++, no GL).
+add_subdirectory(src/scenegraph)
+
 # Renderer host subtree.
 add_subdirectory(src/host)
 
