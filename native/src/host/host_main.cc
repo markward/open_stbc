@@ -1,10 +1,8 @@
 // native/src/host/host_main.cc
-//
-// open_stbc_host — embedded-CPython renderer host binary.
-// Phase A bring-up: initialize CPython, import sys, print version, exit.
-// Subsequent tasks add the bindings module and the main render loop.
 
 #include <Python.h>
+
+#include "host_bindings.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -13,26 +11,26 @@ int main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
 
+    if (PyImport_AppendInittab("_open_stbc_host", PyInit__open_stbc_host) != 0) {
+        std::fprintf(stderr, "open_stbc_host: PyImport_AppendInittab failed\n");
+        return 1;
+    }
+
     Py_InitializeEx(/*initsigs=*/1);
 
+    PyObject* mod = PyImport_ImportModule("_open_stbc_host");
+    if (!mod) {
+        PyErr_Print();
+        Py_FinalizeEx();
+        return 1;
+    }
+    Py_DECREF(mod);
+
     PyObject* sys = PyImport_ImportModule("sys");
-    if (!sys) {
-        PyErr_Print();
-        Py_FinalizeEx();
-        return 1;
-    }
-
     PyObject* version = PyObject_GetAttrString(sys, "version");
-    if (!version) {
-        PyErr_Print();
-        Py_DECREF(sys);
-        Py_FinalizeEx();
-        return 1;
-    }
-
     const char* version_str = PyUnicode_AsUTF8(version);
-    std::printf("open_stbc_host: Python %s\n", version_str ? version_str : "<unknown>");
-
+    std::printf("open_stbc_host: Python %s, _open_stbc_host imported\n",
+                version_str ? version_str : "<unknown>");
     Py_DECREF(version);
     Py_DECREF(sys);
 

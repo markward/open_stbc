@@ -10,6 +10,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 SDK_SCRIPTS = PROJECT_ROOT / "sdk" / "Build" / "scripts"
 
+# Make the C++-built _open_stbc_host extension importable. CMake outputs it
+# under build/python/ relative to the project root.
+_BUILD_PYTHON = PROJECT_ROOT / "build" / "python"
+if _BUILD_PYTHON.is_dir() and str(_BUILD_PYTHON) not in sys.path:
+    sys.path.insert(0, str(_BUILD_PYTHON))
+
 _PY2_OCTAL = re.compile(r'(?<![\w.])0([0-7]+)\b')
 _PY2_RAISE = re.compile(r'^(\s*raise\s+\w[\w.]*)\s*,\s*(.*)', re.MULTILINE)
 _PY2_PRINT_FILE = re.compile(r'^(\s*)print\s*>>\s*(\S+)\s*,\s*(.*?)\s*$', re.MULTILINE)
