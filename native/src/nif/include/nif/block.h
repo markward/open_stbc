@@ -128,6 +128,33 @@ struct NiTextureProperty {
     std::uint32_t image_link = 0;
 };
 
+/// Per-vertex bone weight in legacy v3.x skin data.
+struct OldSkinWeight {
+    float weight = 0.0f;
+    std::uint16_t vertex_index = 0;
+    Vec3 unknown_vector{};
+};
+
+/// Legacy v3.x skinning controller. Per-bone vertex influence lists.
+/// (NiTimeController fields + numBones + per-bone vertex counts and links
+/// + per-(bone,vertex) weight data.)
+struct NiTriShapeSkinController {
+    // NiTimeController:
+    std::uint32_t next_controller_link = 0;
+    std::uint16_t flags = 0;
+    float frequency = 1.0f;
+    float phase = 0.0f;
+    float start_time = 0.0f;
+    float stop_time = 0.0f;
+    std::uint32_t unknown_integer = 0;
+    // body:
+    std::uint32_t num_bones = 0;
+    std::vector<std::uint32_t> vertex_counts_per_bone;
+    std::vector<std::uint32_t> bone_links;
+    /// bone_weights[bone_index][vertex_within_bone] -> OldSkinWeight
+    std::vector<std::vector<OldSkinWeight>> bone_weights;
+};
+
 /// Keyframe animation controller (NiTimeController + data ref).
 /// v3.1 body: next_controller_link, flags, frequency, phase, start_time,
 /// stop_time, unknown_integer (only since v3.1 and earlier), data_link.
@@ -166,7 +193,8 @@ using Block = std::variant<
     NiImage,
     NiTextureProperty,
     NiMaterialProperty,
-    NiKeyframeController
+    NiKeyframeController,
+    NiTriShapeSkinController
 >;
 
 struct BlockHandle {
