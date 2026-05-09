@@ -1,5 +1,6 @@
 add_library(renderer STATIC
     window.cc
+    shader.cc
 )
 target_include_directories(renderer PUBLIC include)
 target_compile_features(renderer PUBLIC cxx_std_20)
