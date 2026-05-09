@@ -19,8 +19,9 @@ add_subdirectory(third_party/stb)
 add_subdirectory(third_party/glad)
 add_subdirectory(third_party/glm)
 
-# Public library.
+# Public libraries.
 add_subdirectory(src/nif)
+add_subdirectory(src/assets)
 
 # Diagnostic tools that consume the public library.
 add_subdirectory(tools/scan_nifs)
