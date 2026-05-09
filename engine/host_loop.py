@@ -347,10 +347,22 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             else:
                 print("[host_loop] no player ship found", flush=True)
 
+        # Per-tick player input → ship-transform integrator.
+        player_control = _PlayerControl()
+        try:
+            import _open_stbc_host as _h
+        except ImportError:
+            _h = None  # bindings module not built; skip input handling.
+        TICK_DT = 1.0 / 60.0
+
         loop = GameLoop()
         ticks = 0
         while not r.should_close():
             loop.tick()
+
+            # Apply keyboard input to the player ship's transform.
+            if player is not None and _h is not None:
+                player_control.apply(player, TICK_DT, _h)
 
             # Sync transforms for known instances.
             for ship, iid in instances.items():
@@ -360,14 +372,22 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             if fixed_camera:
                 eye = (0.0, 0.0, 1500.0)
                 target = (0.0, 0.0, 0.0)
+                up_vec = (0.0, 1.0, 0.0)
             elif player is not None:
+                R = player.GetWorldRotation()
+                forward = R.GetRow(1)
+                up      = R.GetRow(2)
                 p = player.GetWorldLocation()
-                eye = (p.x, p.y + 30.0, p.z + 200.0)
+                eye = (p.x - forward.x * CAM_BACK_DIST + up.x * CAM_UP_DIST,
+                       p.y - forward.y * CAM_BACK_DIST + up.y * CAM_UP_DIST,
+                       p.z - forward.z * CAM_BACK_DIST + up.z * CAM_UP_DIST)
                 target = (p.x, p.y, p.z)
+                up_vec = (up.x, up.y, up.z)  # ship-up so banking is visible
             else:
                 eye = (0.0, 30.0, 200.0)
                 target = (0.0, 0.0, 0.0)
-            r.set_camera(eye=eye, target=target, up=(0.0, 1.0, 0.0),
+                up_vec = (0.0, 1.0, 0.0)
+            r.set_camera(eye=eye, target=target, up=up_vec,
                          fov_y_rad=1.0472, near=1.0, far=100000.0)
 
             if verbose and ticks == 0:
