@@ -846,9 +846,10 @@ Three tasks. Goal: a `Window` RAII type wrapping GLFW + GL 3.3 core; bindings ex
 
 - [ ] **Step 1: Add renderer subdirectory to root CMake**
 
-Modify `native/CMakeLists.txt`. After `add_subdirectory(src/assets)`, add:
+Modify `native/CMakeLists.txt`. The renderer library links `glfw` PUBLIC, so its `add_subdirectory` must come AFTER the GLFW promotion block (Task 1's GLFW block at the top level). Insert between the GLFW block and `add_subdirectory(src/host)`:
 
 ```cmake
+# Renderer library (window + GL context wrapper).
 add_subdirectory(src/renderer)
 ```
 
