@@ -1,0 +1,57 @@
+"""Pythonic wrapper around the _open_stbc_host extension module.
+
+Re-exports the binding functions with type hints. Application code should
+import from here, not from _open_stbc_host directly.
+"""
+from typing import Tuple
+
+import _open_stbc_host as _h
+
+InstanceId = _h.InstanceId
+
+
+def init(width: int, height: int, title: str) -> None:
+    _h.init(width, height, title)
+
+
+def shutdown() -> None:
+    _h.shutdown()
+
+
+def should_close() -> bool:
+    return _h.should_close()
+
+
+def frame() -> None:
+    _h.frame()
+
+
+def load_model(nif_path: str, texture_search_path: str) -> int:
+    return _h.load_model(nif_path, texture_search_path)
+
+
+def create_instance(model: int) -> InstanceId:
+    return _h.create_instance(model)
+
+
+def destroy_instance(iid: InstanceId) -> None:
+    _h.destroy_instance(iid)
+
+
+def set_world_transform(iid: InstanceId, mat4_row_major: list) -> None:
+    _h.set_world_transform(iid, mat4_row_major)
+
+
+def set_visible(iid: InstanceId, visible: bool) -> None:
+    _h.set_visible(iid, visible)
+
+
+def set_camera(eye: Tuple[float, float, float],
+               target: Tuple[float, float, float],
+               up: Tuple[float, float, float],
+               fov_y_rad: float, near: float, far: float) -> None:
+    _h.set_camera(eye, target, up, fov_y_rad, near, far)
+
+
+def set_skybox(model: int) -> None:
+    _h.set_skybox(model)
