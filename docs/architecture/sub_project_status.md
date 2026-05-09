@@ -12,7 +12,7 @@ into the spec docs for full context.
 |---|---|---|---|---|
 | 1 | NIF loader | Implemented (v1 ship gate met 2026-05-09) | [2026-05-08-nif-loader-design.md](../superpowers/specs/2026-05-08-nif-loader-design.md) | (closed at v1; no backlog) |
 | 2 | Asset pipeline | Implemented (v1 ship gate met 2026-05-09; 99 tests passing including end-to-end Galaxy.nif smoke) | [2026-05-09-asset-pipeline-design.md](../superpowers/specs/2026-05-09-asset-pipeline-design.md) | [§ Deferred / future work](../superpowers/specs/2026-05-09-asset-pipeline-design.md#deferred--future-work) + [`native/src/assets/docs/deferred_work.md`](../../native/src/assets/docs/deferred_work.md) |
-| 3-6 | Renderer host (combined: scene-graph + minimal renderer + CPython embedding + skybox pass) | Phase A complete (CPython embedding, 2026-05-09); Phase B-F in flight | [2026-05-09-renderer-host-design.md](../superpowers/specs/2026-05-09-renderer-host-design.md) | (created at v1) |
+| 3-6 | Renderer host (combined: scene-graph + minimal renderer + CPython embedding + skybox pass) | Implemented (v1 ship gate met 2026-05-09; 17 host+tools pytest cases passing including end-to-end M1 Basic mission load + 5-tick render smoke) | [2026-05-09-renderer-host-design.md](../superpowers/specs/2026-05-09-renderer-host-design.md) | [`native/src/host/docs/deferred_work.md`](../../native/src/host/docs/deferred_work.md) |
 
 ## Asset pipeline — known follow-ups
 
