@@ -66,7 +66,42 @@ class _PlayerControl:
                     self.impulse_level = level
                     break
 
-        # Tasks 5 and 6 add rotation and position integration here.
+        # 2. Angular rates (continuous while held).
+        # Sign convention (row-vector matrices, Y=forward, Z=up):
+        #   Rotating around +X by +θ pushes row 1 (forward) toward -Z = nose DOWN
+        #     → W (pitch down) is +rate, S (pitch up) is -rate.
+        #   Rotating around +Z by +θ moves row 1 toward +X = yaw RIGHT
+        #     → D is +rate, A is -rate.
+        #   Rotating around +Y by +θ moves row 2 (up) toward -X = roll LEFT
+        #     → Q (roll left) is +rate, E (roll right) is -rate.
+        pitch_rate = 0.0
+        yaw_rate   = 0.0
+        roll_rate  = 0.0
+        if h.key_state(h.keys.KEY_W): pitch_rate += self.TURN_RATE_RAD_PER_S
+        if h.key_state(h.keys.KEY_S): pitch_rate -= self.TURN_RATE_RAD_PER_S
+        if h.key_state(h.keys.KEY_A): yaw_rate   -= self.TURN_RATE_RAD_PER_S
+        if h.key_state(h.keys.KEY_D): yaw_rate   += self.TURN_RATE_RAD_PER_S
+        if h.key_state(h.keys.KEY_Q): roll_rate  += self.TURN_RATE_RAD_PER_S
+        if h.key_state(h.keys.KEY_E): roll_rate  -= self.TURN_RATE_RAD_PER_S
+
+        # 3. Rotation integration (post-multiply small per-tick rotation
+        #    in ship-local frame). Order pitch -> yaw -> roll matches
+        #    flight-sim convention; at small dt, composition order is
+        #    not visually distinguishable from any other Euler order.
+        from engine.appc.math import TGMatrix3, TGPoint3
+        X_AXIS = TGPoint3(1.0, 0.0, 0.0)
+        Y_AXIS = TGPoint3(0.0, 1.0, 0.0)
+        Z_AXIS = TGPoint3(0.0, 0.0, 1.0)
+
+        R = player.GetWorldRotation()
+        if pitch_rate or yaw_rate or roll_rate:
+            R_pitch = TGMatrix3(); R_pitch.MakeRotation(pitch_rate * dt, X_AXIS)
+            R_yaw   = TGMatrix3(); R_yaw.MakeRotation(yaw_rate   * dt, Z_AXIS)
+            R_roll  = TGMatrix3(); R_roll.MakeRotation(roll_rate  * dt, Y_AXIS)
+            R = R.MultMatrix(R_pitch).MultMatrix(R_yaw).MultMatrix(R_roll)
+            player.SetMatrixRotation(R)
+
+        # Task 6 adds position integration here.
 
 
 def _setup_sdk() -> None:
