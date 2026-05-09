@@ -128,6 +128,20 @@ struct NiTextureProperty {
     std::uint32_t image_link = 0;
 };
 
+/// Keyframe animation controller (NiTimeController + data ref).
+/// v3.1 body: next_controller_link, flags, frequency, phase, start_time,
+/// stop_time, unknown_integer (only since v3.1 and earlier), data_link.
+struct NiKeyframeController {
+    std::uint32_t next_controller_link = 0;
+    std::uint16_t flags = 0;
+    float frequency = 1.0f;
+    float phase = 0.0f;
+    float start_time = 0.0f;
+    float stop_time = 0.0f;
+    std::uint32_t unknown_integer = 0;
+    std::uint32_t data_link = 0;
+};
+
 /// Surface material property. v3.1: flags + 4 colors + glossiness + alpha.
 struct NiMaterialProperty {
     ObjectNetBase obj;
@@ -151,7 +165,8 @@ using Block = std::variant<
     NiTextureModeProperty,
     NiImage,
     NiTextureProperty,
-    NiMaterialProperty
+    NiMaterialProperty,
+    NiKeyframeController
 >;
 
 struct BlockHandle {

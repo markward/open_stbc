@@ -37,4 +37,11 @@ NIF_REGISTER_BLOCK(NiNode, [](Reader& r) -> Block {
     return parse_NiNode_body(r);
 });
 
+// NiBone inherits NiNode and adds no fields of its own (per nifxml schema).
+// Reuses the NiNode parser; the resulting Block holds an NiNode value with
+// the bone's transform and child links.
+NIF_REGISTER_BLOCK(NiBone, [](Reader& r) -> Block {
+    return parse_NiNode_body(r);
+});
+
 }  // namespace nif

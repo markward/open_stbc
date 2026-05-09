@@ -91,9 +91,11 @@ bool walk_blocks(File& f, Reader& r) {
         auto link_id = r.read_uint32();
 
         if (!dispatch.has(type_name)) {
-            // No parser registered for this type yet. Stop walking; the
-            // header tests still see a parsed File. As block parsers land,
-            // the walker progresses further before stopping.
+            if (std::getenv("NIF_TRACE")) {
+                std::fprintf(stderr,
+                             "[nif] STOP: no parser for block %zu type=%s\n",
+                             f.blocks.size(), type_name.c_str());
+            }
             return false;
         }
 
