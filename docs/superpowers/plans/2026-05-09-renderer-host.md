@@ -2889,12 +2889,14 @@ void draw_model(const assets::Model& model,
             const auto& mat = (mesh.material_index() >= 0
                 ? model.materials[mesh.material_index()]
                 : assets::Material{});
-            shader.set_vec3("u_diffuse_color", glm::vec3(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2]));
+            shader.set_vec3("u_diffuse_color", mat.diffuse);
 
-            if (mat.base_color_texture_index >= 0) {
+            const int base_tex = mat.stages[
+                static_cast<std::size_t>(assets::Material::StageSlot::Base)
+            ].texture_index;
+            if (base_tex >= 0) {
                 glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D,
-                    model.textures[mat.base_color_texture_index].id());
+                glBindTexture(GL_TEXTURE_2D, model.textures[base_tex].id());
                 shader.set_int("u_base_color", 0);
             }
 
@@ -2947,12 +2949,10 @@ target_link_libraries(renderer PUBLIC assets scenegraph glad glfw glm)
 
 (Note: `scenegraph` added as a public dep; renderer/frame.cc references its types.)
 
-- [ ] **Step 4: Check assets::Material for actual field names**
+- [ ] **Step 4: Verify the build**
 
-Open `native/src/assets/include/assets/material.h` and confirm the field names used above (`diffuse`, `base_color_texture_index`). If they differ — e.g., the asset pipeline uses `glm::vec3 diffuse_color;` instead of `float diffuse[3];` — adjust the `frame.cc` code to match the real API. The asset pipeline implementation is authoritative; this is a one-shot adjustment.
-
-Run: `cmake --build build --target renderer_tests`
-If material field names mismatch: edit `native/src/renderer/frame.cc` to match. Re-build.
+Run: `cmake --build build --target renderer_tests 2>&1 | tail -3`
+Expected: success. The Material API used above (`mat.diffuse` as `glm::vec3`, `mat.stages[StageSlot::Base].texture_index`) matches the actual `assets::Material` definition in `native/src/assets/include/assets/material.h` as of 2026-05-09. If the asset pipeline's API has shifted, the code must be updated to match — but do NOT add skip-on-error workarounds; diagnose the field-name mismatch and fix.
 
 - [ ] **Step 5: Run, verify the frame test passes**
 
