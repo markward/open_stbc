@@ -101,7 +101,16 @@ class _PlayerControl:
             R = R.MultMatrix(R_pitch).MultMatrix(R_yaw).MultMatrix(R_roll)
             player.SetMatrixRotation(R)
 
-        # Task 6 adds position integration here.
+        # 4. Position integration (forward = ship-local Y axis in world).
+        if self.impulse_level != 0:
+            forward = R.GetRow(1)
+            speed   = self.impulse_level * self.IMPULSE_UNIT
+            p = player.GetTranslate()
+            player.SetTranslateXYZ(
+                p.x + forward.x * speed * dt,
+                p.y + forward.y * speed * dt,
+                p.z + forward.z * speed * dt,
+            )
 
 
 def _setup_sdk() -> None:

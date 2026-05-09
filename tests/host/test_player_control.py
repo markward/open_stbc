@@ -201,6 +201,63 @@ def test_yaw_left_rotates_forward_toward_minus_x():
     assert abs(forward.z) < 1e-3
 
 
+def test_no_throttle_no_movement():
+    pc = _PlayerControl()
+    ship = _FakeShip()
+    reader = _FakeKeyReader()
+    for _ in range(60):
+        pc.apply(ship, dt=1.0/60, h=reader)
+    p = ship.GetTranslate()
+    assert abs(p.x) < 1e-9
+    assert abs(p.y) < 1e-9
+    assert abs(p.z) < 1e-9
+
+
+def test_impulse_5_advances_along_world_y_at_identity():
+    """At identity rotation, forward = +Y. After 1.0s at impulse 5,
+    position should be (0, 5 * IMPULSE_UNIT * 1.0, 0) = (0, 250, 0)."""
+    pc = _PlayerControl()
+    ship = _FakeShip()
+    reader = _FakeKeyReader()
+    reader.pressed_once.add(reader.keys.KEY_5)
+    for _ in range(60):
+        pc.apply(ship, dt=1.0/60, h=reader)
+    p = ship.GetTranslate()
+    assert abs(p.x) < 1e-3
+    assert abs(p.y - 250.0) < 1e-1, f"p.y={p.y}, expected ~250.0"
+    assert abs(p.z) < 1e-3
+
+
+def test_reverse_advances_negative_along_world_y():
+    """R sets level=-2. After 1.0s, position is (0, -100, 0)."""
+    pc = _PlayerControl()
+    ship = _FakeShip()
+    reader = _FakeKeyReader()
+    reader.pressed_once.add(reader.keys.KEY_R)
+    for _ in range(60):
+        pc.apply(ship, dt=1.0/60, h=reader)
+    p = ship.GetTranslate()
+    assert abs(p.y - (-100.0)) < 1e-1, f"p.y={p.y}, expected ~-100.0"
+
+
+def test_full_stop_after_movement_stops_advancement():
+    """Set impulse 5, run 30 frames, set 0, run 30 more. Position
+    advances during the first 30, stays put for the next 30."""
+    pc = _PlayerControl()
+    ship = _FakeShip()
+    reader = _FakeKeyReader()
+    reader.pressed_once.add(reader.keys.KEY_5)
+    for _ in range(30):
+        pc.apply(ship, dt=1.0/60, h=reader)
+    pos_after_first_half = ship.GetTranslate()
+    assert pos_after_first_half.y > 0
+    reader.pressed_once.add(reader.keys.KEY_0)
+    for _ in range(30):
+        pc.apply(ship, dt=1.0/60, h=reader)
+    pos_after_second_half = ship.GetTranslate()
+    assert abs(pos_after_second_half.y - pos_after_first_half.y) < 1e-3
+
+
 def test_roll_left_rotates_up_toward_minus_x():
     """Hold Q (roll left) for one second at identity start. Roll is
     around ship-Y (forward axis). Ship's up (row 2) starts at +Z, rolls
