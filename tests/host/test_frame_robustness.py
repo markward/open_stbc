@@ -120,19 +120,34 @@ def test_m1_basic_ship_gate_renders_non_black():
         # pixels are illuminated (white-fallback texture) so r,g,b are
         # all much higher.
         ship_pixels = 0
+        textured_pixels = 0
         fw, fh = _open_stbc_host.framebuffer_size()
         cx, cy = fw // 2, fh // 2
         step = max(1, min(fw, fh) // 20)
         for dx in (-2 * step, -step, 0, step, 2 * step):
             for dy in (-2 * step, -step, 0, step, 2 * step):
                 r, g, b, _ = _open_stbc_host.read_pixel(cx + dx, cy + dy)
-                # Anything brighter than the clear color counts.
+                # Anything brighter than the clear color counts as ship.
                 if r > 60 or g > 60 or b > 80:
                     ship_pixels += 1
+                # White-fallback texture produces near-grey pixels (R≈G≈B).
+                # Real BC textures have meaningful per-channel variation.
+                # Accept anything where the channels differ by more than ~12
+                # as evidence of real texturing (modulo lighting on a
+                # neutral-diffuse material, channels would still drift).
+                channel_spread = max(r, g, b) - min(r, g, b)
+                if (r > 60 or g > 60 or b > 80) and channel_spread > 12:
+                    textured_pixels += 1
         assert ship_pixels > 0, (
             f"no ship pixels found around center; framebuffer is just clear color. "
             f"This means the Galaxy didn't render — investigate FrameSubmitter, "
             f"shaders, or scene-graph wiring before treating as a flake."
+        )
+        assert textured_pixels > 0, (
+            f"all {ship_pixels} ship pixels are near-grey — looks like the "
+            f"white-fallback texture is being used instead of the real BC "
+            f"textures. Investigate material→texture linkage in "
+            f"assets::material_build."
         )
     finally:
         _open_stbc_host.shutdown()

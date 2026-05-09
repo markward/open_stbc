@@ -13,12 +13,13 @@ namespace assets::detail {
 /// orchestrator.
 struct MaterialInputs {
     const nif::NiMaterialProperty*     material      = nullptr;
+    const nif::NiTextureProperty*      texture       = nullptr;
     const nif::NiTexturingProperty*    texturing     = nullptr;
     const nif::NiMultiTextureProperty* multi_texture = nullptr;
     const nif::NiAlphaProperty*        alpha         = nullptr;
     const nif::NiZBufferProperty*      zbuffer       = nullptr;
     const nif::NiVertexColorProperty*  vertex_color  = nullptr;
-    /// Maps NIF block index of a NiImage → assets::Model::textures index.
+    /// Maps NIF link ID of a NiImage → assets::Model::textures index.
     const std::unordered_map<std::uint32_t, int>* image_to_texture = nullptr;
 };
 

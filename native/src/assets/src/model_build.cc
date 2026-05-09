@@ -68,7 +68,16 @@ std::unordered_map<std::uint32_t, int> load_all_textures(
             decoded = decode_raw_image(*raw);
         }
         Texture tex = upload(decoded, /*generate_mipmaps=*/true);
-        map[i] = static_cast<int>(model.textures.size());
+        // Key by the NIF block's *link ID* (the value other blocks store
+        // in their cross-references), not the array index. BC NIFs use
+        // arbitrary 8-digit link IDs that don't equal the block array
+        // position. TexDesc::source_link is a link ID, so the lookup at
+        // the consumer site (apply_stage in material_build.cc) needs the
+        // same key. Synthetic test files with empty block_ids fall back to
+        // identity, where link_id == block_index.
+        const std::uint32_t link_id =
+            (i < f.block_ids.size()) ? f.block_ids[i] : i;
+        map[link_id] = static_cast<int>(model.textures.size());
         model.textures.push_back(std::move(tex));
     }
     return map;
@@ -160,6 +169,7 @@ MaterialInputs gather_material_inputs(
         if (idx >= f.blocks.size()) continue;
         const auto& b = f.blocks[idx];
         if (auto* p = std::get_if<nif::NiMaterialProperty>(&b))      in.material      = p;
+        else if (auto* p = std::get_if<nif::NiTextureProperty>(&b))      in.texture       = p;
         else if (auto* p = std::get_if<nif::NiTexturingProperty>(&b))    in.texturing     = p;
         else if (auto* p = std::get_if<nif::NiMultiTextureProperty>(&b)) in.multi_texture = p;
         else if (auto* p = std::get_if<nif::NiAlphaProperty>(&b))        in.alpha         = p;

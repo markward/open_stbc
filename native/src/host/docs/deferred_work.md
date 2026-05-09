@@ -90,13 +90,14 @@ captured here so future contributors don't re-discover them.
   reference `${CMAKE_SOURCE_DIR}/native/src/assets/src` which only
   resolves correctly when `CMAKE_SOURCE_DIR` is the project root.
 
-- **White-fallback texture in `FrameSubmitter`.** Galaxy.nif's materials
-  return `stages[Base].texture_index = -1` from the asset pipeline (a
-  pre-existing material-build gap recorded in
-  `native/src/assets/docs/deferred_work.md` item #19). `FrameSubmitter`
-  lazily creates a 1×1 white texture and binds it in place of the
-  missing base texture so untextured materials don't render black.
-  Removing this becomes possible once the asset pipeline gap is fixed.
+- **White-fallback texture in `FrameSubmitter`.** Originally added because
+  Galaxy.nif's materials returned `stages[Base].texture_index = -1` from
+  the asset pipeline. That asset-pipeline gap was fixed 2026-05-09 (see
+  `native/src/assets/docs/deferred_work.md` item #19) and the Galaxy now
+  renders with real BC textures. The white-fallback is kept as
+  defensive logic for materials that legitimately have no Base-stage
+  texture (procedural surfaces, etc.) — without it, GL's zero-texture
+  produces black pixels and the lighting math is wiped out.
 
 - **`SetClass.GetNextObject` wraps around.** The Phase 1 set iterator
   returns the first object after the last (mirroring BC's iteration

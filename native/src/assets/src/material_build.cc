@@ -63,6 +63,24 @@ void apply_stage(
     stage.apply_mode    = apply_mode;
 }
 
+void apply_texture_property(
+    Material& m,
+    const nif::NiTextureProperty& src,
+    const std::unordered_map<std::uint32_t, int>* image_to_texture)
+{
+    // Single-texture v3.x property — populates the Base stage. Lookup keyed
+    // by NiImage link ID to match the map produced by load_all_textures.
+    auto& stage = m.stages[static_cast<std::size_t>(Material::StageSlot::Base)];
+    int tex_idx = -1;
+    if (image_to_texture) {
+        if (auto it = image_to_texture->find(src.image_link); it != image_to_texture->end()) {
+            tex_idx = it->second;
+        }
+    }
+    stage.texture_index = tex_idx;
+    stage.apply_mode    = 2;  // APPLY_MODULATE
+}
+
 void apply_texturing_property(
     Material& m,
     const nif::NiTexturingProperty& src,
@@ -118,6 +136,7 @@ Material build_material(const MaterialInputs& in) {
     if (in.alpha)         apply_alpha_property(m, *in.alpha);
     if (in.zbuffer)       apply_zbuffer_property(m, *in.zbuffer);
     if (in.vertex_color)  apply_vertex_color_property(m, *in.vertex_color);
+    if (in.texture)       apply_texture_property(m, *in.texture, in.image_to_texture);
     if (in.texturing)     apply_texturing_property(m, *in.texturing, in.image_to_texture);
     if (in.multi_texture) apply_multi_texture_property(m, *in.multi_texture, in.image_to_texture);
     return m;

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <assets/cache.h>
+#include <assets/material.h>
 #include <glad/glad.h>
 
 #include "gl_fixture.h"
@@ -35,4 +36,23 @@ TEST_F(ModelSmokeTest, LoadsGalaxyEndToEnd) {
         EXPECT_NE(m.vao(), 0u);
         EXPECT_TRUE(glIsVertexArray(m.vao()));
     }
+
+    // At least one material's Base stage must reference a real texture.
+    // Pre-2026-05-09 a link-ID-vs-block-index mismatch in load_all_textures
+    // caused every material to come back with texture_index == -1, so the
+    // renderer rendered all BC ships untextured (white-fallback). The
+    // earlier assertions above all passed under that bug because they
+    // didn't check materials → textures linkage.
+    int materials_with_base_texture = 0;
+    for (auto& mat : model->materials) {
+        const auto& base =
+            mat.stages[static_cast<std::size_t>(assets::Material::StageSlot::Base)];
+        if (base.texture_index >= 0 &&
+            base.texture_index < static_cast<int>(model->textures.size())) {
+            ++materials_with_base_texture;
+        }
+    }
+    EXPECT_GT(materials_with_base_texture, 0)
+        << "no material on the Galaxy resolves a Base-stage texture; "
+           "load_all_textures' map keys are likely out of sync with TexDesc::source_link";
 }
