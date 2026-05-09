@@ -103,4 +103,9 @@ void Window::framebuffer_size(int* w, int* h) const noexcept {
     else { *w = 0; *h = 0; }
 }
 
+bool Window::key_state(int glfw_key) const noexcept {
+    if (!handle_) return false;
+    return glfwGetKey(handle_, glfw_key) == GLFW_PRESS;
+}
+
 }  // namespace renderer

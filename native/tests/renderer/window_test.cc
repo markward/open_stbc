@@ -49,6 +49,21 @@ TEST(Window, FramebufferSizeReflectsResize) {
     }
 }
 
+TEST(Window, KeyStateReturnsFalseForUnpressedKeys) {
+    try {
+        renderer::Window w(64, 64, "key-state-test", /*visible=*/false);
+        // Hidden offscreen windows never gain focus, so glfwGetKey reports
+        // RELEASE for everything. The test verifies the wiring compiles +
+        // links and returns the documented sentinel; real hardware events
+        // can't be simulated in a test without a window manager.
+        EXPECT_FALSE(w.key_state(GLFW_KEY_W));
+        EXPECT_FALSE(w.key_state(GLFW_KEY_SPACE));
+        EXPECT_FALSE(w.key_state(GLFW_KEY_0));
+    } catch (const std::runtime_error& e) {
+        GTEST_SKIP() << "no GL context available: " << e.what();
+    }
+}
+
 TEST(Window, MoveAssignDoesNotLeak) {
     try {
         renderer::Window a(320, 240, "a", /*visible=*/false);

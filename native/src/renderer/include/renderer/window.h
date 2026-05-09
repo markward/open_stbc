@@ -28,6 +28,10 @@ public:
     /// HiDPI displays).
     void framebuffer_size(int* w, int* h) const noexcept;
 
+    /// Cached state of a GLFW keyboard key. Returns true while the key is
+    /// held. State is updated by glfwPollEvents() (called by poll_events()).
+    bool key_state(int glfw_key) const noexcept;
+
     GLFWwindow* native_handle() noexcept { return handle_; }
 
 private:
