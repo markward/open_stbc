@@ -167,4 +167,34 @@ PYBIND11_MODULE(_open_stbc_host, m) {
     m.def("set_skybox",
           [](scenegraph::ModelHandle h) { g_world.set_skybox(h); },
           py::arg("model"));
+
+    // Test/debug helper: read one RGBA8 pixel from the most recently
+    // presented frame. Reads GL_FRONT (the buffer that swap_buffers
+    // promoted from BACK) so a single frame() + read_pixel sequence
+    // returns what was just drawn. Lets headless tests programmatically
+    // assert "the last frame produced non-zero pixels" instead of needing
+    // visual confirmation.
+    m.def("read_pixel",
+          [](int x, int y) {
+              if (!g_window) {
+                  throw std::runtime_error("read_pixel: init must be called first");
+              }
+              std::uint8_t rgba[4] = {0, 0, 0, 0};
+              glReadBuffer(GL_FRONT);
+              glReadPixels(x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+              glReadBuffer(GL_BACK);  // restore default
+              return std::make_tuple(rgba[0], rgba[1], rgba[2], rgba[3]);
+          },
+          py::arg("x"), py::arg("y"));
+
+    // Test/debug helper: return the current framebuffer size.
+    m.def("framebuffer_size",
+          []() {
+              if (!g_window) {
+                  throw std::runtime_error("framebuffer_size: init must be called first");
+              }
+              int fw = 0, fh = 0;
+              g_window->framebuffer_size(&fw, &fh);
+              return std::make_tuple(fw, fh);
+          });
 }

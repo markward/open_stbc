@@ -43,3 +43,27 @@ def test_set_camera_does_not_raise():
 def test_set_skybox_does_not_raise():
     import _open_stbc_host
     _open_stbc_host.set_skybox(0)
+
+
+def test_set_world_transform_rejects_wrong_length_after_init():
+    """Validation must hold post-init too — the GL context is irrelevant
+    to the length check, but a regression that bypasses it (e.g. a fast
+    path added later) would only surface in this state."""
+    os.environ["OPEN_STBC_HOST_HEADLESS"] = "1"
+    import _open_stbc_host
+    import pytest
+    try:
+        _open_stbc_host.init(64, 64, "post-init-mat4-test")
+    except RuntimeError as e:
+        pytest.skip(f"no GL context available: {e}")
+    iid = _open_stbc_host.create_instance(0)
+    try:
+        with pytest.raises(RuntimeError):
+            _open_stbc_host.set_world_transform(iid, [0.0] * 12)
+        with pytest.raises(RuntimeError):
+            _open_stbc_host.set_world_transform(iid, [0.0] * 17)
+        with pytest.raises(RuntimeError):
+            _open_stbc_host.set_world_transform(iid, [])
+    finally:
+        _open_stbc_host.destroy_instance(iid)
+        _open_stbc_host.shutdown()

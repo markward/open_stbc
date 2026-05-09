@@ -3,6 +3,8 @@
 
 #include <renderer/window.h>
 
+#include <GLFW/glfw3.h>
+
 namespace {
 
 TEST(Window, ConstructHiddenAndDestroy) {
@@ -14,6 +16,34 @@ TEST(Window, ConstructHiddenAndDestroy) {
         EXPECT_GT(fh, 0);
         EXPECT_FALSE(w.should_close());
         w.poll_events();
+    } catch (const std::runtime_error& e) {
+        GTEST_SKIP() << "no GL context available: " << e.what();
+    }
+}
+
+TEST(Window, FramebufferSizeReflectsResize) {
+    try {
+        renderer::Window w(640, 480, "resize-test", /*visible=*/false);
+        int fw0 = 0, fh0 = 0;
+        w.framebuffer_size(&fw0, &fh0);
+        ASSERT_GT(fw0, 0);
+        ASSERT_GT(fh0, 0);
+
+        // Resize via GLFW directly (Window doesn't expose a resize method;
+        // tests reach through the native handle).
+        glfwSetWindowSize(w.native_handle(), 320, 240);
+        // Pump events so the resize takes effect.
+        for (int i = 0; i < 4; ++i) w.poll_events();
+
+        int fw1 = 0, fh1 = 0;
+        w.framebuffer_size(&fw1, &fh1);
+        EXPECT_GT(fw1, 0);
+        EXPECT_GT(fh1, 0);
+        // We can't insist on exact 320x240 — HiDPI scaling may produce a
+        // different framebuffer size — but it must have shrunk relative
+        // to the original 640x480.
+        EXPECT_LT(fw1, fw0);
+        EXPECT_LT(fh1, fh0);
     } catch (const std::runtime_error& e) {
         GTEST_SKIP() << "no GL context available: " << e.what();
     }
