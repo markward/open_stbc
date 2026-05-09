@@ -37,3 +37,25 @@ target_include_directories(open_stbc_host PRIVATE .)
 set_target_properties(open_stbc_host PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
+
+# Block parsers in libnif.a self-register via static initializers. Without
+# force-load, the linker drops object files that aren't otherwise referenced
+# and the registrations never run — the NIF parser then walks files and fails
+# with "no NiNode root in NIF file" because no block types are recognized.
+# Mirrors the pattern in native/tests/{,assets/}CMakeLists.txt for the test
+# targets.
+if(APPLE)
+    target_link_options(_open_stbc_host PRIVATE
+        "LINKER:-force_load,$<TARGET_FILE:nif>")
+    target_link_options(open_stbc_host PRIVATE
+        "LINKER:-force_load,$<TARGET_FILE:nif>")
+elseif(UNIX)
+    target_link_options(_open_stbc_host PRIVATE
+        "LINKER:--whole-archive"
+        "$<TARGET_FILE:nif>"
+        "LINKER:--no-whole-archive")
+    target_link_options(open_stbc_host PRIVATE
+        "LINKER:--whole-archive"
+        "$<TARGET_FILE:nif>"
+        "LINKER:--no-whole-archive")
+endif()

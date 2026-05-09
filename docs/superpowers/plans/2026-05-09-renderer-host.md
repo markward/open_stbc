@@ -2055,6 +2055,26 @@ target_link_libraries(open_stbc_host
 )
 ```
 
+Also add force-load linker options for `nif` so the block-parser static initializers actually run. Without this, the binding parses files into zero blocks and `model_build` throws `"no NiNode root in NIF file"`. Mirror the pattern from `native/tests/{,assets/}CMakeLists.txt`:
+
+```cmake
+if(APPLE)
+    target_link_options(_open_stbc_host PRIVATE
+        "LINKER:-force_load,$<TARGET_FILE:nif>")
+    target_link_options(open_stbc_host PRIVATE
+        "LINKER:-force_load,$<TARGET_FILE:nif>")
+elseif(UNIX)
+    target_link_options(_open_stbc_host PRIVATE
+        "LINKER:--whole-archive"
+        "$<TARGET_FILE:nif>"
+        "LINKER:--no-whole-archive")
+    target_link_options(open_stbc_host PRIVATE
+        "LINKER:--whole-archive"
+        "$<TARGET_FILE:nif>"
+        "LINKER:--no-whole-archive")
+endif()
+```
+
 - [ ] **Step 2: Write the failing test**
 
 Create `tests/host/test_load_model.py`:
@@ -2069,12 +2089,14 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 GAME_DATA = PROJECT_ROOT / "game" / "data"
 GALAXY_NIF = GAME_DATA / "Models" / "Ships" / "Galaxy" / "Galaxy.nif"
-GALAXY_TEX = "data/Models/SharedTextures/FedShips/High"
+GALAXY_TEX = GAME_DATA / "Models" / "SharedTextures" / "FedShips" / "High"
 
 
 def test_load_galaxy_and_create_instance():
     if not GALAXY_NIF.is_file():
         pytest.skip(f"BC asset not available at {GALAXY_NIF}")
+    if not GALAXY_TEX.is_dir():
+        pytest.skip(f"BC texture dir not available at {GALAXY_TEX}")
     os.environ["OPEN_STBC_HOST_HEADLESS"] = "1"
     import _open_stbc_host
     try:
@@ -2082,7 +2104,7 @@ def test_load_galaxy_and_create_instance():
     except RuntimeError as e:
         pytest.skip(f"no GL context available: {e}")
     try:
-        h = _open_stbc_host.load_model(str(GALAXY_NIF), GALAXY_TEX)
+        h = _open_stbc_host.load_model(str(GALAXY_NIF), str(GALAXY_TEX))
         assert h > 0
         iid = _open_stbc_host.create_instance(h)
         assert iid.generation > 0
@@ -2090,6 +2112,8 @@ def test_load_galaxy_and_create_instance():
     finally:
         _open_stbc_host.shutdown()
 ```
+
+(`texture_search_path` is an absolute filesystem path matching the C++ test's `fed_high = root / "game/data/Models/SharedTextures/FedShips/High"`. The asset pipeline's `path_resolver` walks this directory tree to find textures referenced in the NIF.)
 
 - [ ] **Step 3: Run test, verify it passes**
 

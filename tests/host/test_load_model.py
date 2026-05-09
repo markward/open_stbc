@@ -13,6 +13,8 @@ GALAXY_TEX = GAME_DATA / "Models" / "SharedTextures" / "FedShips" / "High"
 def test_load_galaxy_and_create_instance():
     if not GALAXY_NIF.is_file():
         pytest.skip(f"BC asset not available at {GALAXY_NIF}")
+    if not GALAXY_TEX.is_dir():
+        pytest.skip(f"BC texture dir not available at {GALAXY_TEX}")
     os.environ["OPEN_STBC_HOST_HEADLESS"] = "1"
     import _open_stbc_host
     try:
@@ -20,12 +22,7 @@ def test_load_galaxy_and_create_instance():
     except RuntimeError as e:
         pytest.skip(f"no GL context available: {e}")
     try:
-        try:
-            h = _open_stbc_host.load_model(str(GALAXY_NIF), str(GALAXY_TEX))
-        except RuntimeError as e:
-            if "no NiNode root" in str(e):
-                pytest.skip(f"NIF file has unsupported structure: {e}")
-            raise
+        h = _open_stbc_host.load_model(str(GALAXY_NIF), str(GALAXY_TEX))
         assert h > 0
         iid = _open_stbc_host.create_instance(h)
         assert iid.generation > 0
