@@ -1,5 +1,6 @@
 add_library(assets STATIC
     src/animation_build.cc
+    src/cache.cc
     src/gl_handle.cc
     src/material_build.cc
     src/mesh_build.cc
