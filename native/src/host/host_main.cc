@@ -63,6 +63,23 @@ int call_banner() {
     return 0;
 }
 
+int run_host_loop() {
+    PyObject* mod = PyImport_ImportModule("engine.host_loop");
+    if (!mod) { PyErr_Print(); return 1; }
+    PyObject* fn = PyObject_GetAttrString(mod, "run");
+    if (!fn) { PyErr_Print(); Py_DECREF(mod); return 1; }
+    PyObject* result = PyObject_CallNoArgs(fn);
+    Py_DECREF(fn);
+    Py_DECREF(mod);
+    if (!result) { PyErr_Print(); return 1; }
+    int rc = 0;
+    if (PyLong_Check(result)) {
+        rc = static_cast<int>(PyLong_AsLong(result));
+    }
+    Py_DECREF(result);
+    return rc;
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -79,7 +96,8 @@ int main(int argc, char* argv[]) {
     Py_InitializeEx(/*initsigs=*/1);
 
     int rc = 0;
-    if (argc >= 2 && std::string(argv[1]) == "--smoke-check") {
+    std::string mode = (argc >= 2) ? std::string(argv[1]) : "";
+    if (mode == "--smoke-check") {
         PyObject* mod = PyImport_ImportModule("engine.bootstrap");
         if (!mod) { PyErr_Print(); rc = 1; goto teardown; }
         PyObject* fn = PyObject_GetAttrString(mod, "smoke_check");
@@ -95,8 +113,11 @@ int main(int argc, char* argv[]) {
             std::printf("%s\n", PyUnicode_AsUTF8(repr));
             Py_DECREF(repr);
         }
-    } else {
+    } else if (mode == "--banner") {
         rc = call_banner();
+    } else {
+        // Default: run the visible ship gate via engine.host_loop.run().
+        rc = run_host_loop();
     }
 
 teardown:

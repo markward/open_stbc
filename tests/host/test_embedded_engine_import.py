@@ -11,7 +11,7 @@ def test_host_imports_engine_bootstrap():
         import pytest
         pytest.skip(f"host binary not built at {HOST_BIN}")
     result = subprocess.run(
-        [str(HOST_BIN)],
+        [str(HOST_BIN), "--banner"],
         capture_output=True,
         text=True,
         cwd=str(PROJECT_ROOT),
