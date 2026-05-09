@@ -56,6 +56,25 @@ the list.
 16. **BC input system integration.** Keyboard/mouse/joystick mapping
     matching BC's input scheme, distinct from the v1 fixed third-person
     camera.
+17. **Read turn rate / max impulse from BC config.** `_PlayerControl`'s
+    `TURN_RATE_RAD_PER_S` (1.5) and `IMPULSE_UNIT` (50.0) are tuned by
+    feel; they should come from the ship's `ImpulseEngineSubsystem`
+    properties or `GlobalPropertyTemplates.py` once Phase 1 wires those
+    up. Same for `REVERSE_LEVEL`.
+18. **Switch to physics integration.** When `engine/physics/simulation.py`
+    gets a real PyBullet integrator, `_PlayerControl.apply` should set
+    target velocity / target angular velocity on the ship's impulse
+    subsystem instead of writing the transform directly.
+19. **BC config-file keybindings.** Read user-customized bindings from
+    `data/scripts/Custom/Bridge/Keymap.py` (or wherever BC stores them)
+    so players who remap keys see those bindings honored.
+20. **Mouse input.** Stock BC supports yaw/pitch via mouse-look; v1 is
+    keyboard-only.
+21. **Acceleration / deceleration curves.** v1 sets impulse level
+    instantaneously; BC ramps. Adding ramps depends on item 18 above.
+22. **Auto-damping toggle.** Some space sims auto-damp angular velocity
+    when no input is held; v1 doesn't (release = stop turning, but no
+    re-centering).
 
 ## v1 deviations from the original plan
 
