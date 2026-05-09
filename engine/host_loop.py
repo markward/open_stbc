@@ -72,21 +72,17 @@ def _init_mission(mission_module_name: str):
 def _iter_set_objects(pSet) -> Iterable:
     """Walk every object in a set exactly once.
 
-    SetClass.GetNextObject wraps to the first object when iteration completes
-    (mirroring the BC engine's iteration semantics). Detect wrap by comparing
-    against the first object's id and stop there.
+    Iterates `pSet._objects.values()` directly rather than using BC's
+    GetFirstObject + GetNextObject API, because the latter is unreliable
+    in the presence of stub objects: any object whose `GetObjID()` returns
+    an `App._NamedStub` causes `SetClass.GetNextObject(stub).int(stub) → 0`
+    to find no match and return None, terminating iteration prematurely.
+    The `_objects` private attribute is already inspected elsewhere in this
+    module (set-membership checks, verbose logging), so the implementation
+    coupling is consistent.
     """
-    first = pSet.GetFirstObject()
-    if first is None:
-        return
-    yield first
-    if not hasattr(first, "GetObjID"):
-        return
-    first_id = first.GetObjID()
-    obj = pSet.GetNextObject(first_id)
-    while obj is not None and hasattr(obj, "GetObjID") and obj.GetObjID() != first_id:
+    for obj in getattr(pSet, "_objects", {}).values():
         yield obj
-        obj = pSet.GetNextObject(obj.GetObjID())
 
 
 def _iter_ships(*, verbose: bool = False) -> Iterable:
