@@ -8,6 +8,7 @@ add_library(assets STATIC
     src/skeleton_build.cc
     src/texture_decode.cc
     src/texture_lifetime.cc
+    src/texture_upload.cc
 )
 target_include_directories(assets PUBLIC include)
 target_compile_features(assets PUBLIC cxx_std_20)
