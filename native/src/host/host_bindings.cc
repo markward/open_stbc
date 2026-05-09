@@ -46,16 +46,29 @@ struct LoadedModel {
 std::unique_ptr<assets::AssetCache> g_cache;
 std::vector<LoadedModel> g_loaded_models;  // index = our public ModelHandle - 1
 std::unique_ptr<renderer::Pipeline> g_pipeline;
-renderer::FrameSubmitter g_submitter;
+// FrameSubmitter is a unique_ptr (not a static instance) so its destructor —
+// which calls glDeleteTextures on the white-fallback texture — runs from
+// shutdown() while the GL context is still alive, not from process-exit
+// static destruction order which would run after the Window is gone.
+std::unique_ptr<renderer::FrameSubmitter> g_submitter;
 
 scenegraph::ModelHandle load_model_impl(const std::string& nif_path,
                                         const std::string& texture_search_path) {
     if (!g_window) {
         throw std::runtime_error("load_model: init must be called first (asset upload needs a GL context)");
     }
+    // Dedupe by nif_path: callers that load the same NIF for multiple ships
+    // get the same handle and the underlying assets::AssetCache::load isn't
+    // even called a second time.
+    std::filesystem::path canonical = nif_path;
+    for (std::size_t i = 0; i < g_loaded_models.size(); ++i) {
+        if (g_loaded_models[i].nif_path == canonical) {
+            return static_cast<scenegraph::ModelHandle>(i + 1);
+        }
+    }
     if (!g_cache) g_cache = std::make_unique<assets::AssetCache>();
     auto handle = g_cache->load(nif_path, texture_search_path);
-    g_loaded_models.push_back({nif_path, std::move(handle)});
+    g_loaded_models.push_back({std::move(canonical), std::move(handle)});
     return static_cast<scenegraph::ModelHandle>(g_loaded_models.size());
 }
 
@@ -67,11 +80,17 @@ void init(int width, int height, const std::string& title) {
     bool visible = std::getenv("OPEN_STBC_HOST_HEADLESS") == nullptr;
     g_window = std::make_unique<renderer::Window>(width, height, title, visible);
     g_pipeline = std::make_unique<renderer::Pipeline>();
+    g_submitter = std::make_unique<renderer::FrameSubmitter>();
     g_world = scenegraph::World{};
     g_loaded_models.clear();
 }
 
 void shutdown() {
+    // Destroy GL-handle owners BEFORE the GL context (g_window) goes away.
+    // Order matters: pipeline shaders and the submitter's white-fallback
+    // texture are GL objects that must be released while the context is
+    // still current.
+    g_submitter.reset();
     g_pipeline.reset();
     g_loaded_models.clear();
     g_cache.reset();
@@ -84,7 +103,7 @@ bool should_close() {
 }
 
 void frame() {
-    if (!g_window || !g_pipeline) {
+    if (!g_window || !g_pipeline || !g_submitter) {
         throw std::runtime_error("_open_stbc_host: frame called before init");
     }
     int fw = 0, fh = 0;
@@ -101,8 +120,8 @@ void frame() {
     };
 
     g_world.propagate();
-    g_submitter.submit_skybox(lookup(g_world.skybox_model()), g_camera, *g_pipeline);
-    g_submitter.submit_opaque(g_world, g_camera, *g_pipeline, lookup);
+    g_submitter->submit_skybox(lookup(g_world.skybox_model()), g_camera, *g_pipeline);
+    g_submitter->submit_opaque(g_world, g_camera, *g_pipeline, lookup);
 
     g_window->poll_events();
     g_window->swap_buffers();
