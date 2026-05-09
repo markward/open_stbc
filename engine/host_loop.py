@@ -89,10 +89,14 @@ def _iter_set_objects(pSet) -> Iterable:
         obj = pSet.GetNextObject(obj.GetObjID())
 
 
-def _iter_ships() -> Iterable:
+def _iter_ships(*, verbose: bool = False) -> Iterable:
     """Walk every ShipClass-like object in every active set."""
     import App
-    for _name, pSet in App.g_kSetManager._sets.items():
+    for set_name, pSet in App.g_kSetManager._sets.items():
+        if verbose:
+            count = len(getattr(pSet, "_objects", {}))
+            obj_keys = list(getattr(pSet, "_objects", {}).keys())
+            print(f"[host_loop] set {set_name!r}: {count} object(s), keys={obj_keys}", flush=True)
         for obj in _iter_set_objects(pSet):
             # ShipClass exposes GetScript; non-ship objects (waypoints,
             # characters) typically don't have a non-empty script string.
@@ -193,7 +197,7 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         nif_to_handle: dict[str, int] = {}
         instances: dict[object, object] = {}  # ship -> InstanceId
         ships_seen = 0
-        for ship in _iter_ships():
+        for ship in _iter_ships(verbose=verbose):
             ships_seen += 1
             if verbose:
                 cls = type(ship).__name__
@@ -239,7 +243,19 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                       f"world=({p.x:.2f}, {p.y:.2f}, {p.z:.2f})", flush=True)
             if player is not None:
                 pp = player.GetWorldLocation()
-                print(f"[host_loop] player world=({pp.x:.2f}, {pp.y:.2f}, {pp.z:.2f})", flush=True)
+                cls = type(player).__name__
+                try:
+                    sn = player.GetScript()
+                except Exception as e:
+                    sn = f"<GetScript raised: {e!r}>"
+                # Where does the player live? Check every set for membership.
+                in_sets = []
+                for sname, pset in App.g_kSetManager._sets.items():
+                    if any(o is player for o in getattr(pset, "_objects", {}).values()):
+                        in_sets.append(sname)
+                print(f"[host_loop] player class={cls} script={sn!r} "
+                      f"world=({pp.x:.2f}, {pp.y:.2f}, {pp.z:.2f}) "
+                      f"in_sets={in_sets}", flush=True)
             else:
                 print("[host_loop] no player ship found", flush=True)
 
