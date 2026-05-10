@@ -13,6 +13,26 @@ from typing import Iterable, Optional
 from engine import renderer as r
 from engine.scale import SHIP_SCALE, ASTRO_SCALE, PLANET_NIF_NATIVE_RADIUS
 
+import math as _math
+
+
+def _extract_ypr(R) -> tuple:
+    """Yaw/pitch/roll in degrees from a BC row-vector TGMatrix3.
+
+    BC convention: Row 0 = right, Row 1 = forward (Y), Row 2 = up (Z).
+    Yaw:   atan2(forward.x, forward.y) - heading around world Z
+    Pitch: asin(forward.z)             - elevation (+ = nose up)
+    Roll:  atan2(-right.z, up.z)       - bank (+ = right wing down)
+    """
+    fwd = R.GetRow(1)
+    up  = R.GetRow(2)
+    rgt = R.GetRow(0)
+    yaw_deg   = _math.degrees(_math.atan2(fwd.x, fwd.y))
+    pitch_deg = _math.degrees(_math.asin(max(-1.0, min(1.0, fwd.z))))
+    roll_deg  = _math.degrees(_math.atan2(-rgt.z, up.z))
+    return yaw_deg, pitch_deg, roll_deg
+
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # v1 ship-gate selections — Task 25 pins these from the pick_*.py scan results.
@@ -404,7 +424,8 @@ def run(mission_name: str = SHIP_GATE_MISSION,
     import App
     from engine.core.loop import GameLoop
 
-    r.init(1280, 720, "open_stbc")
+    r.init(1280, 720, "open_stbc",
+           str(PROJECT_ROOT / "native" / "assets" / "ui"))
     try:
         # Per-NIF cache so the same mesh isn't reloaded once per ship.
         nif_to_handle: dict[str, int] = {}
@@ -545,6 +566,30 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                          fov_y_rad=1.0472, near=1.0, far=2_000_000.0)
 
             active_set = _resolve_active_set(player)
+
+            if player is not None:
+                _R = player.GetWorldRotation()
+                _p = player.GetWorldLocation()
+                _yaw, _pitch, _roll = _extract_ypr(_R)
+                _set_name = next(
+                    (n for n, s in App.g_kSetManager._sets.items()
+                     if s is active_set),
+                    ""
+                ) if active_set is not None else ""
+                try:
+                    _raw_script = player.GetScript() or ""
+                except Exception:
+                    _raw_script = ""
+                _ship_display = _raw_script.split(".")[-1] if _raw_script else "---"
+                r.set_hud_state({
+                    "pos":    (_p.x, _p.y, _p.z),
+                    "yaw":    _yaw,
+                    "pitch":  _pitch,
+                    "roll":   _roll,
+                    "system": _set_name or "---",
+                    "ship":   _ship_display,
+                })
+
             ambient, directionals = _aggregate_lights(active_set)
             r.set_lighting(ambient, directionals)
 
