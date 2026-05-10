@@ -248,27 +248,36 @@ def _ship_nif_path(ship, *, verbose: bool = False) -> Optional[str]:
     return str(abs_path)
 
 
-def _resolve_active_lighting_set(player):
-    """Return the SetClass whose lights apply to the rendered scene.
-
-    Order:
+def _resolve_active_set(player):
+    """Return the SetClass whose lights & backdrops apply to the rendered
+    scene. Order:
       1. g_kSetManager.GetRenderedSet() — set explicitly via
-         MissionLib.MakeRenderedSet during scene transitions. Used when
-         present and has lights.
-      2. The set containing the player ship — fallback for when Phase 1
-         hasn't wired MakeRenderedSet up. Used when has lights.
-      3. None — caller falls through to DEFAULT_AMBIENT / DEFAULT_DIRECTIONALS.
+         MissionLib.MakeRenderedSet during scene transitions.
+      2. The set containing the player ship — Phase 1 fallback.
+      3. None — caller falls through to per-system defaults
+         (lighting only; backdrops simply absent).
+
+    Considers both _lights and _backdrops when deciding whether a set
+    is 'live' so backdrop-only sets (rare but legal) are picked up.
     """
     import App
     rendered = App.g_kSetManager.GetRenderedSet()
-    if rendered is not None and getattr(rendered, "_lights", None):
+    if rendered is not None and (
+        getattr(rendered, "_lights", None) or
+        getattr(rendered, "_backdrops", None)
+    ):
         return rendered
     if player is not None:
         for s in App.g_kSetManager._sets.values():
             if any(o is player for o in getattr(s, "_objects", {}).values()):
-                if getattr(s, "_lights", None):
+                if (getattr(s, "_lights", None) or
+                    getattr(s, "_backdrops", None)):
                     return s
     return None
+
+
+# Back-compat alias — existing lighting tests reference this name.
+_resolve_active_lighting_set = _resolve_active_set
 
 
 def _aggregate_lights(pSet):
@@ -278,6 +287,14 @@ def _aggregate_lights(pSet):
     juggle the defaults at every call site."""
     from engine.appc.lights import aggregate_for_renderer
     return aggregate_for_renderer(pSet, DEFAULT_AMBIENT, DEFAULT_DIRECTIONALS)
+
+
+def _aggregate_backdrops(pSet):
+    """Thin wrapper over engine.appc.backdrops.aggregate_for_renderer
+    that supplies PROJECT_ROOT, mirroring _aggregate_lights's wrapping
+    of aggregate_for_renderer in lights.py."""
+    from engine.appc.backdrops import aggregate_for_renderer
+    return aggregate_for_renderer(pSet, PROJECT_ROOT)
 
 
 def _world_matrix_row_major(ship) -> list:

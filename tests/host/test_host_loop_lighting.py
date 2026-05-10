@@ -167,6 +167,45 @@ def test_resolve_active_lighting_set_falls_back_to_player_set():
         App.g_kSetManager.DeleteSet("PlayerSet")
 
 
+def test_resolve_active_set_picks_set_with_only_backdrops():
+    """_resolve_active_set considers backdrops alongside lights when
+    deciding whether a set is 'live'."""
+    import App
+    from engine import host_loop
+    App.g_kSetManager._rendered_set_name = None
+    pSet = App.SetClass_Create()
+    star = App.StarSphere_Create()
+    star.SetTextureFileName("data/stars.tga")
+    pSet.AddBackdropToSet(star, "stars")
+    App.g_kSetManager.AddSet(pSet, "BackdropOnlySet")
+    class _FakePlayer: pass
+    fp = _FakePlayer()
+    pSet.AddObjectToSet(fp, "player")
+    try:
+        active = host_loop._resolve_active_set(player=fp)
+        assert active is pSet
+    finally:
+        App.g_kSetManager.DeleteSet("BackdropOnlySet")
+
+
+def test_aggregate_backdrops_supplies_project_root_for_path_resolution():
+    """The host_loop wrapper passes PROJECT_ROOT so 'data/stars.tga'
+    resolves correctly without each call site juggling the root path."""
+    from pathlib import Path
+    import App
+    from engine import host_loop
+    PROJECT_ROOT = host_loop.PROJECT_ROOT
+    if not (PROJECT_ROOT / "game" / "data" / "stars.tga").is_file():
+        pytest.skip("BC assets not available")
+    pSet = App.SetClass_Create()
+    s = App.StarSphere_Create()
+    s.SetTextureFileName("data/stars.tga")
+    pSet.AddBackdropToSet(s, "stars")
+    result = host_loop._aggregate_backdrops(pSet)
+    assert len(result) == 1
+    assert result[0]["kind"] == "star"
+
+
 def test_resolve_active_lighting_set_returns_none_for_no_lights():
     import App
     from engine import host_loop
