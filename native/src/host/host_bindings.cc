@@ -19,6 +19,7 @@
 #include <renderer/window.h>
 #include <renderer/pipeline.h>
 #include <renderer/frame.h>
+#include <renderer/backdrop_pass.h>
 #include <scenegraph/world.h>
 #include <scenegraph/camera.h>
 #include <assets/cache.h>
@@ -40,6 +41,8 @@ std::unique_ptr<renderer::Window> g_window;
 scenegraph::World g_world;
 scenegraph::Camera g_camera;
 renderer::Lighting g_lighting;
+std::vector<renderer::Backdrop> g_backdrops;
+std::unique_ptr<renderer::BackdropPass> g_backdrop_pass;
 
 struct LoadedModel {
     std::filesystem::path nif_path;
@@ -92,6 +95,8 @@ void init(int width, int height, const std::string& title) {
     g_world = scenegraph::World{};
     g_loaded_models.clear();
     g_lighting = renderer::Lighting{};
+    g_backdrops.clear();
+    g_backdrop_pass = std::make_unique<renderer::BackdropPass>();
 }
 
 void shutdown() {
@@ -104,6 +109,9 @@ void shutdown() {
     g_loaded_models.clear();
     g_cache.reset();
     g_world = scenegraph::World{};
+    g_backdrops.clear();
+    g_backdrop_pass.reset();  // releases sphere + texture caches while the
+                              // GL context is still alive.
     g_window.reset();
     g_prev_key_state.clear();
     // Mirror init()'s lighting reset for symmetry and defense-in-depth:
@@ -230,6 +238,34 @@ PYBIND11_MODULE(_open_stbc_host, m) {
           },
           py::arg("ambient"), py::arg("directionals"),
           "Set the global lighting state used by the next frame()'s opaque pass.");
+
+    m.def("set_backdrops",
+          [](const std::vector<py::dict>& descriptors) {
+              g_backdrops.clear();
+              g_backdrops.reserve(descriptors.size());
+              for (const auto& d : descriptors) {
+                  renderer::Backdrop b;
+                  b.texture_path      = d["texture_path"].cast<std::string>();
+                  std::string kind    = d["kind"].cast<std::string>();
+                  b.kind = (kind == "star") ? renderer::BackdropKind::Star
+                                            : renderer::BackdropKind::Backdrop;
+                  b.h_tile            = d["h_tile"].cast<float>();
+                  b.v_tile            = d["v_tile"].cast<float>();
+                  b.h_span            = d["h_span"].cast<float>();
+                  b.v_span            = d["v_span"].cast<float>();
+                  b.target_poly_count = d["target_poly_count"].cast<int>();
+                  auto m9 = d["world_rotation"].cast<std::vector<float>>();
+                  if (m9.size() == 9) {
+                      b.world_rotation = glm::mat3(
+                          m9[0], m9[1], m9[2],
+                          m9[3], m9[4], m9[5],
+                          m9[6], m9[7], m9[8]);
+                  }
+                  g_backdrops.push_back(std::move(b));
+              }
+          },
+          py::arg("backdrops"),
+          "Set the active set's ordered backdrop list, applied each frame().");
 
     auto keys = m.def_submodule("keys", "GLFW key-code constants for input bindings.");
     keys.attr("KEY_W") = GLFW_KEY_W;
