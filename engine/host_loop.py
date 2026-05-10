@@ -17,6 +17,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # v1 ship-gate selections — Task 25 pins these from the pick_*.py scan results.
 SHIP_GATE_MISSION = "Custom.Tutorial.Episode.M1Basic.M1Basic"
 DEFAULT_TEXTURE_SEARCH = "data/Models/SharedTextures/FedShips/High"
+DEFAULT_PLANET_TEXTURE_SEARCH = "data/Models/Environment"
 DEFAULT_PLAYER_SET = "Biranu1"  # M1 Basic-specific
 
 # Lighting defaults — used by both the per-tick fallback (when no active set
@@ -201,6 +202,31 @@ def _iter_ships(*, verbose: bool = False) -> Iterable:
                 yield obj
 
 
+def _iter_planets(*, verbose: bool = False) -> Iterable:
+    """Walk every Planet (non-Sun) in every active set."""
+    import App
+    from engine.appc.planet import Planet, Sun
+    for set_name, pSet in App.g_kSetManager._sets.items():
+        for obj in _iter_set_objects(pSet):
+            if isinstance(obj, Planet) and not isinstance(obj, Sun):
+                yield obj
+
+
+def _planet_nif_path(planet, *, verbose: bool = False) -> Optional[str]:
+    """Return absolute path to the planet's NIF, or None if unavailable."""
+    rel = planet.GetModelPath()
+    if not rel:
+        if verbose:
+            print(f"[host_loop]   skip planet: GetModelPath() returned empty", flush=True)
+        return None
+    abs_path = PROJECT_ROOT / "game" / rel
+    if not abs_path.is_file():
+        if verbose:
+            print(f"[host_loop]   skip planet: NIF not found at {abs_path}", flush=True)
+        return None
+    return str(abs_path)
+
+
 def _ship_nif_path(ship, *, verbose: bool = False) -> Optional[str]:
     """Return absolute path to the ship's high-LOD NIF, or None if not found.
 
@@ -368,6 +394,32 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         if verbose:
             print(f"[host_loop] ships seen by iterator: {ships_seen}; "
                   f"instances created: {len(instances)}", flush=True)
+
+        planets_seen = 0
+        planets_loaded = 0
+        planet_tex_search = str(PROJECT_ROOT / "game" / DEFAULT_PLANET_TEXTURE_SEARCH)
+        for planet in _iter_planets(verbose=verbose):
+            planets_seen += 1
+            nif_path = _planet_nif_path(planet, verbose=verbose)
+            if nif_path is None:
+                continue
+            handle = nif_to_handle.get(nif_path)
+            if handle is None:
+                try:
+                    handle = r.load_model(nif_path, planet_tex_search)
+                except Exception as e:
+                    if verbose:
+                        print(f"[host_loop]   skip planet: load_model({nif_path}) raised: "
+                              f"{type(e).__name__}: {e}", flush=True)
+                    continue
+                nif_to_handle[nif_path] = handle
+            iid = r.create_instance(handle)
+            r.set_world_transform(iid, _world_matrix_row_major(planet))
+            instances[planet] = iid
+            planets_loaded += 1
+        if verbose:
+            print(f"[host_loop] planets seen: {planets_seen}; "
+                  f"planet instances created: {planets_loaded}", flush=True)
 
         # Player ship for camera follow.
         player_set = App.g_kSetManager.GetSet(DEFAULT_PLAYER_SET)
