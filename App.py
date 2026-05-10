@@ -27,6 +27,10 @@ from engine.appc.placement import (
 from engine.appc.lights import (
     Light, LightPlacement, LightPlacement_Create,
 )
+from engine.appc.backdrops import (
+    Backdrop, StarSphere, BackdropSphere,
+    StarSphere_Create, BackdropSphere_Create,
+)
 from engine.appc.ships import (
     ShipClass, ShipClass_Create, ShipClass_GetObject,
     ShipClass_Cast, ShipClass_GetObjectByID,
