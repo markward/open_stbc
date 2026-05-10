@@ -174,12 +174,15 @@ void frame() {
         g_ui_system->render(fw, fh);
     }
 
-    g_window->poll_events();
-    // Snapshot tracked keys' current state so the NEXT call to key_pressed
-    // sees the right "previous" value for rising-edge detection.
+    // Snapshot tracked keys' current state BEFORE poll_events. The next
+    // tick's Python sees the post-poll state as `now` and this pre-poll
+    // state as `prev`, so any change made by this poll surfaces as a
+    // rising edge. (Snapshotting AFTER poll would make now==prev for
+    // every Python call, silently breaking key_pressed.)
     for (auto& [k, prev] : g_prev_key_state) {
         prev = (glfwGetKey(g_window->native_handle(), k) == GLFW_PRESS);
     }
+    g_window->poll_events();
     g_window->swap_buffers();
 }
 
