@@ -30,6 +30,11 @@ TEST_F(PipelineTest, SunShaderCompilesAndLinks) {
     EXPECT_NE(p.sun_shader().program(), 0u);
 }
 
+TEST_F(PipelineTest, BlurShaderCompilesAndLinks) {
+    renderer::Pipeline p;
+    EXPECT_NE(p.blur_shader().program(), 0u);
+}
+
 TEST_F(PipelineTest, GlStateMatchesBCConvention) {
     renderer::Pipeline p;
 
