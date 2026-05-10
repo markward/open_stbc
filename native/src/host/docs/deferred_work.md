@@ -8,12 +8,37 @@ the list.
 
 ## Spec items
 
-1. **Skybox path lookup from mission/system config.** Replaces the v1
-   hard-coded default skybox. Note: BC ships no actual skybox NIFs in
-   `game/data` (the `tools/pick_default_skybox.py` scan only finds
-   starbases that match "star"). Skybox is procedural in BC. v1 leaves
-   `DEFAULT_SKYBOX_NIF = None` in `engine/host_loop.py` and the renderer's
-   skybox pass is a no-op.
+1. **Skybox path lookup from mission/system config.** ✅ Implemented
+   2026-05-10 as a multi-layer backdrop system rather than a single-NIF
+   skybox slot. See
+   [`docs/superpowers/specs/2026-05-10-skybox-backdrops-design.md`](../../../../docs/superpowers/specs/2026-05-10-skybox-backdrops-design.md).
+
+   - Phase-1 shim (`engine/appc/backdrops.py`) materialises BC's
+     `App.StarSphere_Create()` / `App.BackdropSphere_Create()` /
+     `pSet.AddBackdropToSet(obj, name)` calls into `SetClass._backdrops`
+     (insertion order = draw order).
+   - `engine/host_loop.run` resolves the active set each tick via
+     `_resolve_active_set` (shared with lighting), aggregates backdrops
+     into a flat descriptor list, calls `r.set_backdrops(...)`.
+   - `BackdropPass` (`native/src/renderer/backdrop_pass.{h,cc}`) draws
+     the list with depth-write off, depth-LEQUAL, view-translation
+     stripped (camera-anchored position, world-locked orientation);
+     per-backdrop blend mode (opaque for StarSphere,
+     `GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA` for BackdropSphere); shared
+     procedural UV-sphere mesh cache + per-texture cache.
+   - **NIF-skybox parsing was deliberately NOT part of this work** — BC
+     ships no skybox NIFs (`tools/pick_default_skybox.py` only matched
+     starbase NIFs by name; tool removed by this commit).
+
+   Follow-up backlog:
+
+   - **Lens-flare rendering.** Used by
+     `Tactical.LensFlares.YellowLensFlare(pSet, pSun)`; scoped into
+     sub-project #3 (sun + planet rendering).
+   - **Backdrop animation.** No stock content uses rotating nebulae;
+     cosmetic future option.
+   - **Cubemap path.** Higher-detail starfields via cubemaps; mod
+     territory.
 2. **BC light data interpretation.** ✅ Implemented 2026-05-10.
    See [`docs/superpowers/specs/2026-05-10-bc-light-data-design.md`](../../../../docs/superpowers/specs/2026-05-10-bc-light-data-design.md).
 
