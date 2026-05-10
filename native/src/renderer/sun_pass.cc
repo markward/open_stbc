@@ -104,10 +104,12 @@ void SunPass::render(const std::vector<SunDescriptor>& suns,
                        static_cast<GLsizei>(sphere->index_count()),
                        GL_UNSIGNED_INT, nullptr);
 
-        // Corona: additive shell at corona_radius, latitude-faded alpha
+        // Corona: additive semi-transparent shell — depth writes off so the
+        // halo doesn't occlude opaque geometry behind it.
         if (s.corona_radius > s.radius) {
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+            glDepthMask(GL_FALSE);
             glm::mat4 corona_model =
                 glm::translate(glm::mat4(1.0f), s.position)
                 * glm::scale(glm::mat4(1.0f), glm::vec3(s.corona_radius));
@@ -116,6 +118,7 @@ void SunPass::render(const std::vector<SunDescriptor>& suns,
             glDrawElements(GL_TRIANGLES,
                            static_cast<GLsizei>(sphere->index_count()),
                            GL_UNSIGNED_INT, nullptr);
+            glDepthMask(GL_TRUE);
             glDisable(GL_BLEND);
         }
     }
