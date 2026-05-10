@@ -95,6 +95,27 @@ def test_aggregate_lights_truncates_to_four():
     assert len(directionals) == 4
 
 
+def test_aggregate_lights_overflow_warning_fires_once_per_set(capsys):
+    """The >MAX_DIRECTIONALS warning prints once per SetClass — second
+    aggregation pass on the same set must be silent (no per-tick spam)."""
+    import App
+    from engine import host_loop
+    pSet = App.SetClass_Create()
+    pSet.SetName("OverflowSet")
+    for i in range(6):
+        pSet.CreateDirectionalLight(
+            1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, f"d{i}")
+
+    host_loop._aggregate_lights(pSet)
+    first = capsys.readouterr().out
+    assert "OverflowSet" in first
+    assert "dropped extra directional lights" in first
+
+    host_loop._aggregate_lights(pSet)
+    second = capsys.readouterr().out
+    assert second == ""
+
+
 def test_aggregate_lights_filters_zero_vector_directions():
     import App
     from engine import host_loop
