@@ -19,6 +19,7 @@
 #include <renderer/window.h>
 #include <renderer/pipeline.h>
 #include <renderer/frame.h>
+#include <renderer/backdrop_pass.h>
 #include <scenegraph/world.h>
 #include <scenegraph/camera.h>
 #include <assets/cache.h>
@@ -39,6 +40,9 @@ namespace {
 std::unique_ptr<renderer::Window> g_window;
 scenegraph::World g_world;
 scenegraph::Camera g_camera;
+renderer::Lighting g_lighting;
+std::vector<renderer::Backdrop> g_backdrops;
+std::unique_ptr<renderer::BackdropPass> g_backdrop_pass;
 
 struct LoadedModel {
     std::filesystem::path nif_path;
@@ -90,6 +94,9 @@ void init(int width, int height, const std::string& title) {
     g_submitter = std::make_unique<renderer::FrameSubmitter>();
     g_world = scenegraph::World{};
     g_loaded_models.clear();
+    g_lighting = renderer::Lighting{};
+    g_backdrops.clear();
+    g_backdrop_pass = std::make_unique<renderer::BackdropPass>();
 }
 
 void shutdown() {
@@ -102,8 +109,16 @@ void shutdown() {
     g_loaded_models.clear();
     g_cache.reset();
     g_world = scenegraph::World{};
+    g_backdrops.clear();
+    g_backdrop_pass.reset();  // releases sphere + texture caches while the
+                              // GL context is still alive.
     g_window.reset();
     g_prev_key_state.clear();
+    // Mirror init()'s lighting reset for symmetry and defense-in-depth:
+    // any future code path that reads g_lighting between shutdown() and a
+    // subsequent init() will see the documented default, not stale state
+    // from the previous session.
+    g_lighting = renderer::Lighting{};
 }
 
 bool should_close() {
@@ -128,8 +143,8 @@ void frame() {
     };
 
     g_world.propagate();
-    g_submitter->submit_skybox(lookup(g_world.skybox_model()), g_camera, *g_pipeline);
-    g_submitter->submit_opaque(g_world, g_camera, *g_pipeline, lookup);
+    g_backdrop_pass->render(g_backdrops, g_camera, *g_pipeline);
+    g_submitter->submit_opaque(g_world, g_camera, *g_pipeline, lookup, g_lighting);
 
     g_window->poll_events();
     // Snapshot tracked keys' current state so the NEXT call to key_pressed
@@ -196,9 +211,58 @@ PYBIND11_MODULE(_open_stbc_host, m) {
           },
           py::arg("eye"), py::arg("target"), py::arg("up"),
           py::arg("fov_y_rad"), py::arg("near"), py::arg("far"));
-    m.def("set_skybox",
-          [](scenegraph::ModelHandle h) { g_world.set_skybox(h); },
-          py::arg("model"));
+
+    m.def("set_lighting",
+          [](std::tuple<float,float,float> ambient,
+             const std::vector<std::tuple<
+                 std::tuple<float,float,float>,
+                 std::tuple<float,float,float>>>& directionals) {
+              g_lighting.ambient = {std::get<0>(ambient),
+                                    std::get<1>(ambient),
+                                    std::get<2>(ambient)};
+              int n = std::min(static_cast<int>(directionals.size()),
+                               renderer::Lighting::MaxDirectionals);
+              g_lighting.directional_count = n;
+              for (int i = 0; i < n; ++i) {
+                  const auto& [dir, col] = directionals[i];
+                  glm::vec3 d{std::get<0>(dir), std::get<1>(dir), std::get<2>(dir)};
+                  float len = glm::length(d);
+                  g_lighting.directional_dir_ws[i] =
+                      (len > 1e-6f) ? d / len : glm::vec3(0.0f, 1.0f, 0.0f);
+                  g_lighting.directional_color[i] = {
+                      std::get<0>(col), std::get<1>(col), std::get<2>(col)};
+              }
+          },
+          py::arg("ambient"), py::arg("directionals"),
+          "Set the global lighting state used by the next frame()'s opaque pass.");
+
+    m.def("set_backdrops",
+          [](const std::vector<py::dict>& descriptors) {
+              g_backdrops.clear();
+              g_backdrops.reserve(descriptors.size());
+              for (const auto& d : descriptors) {
+                  renderer::Backdrop b;
+                  b.texture_path      = d["texture_path"].cast<std::string>();
+                  std::string kind    = d["kind"].cast<std::string>();
+                  b.kind = (kind == "star") ? renderer::BackdropKind::Star
+                                            : renderer::BackdropKind::Backdrop;
+                  b.h_tile            = d["h_tile"].cast<float>();
+                  b.v_tile            = d["v_tile"].cast<float>();
+                  b.h_span            = d["h_span"].cast<float>();
+                  b.v_span            = d["v_span"].cast<float>();
+                  b.target_poly_count = d["target_poly_count"].cast<int>();
+                  auto m9 = d["world_rotation"].cast<std::vector<float>>();
+                  if (m9.size() == 9) {
+                      b.world_rotation = glm::mat3(
+                          m9[0], m9[1], m9[2],
+                          m9[3], m9[4], m9[5],
+                          m9[6], m9[7], m9[8]);
+                  }
+                  g_backdrops.push_back(std::move(b));
+              }
+          },
+          py::arg("backdrops"),
+          "Set the active set's ordered backdrop list, applied each frame().");
 
     auto keys = m.def_submodule("keys", "GLFW key-code constants for input bindings.");
     keys.attr("KEY_W") = GLFW_KEY_W;

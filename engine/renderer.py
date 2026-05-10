@@ -53,5 +53,29 @@ def set_camera(eye: Tuple[float, float, float],
     _h.set_camera(eye, target, up, fov_y_rad, near, far)
 
 
-def set_skybox(model: int) -> None:
-    _h.set_skybox(model)
+def set_lighting(ambient: Tuple[float, float, float],
+                 directionals: list) -> None:
+    """Configure the renderer's lighting state for subsequent frame()s.
+
+    `directionals` is a list of ((dx, dy, dz), (r, g, b)) tuples where
+    (dx, dy, dz) is the direction TOWARD the light source and (r, g, b)
+    is the color × dimmer product. Up to 4 entries are honored;
+    additional ones are silently dropped by the bindings.
+    """
+    _h.set_lighting(ambient, directionals)
+
+
+def set_backdrops(backdrops: list) -> None:
+    """Configure the renderer's ordered backdrop list. Each entry is a
+    dict matching engine.appc.backdrops.aggregate_for_renderer's output:
+
+        {
+            "texture_path": str (absolute),
+            "kind": "star" | "backdrop",
+            "h_tile": float, "v_tile": float,
+            "h_span": float, "v_span": float,
+            "world_rotation": list[9],
+            "target_poly_count": int,
+        }
+    """
+    _h.set_backdrops(backdrops)

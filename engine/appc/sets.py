@@ -30,6 +30,18 @@ class SetClass(TGEventHandlerObject):
         # "already been called" KeyError on first invocation.
         self._cameras: dict[str, object] = {}
         self._active_camera_name: "str | None" = None
+        # Lights — populated by App.LightPlacement_Create + Config*Light or by
+        # the pSet.Create*Light shortcut methods below. _lights_by_name is the
+        # GetLight index; _lights preserves insertion order for aggregation.
+        # Forward-quoted to avoid an import cycle (engine.appc.lights imports
+        # from engine.appc.placement which imports from engine.appc.objects).
+        self._lights: 'list["Light"]' = []
+        self._lights_by_name: 'dict[str, "Light"]' = {}
+        # Backdrops — populated by pSet.AddBackdropToSet(). Ordered list
+        # (insertion order = draw order); names aren't indexed because BC
+        # scripts only ever pass them positionally to AddBackdropToSet,
+        # never look them up later.
+        self._backdrops: 'list["Backdrop"]' = []
 
     def __getattr__(self, name: str):
         """Return a chainable stub for renderer-specific methods not needed in Phase 1
@@ -130,6 +142,54 @@ class SetClass(TGEventHandlerObject):
 
     def SetActiveCamera(self, name: str) -> None:
         self._active_camera_name = name
+
+    # ── Lights ──────────────────────────────────────────────────────────────
+    # Two SDK call paths populate _lights:
+    #   1. App.LightPlacement_Create + kThis.Config*Light (engine/appc/lights.py)
+    #   2. pSet.Create*Light (these methods, the shortcut form)
+    # GetLight returns the named Light or None — must be None (not a stub) so
+    # that scripts using `if pLight: ...` short-circuit for misses.
+
+    def CreateAmbientLight(self, r, g, b, dimmer, name):
+        """SDK signature: pSet.CreateAmbientLight(r, g, b, range_or_dimmer, name).
+
+        The 4th arg is "range" in some calls (MissionLib bridge: 19.0) and
+        "dimmer" in others (LoadBridge: 0.7). For ambient light range is
+        meaningless (no falloff), so we treat it as dimmer uniformly.
+        Bridge-rendering follow-up (deferred-work) will revisit the
+        high-dimmer bridge case once bridge interiors actually render.
+        """
+        from engine.appc.lights import Light
+        light = Light(Light.KIND_AMBIENT, name, r, g, b, dimmer)
+        self._lights.append(light)
+        self._lights_by_name[name] = light
+        return light
+
+    def CreateDirectionalLight(self, r, g, b, dimmer, dx, dy, dz, name):
+        """SDK signature observed in DeepSpace.py:
+            pSet.CreateDirectionalLight(1, 1, 1, 1, 1, 0, 0, "light1")
+        i.e. (r, g, b, dimmer, dx, dy, dz, name).
+        """
+        from engine.appc.lights import Light
+        light = Light(Light.KIND_DIRECTIONAL, name, r, g, b, dimmer)
+        light._direction_world = (float(dx), float(dy), float(dz))
+        self._lights.append(light)
+        self._lights_by_name[name] = light
+        return light
+
+    def GetLight(self, name):
+        return self._lights_by_name.get(name)
+
+    # ── Backdrops ──────────────────────────────────────────────────────────
+    # SDK signature: pSet.AddBackdropToSet(obj, name).
+    # Insertion order is draw order: StarSphere first, nebula overlays
+    # alpha-blended on top in registration order.
+
+    def AddBackdropToSet(self, backdrop, name):
+        if hasattr(backdrop, "SetName"):
+            backdrop.SetName(name)
+        self._backdrops.append(backdrop)
+        return None
 
 
 class SetManager:

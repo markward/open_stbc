@@ -16,9 +16,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # v1 ship-gate selections — Task 25 pins these from the pick_*.py scan results.
 SHIP_GATE_MISSION = "Custom.Tutorial.Episode.M1Basic.M1Basic"
-DEFAULT_SKYBOX_NIF: Optional[str] = None  # No skybox NIF in BC assets; spec defers
 DEFAULT_TEXTURE_SEARCH = "data/Models/SharedTextures/FedShips/High"
 DEFAULT_PLAYER_SET = "Biranu1"  # M1 Basic-specific
+
+# Lighting defaults — used by both the per-tick fallback (when no active set
+# has lights) and as the conceptual source of truth that the C++
+# host_bindings.cc default-constructed Lighting struct mirrors.
+DEFAULT_AMBIENT: tuple[float, float, float] = (0.1, 0.1, 0.1)
+DEFAULT_DIRECTIONALS: list = [
+    # Single top-down directional matching frame.cc's pre-Phase-1 default.
+    # ((dx, dy, dz) toward light, (r, g, b))
+    ((0.3, 1.0, 0.2), (1.0, 1.0, 1.0)),
+]
 
 # Camera-follow constants used by run() to position the third-person camera.
 CAM_BACK_DIST = 600.0
@@ -238,6 +247,55 @@ def _ship_nif_path(ship, *, verbose: bool = False) -> Optional[str]:
     return str(abs_path)
 
 
+def _resolve_active_set(player):
+    """Return the SetClass whose lights & backdrops apply to the rendered
+    scene. Order:
+      1. g_kSetManager.GetRenderedSet() — set explicitly via
+         MissionLib.MakeRenderedSet during scene transitions.
+      2. The set containing the player ship — Phase 1 fallback.
+      3. None — caller falls through to per-system defaults
+         (lighting only; backdrops simply absent).
+
+    Considers both _lights and _backdrops when deciding whether a set
+    is 'live' so backdrop-only sets (rare but legal) are picked up.
+    """
+    import App
+    rendered = App.g_kSetManager.GetRenderedSet()
+    if rendered is not None and (
+        getattr(rendered, "_lights", None) or
+        getattr(rendered, "_backdrops", None)
+    ):
+        return rendered
+    if player is not None:
+        for s in App.g_kSetManager._sets.values():
+            if any(o is player for o in getattr(s, "_objects", {}).values()):
+                if (getattr(s, "_lights", None) or
+                    getattr(s, "_backdrops", None)):
+                    return s
+    return None
+
+
+# Back-compat alias — existing lighting tests reference this name.
+_resolve_active_lighting_set = _resolve_active_set
+
+
+def _aggregate_lights(pSet):
+    """Thin wrapper over engine.appc.lights.aggregate_for_renderer that
+    plugs in this module's DEFAULT_AMBIENT / DEFAULT_DIRECTIONALS. Kept
+    as a private symbol so existing tests and call sites don't have to
+    juggle the defaults at every call site."""
+    from engine.appc.lights import aggregate_for_renderer
+    return aggregate_for_renderer(pSet, DEFAULT_AMBIENT, DEFAULT_DIRECTIONALS)
+
+
+def _aggregate_backdrops(pSet):
+    """Thin wrapper over engine.appc.backdrops.aggregate_for_renderer
+    that supplies PROJECT_ROOT, mirroring _aggregate_lights's wrapping
+    of aggregate_for_renderer in lights.py."""
+    from engine.appc.backdrops import aggregate_for_renderer
+    return aggregate_for_renderer(pSet, PROJECT_ROOT)
+
+
 def _world_matrix_row_major(ship) -> list:
     """Convert ship's world-space pose to a 16-float row-major mat4."""
     loc = ship.GetWorldLocation()
@@ -277,10 +335,6 @@ def run(mission_name: str = SHIP_GATE_MISSION,
 
     r.init(1280, 720, "open_stbc")
     try:
-        if DEFAULT_SKYBOX_NIF:
-            sky = r.load_model(DEFAULT_SKYBOX_NIF, DEFAULT_TEXTURE_SEARCH)
-            r.set_skybox(sky)
-
         # Per-NIF cache so the same mesh isn't reloaded once per ship.
         nif_to_handle: dict[str, int] = {}
         instances: dict[object, object] = {}  # ship -> InstanceId
@@ -390,8 +444,19 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             r.set_camera(eye=eye, target=target, up=up_vec,
                          fov_y_rad=1.0472, near=1.0, far=100000.0)
 
+            active_set = _resolve_active_set(player)
+            ambient, directionals = _aggregate_lights(active_set)
+            r.set_lighting(ambient, directionals)
+
+            backdrops = _aggregate_backdrops(active_set)
+            r.set_backdrops(backdrops)
+
             if verbose and ticks == 0:
                 print(f"[host_loop] tick 0 camera eye={eye} target={target}", flush=True)
+                print(f"[host_loop] tick 0 lighting ambient={ambient} "
+                      f"directionals={directionals}", flush=True)
+                print(f"[host_loop] tick 0 backdrops: "
+                      f"{len(backdrops)} layer(s)", flush=True)
 
             r.frame()
             ticks += 1

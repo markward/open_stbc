@@ -3,12 +3,44 @@
 
 #include <cstdint>
 #include <functional>
+#include <string>
+
+#include <glm/glm.hpp>
 
 namespace assets { struct Model; }
 namespace scenegraph { class World; struct Camera; }
 namespace renderer { class Pipeline; }
 
 namespace renderer {
+
+struct Lighting {
+    static constexpr int MaxDirectionals = 4;
+    /// Combined color × dimmer, applied as a uniform additive term.
+    glm::vec3 ambient = glm::vec3(0.1f);
+    /// 0..MaxDirectionals; values past `directional_count` are ignored.
+    int directional_count = 1;
+    /// Direction TOWARD the light source, world space, normalized.
+    glm::vec3 directional_dir_ws[MaxDirectionals] = {
+        glm::normalize(glm::vec3(0.3f, 1.0f, 0.2f))
+    };
+    /// Color × dimmer per directional.
+    glm::vec3 directional_color[MaxDirectionals] = { glm::vec3(1.0f) };
+};
+
+enum class BackdropKind { Star, Backdrop };
+
+struct Backdrop {
+    /// Source descriptor; matched against the renderer's per-texture
+    /// cache. The renderer uploads on first sight and reuses thereafter.
+    std::string texture_path;
+    BackdropKind kind = BackdropKind::Star;
+    float h_tile = 1.0f;
+    float v_tile = 1.0f;
+    float h_span = 1.0f;
+    float v_span = 1.0f;
+    glm::mat3 world_rotation = glm::mat3(1.0f);
+    int target_poly_count = 256;
+};
 
 class FrameSubmitter {
 public:
@@ -25,15 +57,8 @@ public:
     void submit_opaque(const scenegraph::World& world,
                        const scenegraph::Camera& camera,
                        Pipeline& pipeline,
-                       const ModelLookup& lookup);
-
-    /// Render the skybox model with depth-write off, depth-test LEQUAL,
-    /// projection translation removed. Caller-provided `skybox_model` may be
-    /// null — in which case this function is a no-op. Must run before the
-    /// opaque pass.
-    void submit_skybox(const assets::Model* skybox_model,
-                       const scenegraph::Camera& camera,
-                       Pipeline& pipeline);
+                       const ModelLookup& lookup,
+                       const Lighting& lighting);
 
 private:
     /// Lazily-allocated 1x1 white texture used as a fallback when a material

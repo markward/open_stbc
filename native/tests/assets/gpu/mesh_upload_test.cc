@@ -16,7 +16,7 @@ TEST_F(MeshUploadTest, UploadsTriangle) {
     cpu.material_index = 5;
     cpu.node_index = 11;
 
-    auto mesh = assets::detail::upload_mesh(cpu);
+    auto mesh = assets::upload_mesh(cpu);
     EXPECT_NE(mesh.vao(), 0u);
     EXPECT_NE(mesh.vbo(), 0u);
     EXPECT_NE(mesh.ebo(), 0u);
@@ -33,7 +33,7 @@ TEST_F(MeshUploadTest, MovedFromMeshIsZero) {
     cpu.vertices.resize(1);
     cpu.indices = {0};
 
-    auto a = assets::detail::upload_mesh(cpu);
+    auto a = assets::upload_mesh(cpu);
     auto b = std::move(a);
     EXPECT_EQ(a.vao(), 0u);
     EXPECT_NE(b.vao(), 0u);
@@ -45,7 +45,7 @@ TEST_F(MeshUploadTest, AllSixAttributesEnabled) {
     cpu.vertices.resize(1);
     cpu.indices = {0};
 
-    auto mesh = assets::detail::upload_mesh(cpu);
+    auto mesh = assets::upload_mesh(cpu);
     glBindVertexArray(mesh.vao());
     for (int loc = 0; loc < 6; ++loc) {
         GLint enabled = 0;
