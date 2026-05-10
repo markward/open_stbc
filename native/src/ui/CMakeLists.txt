@@ -18,6 +18,6 @@ target_include_directories(ui
 
 # glad must be included before any GL headers; linking it here makes its
 # include path available to the backend sources.
-target_link_libraries(ui PUBLIC RmlCore glad glfw)
+target_link_libraries(ui PUBLIC RmlUi::Core glad glfw)
 
 target_compile_features(ui PUBLIC cxx_std_20)
