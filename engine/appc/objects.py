@@ -295,8 +295,21 @@ class PhysicsObjectClass(ObjectClass):
 
 
 class DamageableObject(PhysicsObjectClass):
-    """Placeholder — hull/shield damage state lives here in Phase 2."""
-    pass
+    """Placeholder — hull/shield damage state lives here in Phase 2.
+
+    Owns a ``TGModelPropertySet`` populated by hardpoint scripts via
+    ``mod.LoadPropertySet(pShip.GetPropertySet())`` (see SDK
+    loadspacehelper.py:87).  ``SetupProperties()`` then walks the set to
+    plumb template values onto the live ship + subsystem instances.
+    """
+
+    def __init__(self):
+        super().__init__()
+        from engine.appc.properties import TGModelPropertySet
+        self._property_set = TGModelPropertySet()
+
+    def GetPropertySet(self):
+        return self._property_set
 
 
 class ObjectGroup(TGEventHandlerObject):

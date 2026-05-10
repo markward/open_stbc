@@ -271,7 +271,10 @@ class _SDKLoader(importlib.abc.Loader):
             ast.fix_missing_locations(tree)
             code = compile(tree, self.path, "exec")
         module.__dict__.setdefault('apply', lambda f, a=(), kw={}: f(*a, **kw))
-        module.__dict__.setdefault('reload', lambda m: m)  # Python 2 builtin; no-op in Phase 1
+        # SDK loadspacehelper.py:91 calls `reload(mod)` after ClearLocalTemplates()
+        # to re-register hardpoint templates by re-running the module top-level.
+        # A no-op stub silently leaves templates cleared.
+        module.__dict__.setdefault('reload', importlib.reload)
         module.__dict__.setdefault('BORG', 0x00000200)  # QuickBattle.py omits this; BORG_CUBE = 0x200
         exec(code, module.__dict__)
         if self.also_register_as and self.also_register_as not in sys.modules:

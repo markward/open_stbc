@@ -112,8 +112,9 @@ def test_ship_class_get_object_none_set_returns_none():
 
 def test_ship_class_unknown_attr_returns_stub():
     ship = ShipClass_Create("Galaxy")
-    result = ship.GetHull()
-    # Should not raise; returns a stub-like value
+    # GetSomeUnimplementedThing is not a real method — Phase 1 falls through
+    # to the _NamedStub via __getattr__ and returns a callable stub.
+    result = ship.GetSomeUnimplementedThing()
     assert result is not None
 
 

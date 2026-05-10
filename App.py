@@ -130,6 +130,36 @@ from engine.appc.properties import (
     CloakingSubsystemProperty_Create,
 )
 
+# ── App.CT_* class-type constants ─────────────────────────────────────────────
+# SDK code calls pSet.GetPropertiesByType(App.CT_X) which feeds X into
+# isinstance(prop, X).  isinstance requires a real class — _NamedStub crashes
+# the moment a populated property set is filtered.  Bind the names to the
+# matching Python classes so isinstance() works.
+#
+# Property-type constants map to the corresponding *Property class because
+# property sets hold properties, not live subsystems.  Subsystem-type
+# constants in property-set filtering contexts (CT_HULL_SUBSYSTEM, etc.)
+# also map to the matching Property — the constant name matches the
+# subsystem domain but the filter runs over property templates.
+CT_SUBSYSTEM_PROPERTY            = SubsystemProperty
+CT_POSITION_ORIENTATION_PROPERTY = PositionOrientationProperty
+CT_HULL_SUBSYSTEM                = HullProperty
+CT_POWER_SUBSYSTEM               = PowerProperty
+CT_SHIELD_SUBSYSTEM              = ShieldProperty
+CT_SENSOR_SUBSYSTEM              = SensorProperty
+CT_REPAIR_SUBSYSTEM              = RepairSubsystemProperty
+CT_IMPULSE_ENGINE_SUBSYSTEM      = ImpulseEngineProperty
+CT_WARP_ENGINE_SUBSYSTEM         = WarpEngineProperty
+CT_CLOAKING_SUBSYSTEM            = CloakingSubsystemProperty
+CT_PHASER_SYSTEM                 = PhaserProperty
+CT_PULSE_WEAPON_SYSTEM           = PulseWeaponProperty
+CT_TORPEDO_SYSTEM                = TorpedoSystemProperty
+CT_TRACTOR_BEAM_SYSTEM           = TractorBeamProperty
+CT_WEAPON_SYSTEM                 = WeaponSystemProperty
+CT_WEAPON                        = WeaponProperty
+CT_ENERGY_WEAPON                 = EnergyWeaponProperty
+CT_SHIP                          = ShipProperty
+
 # ── Numeric constants ──────────────────────────────────────────────────────────
 NULL_ID = 0
 PI = math.pi

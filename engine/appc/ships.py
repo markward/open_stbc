@@ -25,6 +25,10 @@ class ShipClass(DamageableObject):
         self._phaser_system = None
         self._pulse_weapon_system = None
         self._tractor_beam_system = None
+        # Hull is created lazily by SetupProperties() when a HullProperty is
+        # found in the property set (SDK App.py:5382-5383).  Stays None for
+        # ships with no hardpoint applied.
+        self._hull = None
         # Targeting state
         self._target = None
         self._target_subsystem = None
@@ -66,6 +70,62 @@ class ShipClass(DamageableObject):
     def SetPulseWeaponSystem(self, s) -> None:    self._pulse_weapon_system = s
     def GetTractorBeamSystem(self):               return self._tractor_beam_system
     def SetTractorBeamSystem(self, s) -> None:    self._tractor_beam_system = s
+    def GetHull(self):                            return self._hull
+    def SetHull(self, h) -> None:                 self._hull = h
+
+    # ── Property -> subsystem dispatch ───────────────────────────────────────
+    # Walks self.GetPropertySet() and copies template values onto the live
+    # ship + subsystems.  Mirrors SDK loadspacehelper.py:94 — called once,
+    # right after the hardpoint module's LoadPropertySet() populates the set.
+    #
+    # Scope: Ship (mass, inertia), Impulse, Warp, Hull.  Other subsystems
+    # (phasers, shields, sensors, torpedoes, repair, cloak, power) keep their
+    # constructor defaults until a caller proves they need plumbing.
+
+    def SetupProperties(self) -> None:
+        from engine.appc.properties import (
+            ShipProperty, ImpulseEngineProperty, WarpEngineProperty,
+            HullProperty,
+        )
+        from engine.appc.subsystems import HullSubsystem
+
+        for prop in self.GetPropertySet().GetPropertyList():
+            if isinstance(prop, ShipProperty):
+                m = prop.GetMass()
+                if m is not None: self.SetMass(m)
+                ri = prop.GetRotationalInertia()
+                if ri is not None: self.SetRotationalInertia(ri)
+            elif isinstance(prop, ImpulseEngineProperty):
+                self._copy_powered_subsystem_fields(prop, self._impulse_engine_subsystem)
+                ies = self._impulse_engine_subsystem
+                if ies is not None:
+                    for src, setter in (
+                        (prop.GetMaxSpeed,           ies.SetMaxSpeed),
+                        (prop.GetMaxAccel,           ies.SetMaxAccel),
+                        (prop.GetMaxAngularVelocity, ies.SetMaxAngularVelocity),
+                        (prop.GetMaxAngularAccel,    ies.SetMaxAngularAccel),
+                    ):
+                        v = src()
+                        if v is not None: setter(v)
+            elif isinstance(prop, WarpEngineProperty):
+                self._copy_powered_subsystem_fields(prop, self._warp_engine_subsystem)
+            elif isinstance(prop, HullProperty):
+                # Only the FIRST HullProperty is the main hull — galaxy.py
+                # registers "Hull" first then "Bridge" as a child component.
+                # GetHull() must return the primary hull (SDK App.py:5382).
+                if self._hull is None:
+                    self._hull = HullSubsystem(prop.GetName() or "Hull")
+                    mc = prop.GetMaxCondition()
+                    if mc is not None: self._hull.SetMaxCondition(mc)
+
+    @staticmethod
+    def _copy_powered_subsystem_fields(prop, subsystem) -> None:
+        if subsystem is None:
+            return
+        mc = prop.GetMaxCondition()
+        if mc is not None: subsystem.SetMaxCondition(mc)
+        np = prop.GetNormalPowerPerSecond()
+        if np is not None: subsystem.SetNormalPowerPerSecond(np)
 
     # ── Targeting ────────────────────────────────────────────────────────────
     def GetTarget(self):                          return self._target

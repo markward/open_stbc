@@ -60,6 +60,14 @@ class ShipSubsystem(TGEventHandlerObject):
     def GetMaxCondition(self) -> float:
         return self._max_condition
 
+    def SetMaxCondition(self, value: float) -> None:
+        # SDK App.py:5601 — also seed current condition when bumping max from
+        # the default so freshly-loaded ships start undamaged.
+        v = float(value)
+        if self._condition == self._max_condition:
+            self._condition = v
+        self._max_condition = v
+
     def GetConditionPercentage(self) -> float:
         if self._max_condition <= 0:
             return 0.0
@@ -241,12 +249,37 @@ class TractorBeamSystem(WeaponSystem):
         return self.IsFiring()
 
 
+class HullSubsystem(ShipSubsystem):
+    """Live hull state.  Hull isn't a powered subsystem — it just tracks
+    condition (max + current) so damage logic can read GetMaxCondition()."""
+    pass
+
+
 class SensorSubsystem(PoweredSubsystem):
     pass
 
 
 class ImpulseEngineSubsystem(PoweredSubsystem):
-    pass
+    """Live impulse-engine state.  Speed/accel limits come from the
+    matching ImpulseEngineProperty template via ShipClass.SetupProperties()."""
+
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        self._max_speed = 0.0
+        self._max_accel = 0.0
+        self._max_angular_velocity = 0.0
+        self._max_angular_accel = 0.0
+
+    def GetMaxSpeed(self) -> float:           return self._max_speed
+    def SetMaxSpeed(self, v: float) -> None:  self._max_speed = float(v)
+    def GetMaxAccel(self) -> float:           return self._max_accel
+    def SetMaxAccel(self, v: float) -> None:  self._max_accel = float(v)
+    def GetMaxAngularVelocity(self) -> float: return self._max_angular_velocity
+    def SetMaxAngularVelocity(self, v: float) -> None:
+        self._max_angular_velocity = float(v)
+    def GetMaxAngularAccel(self) -> float:    return self._max_angular_accel
+    def SetMaxAngularAccel(self, v: float) -> None:
+        self._max_angular_accel = float(v)
 
 
 class WarpEngineSubsystem(PoweredSubsystem):
