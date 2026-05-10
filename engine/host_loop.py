@@ -375,28 +375,38 @@ def _aggregate_backdrops(pSet):
 
 
 def _ship_world_matrix(ship) -> list:
-    """Row-major TRS mat4 for a ship: mesh scaled by SHIP_SCALE, position unchanged."""
+    """Row-major TRS mat4 for a ship: mesh scaled by SHIP_SCALE, position unchanged.
+
+    BC's TGMatrix3 is row-vector (rows = body axes in world). The OpenGL shader
+    consumes u_model column-vector (columns = body axes), so the rotation is
+    transposed on the way out. Camera and physics-motion code keep reading
+    rows and stay correct under BC convention.
+    """
     loc = ship.GetWorldLocation()
     rot = ship.GetWorldRotation()
     s = SHIP_SCALE
     return [
-        rot._m[0][0]*s, rot._m[0][1]*s, rot._m[0][2]*s, loc.x,
-        rot._m[1][0]*s, rot._m[1][1]*s, rot._m[1][2]*s, loc.y,
-        rot._m[2][0]*s, rot._m[2][1]*s, rot._m[2][2]*s, loc.z,
+        rot._m[0][0]*s, rot._m[1][0]*s, rot._m[2][0]*s, loc.x,
+        rot._m[0][1]*s, rot._m[1][1]*s, rot._m[2][1]*s, loc.y,
+        rot._m[0][2]*s, rot._m[1][2]*s, rot._m[2][2]*s, loc.z,
         0.0,            0.0,            0.0,            1.0,
     ]
 
 
 def _astro_world_matrix(obj) -> list:
     """Row-major TRS mat4 for a planet/moon: position * ASTRO_SCALE, mesh scale
-    derived from GetRadius() so the visual radius equals python_radius * ASTRO_SCALE."""
+    derived from GetRadius() so the visual radius equals python_radius * ASTRO_SCALE.
+
+    Rotation is transposed for the same row/column convention reason as
+    _ship_world_matrix.
+    """
     loc = obj.GetWorldLocation()
     rot = obj.GetWorldRotation()
     s = obj.GetRadius() * ASTRO_SCALE / PLANET_NIF_NATIVE_RADIUS
     return [
-        rot._m[0][0]*s, rot._m[0][1]*s, rot._m[0][2]*s, loc.x * ASTRO_SCALE,
-        rot._m[1][0]*s, rot._m[1][1]*s, rot._m[1][2]*s, loc.y * ASTRO_SCALE,
-        rot._m[2][0]*s, rot._m[2][1]*s, rot._m[2][2]*s, loc.z * ASTRO_SCALE,
+        rot._m[0][0]*s, rot._m[1][0]*s, rot._m[2][0]*s, loc.x * ASTRO_SCALE,
+        rot._m[0][1]*s, rot._m[1][1]*s, rot._m[2][1]*s, loc.y * ASTRO_SCALE,
+        rot._m[0][2]*s, rot._m[1][2]*s, rot._m[2][2]*s, loc.z * ASTRO_SCALE,
         0.0,            0.0,            0.0,            1.0,
     ]
 
