@@ -49,6 +49,41 @@ def test_config_ambient_light_appends_to_set_lights():
     App.g_kSetManager.DeleteSet("TestSet")
 
 
+def test_directional_direction_tracks_placement_rotation():
+    """A light created via LightPlacement re-reads the placement's forward
+    each call to direction_world(), so animation controllers (or scripts
+    that call AlignToVectors a second time) flow through to the renderer."""
+    import App
+    from engine.appc.math import TGPoint3
+    pSet = App.SetClass_Create()
+    App.g_kSetManager.AddSet(pSet, "TestSet")
+    p = App.LightPlacement_Create("Directional Light", "TestSet", None)
+    forward1 = TGPoint3(); forward1.SetXYZ(0.0, 1.0, 0.0)
+    up1      = TGPoint3(); up1.SetXYZ(0.0, 0.0, 1.0)
+    p.AlignToVectors(forward1, up1)
+    p.ConfigDirectionalLight(1.0, 1.0, 1.0, 1.0)
+
+    light = pSet.GetLight("Directional Light")
+    assert light.direction_world() == pytest.approx((0.0, 1.0, 0.0), abs=1e-6)
+
+    # Re-align the placement after Config — direction_world() must reflect this.
+    forward2 = TGPoint3(); forward2.SetXYZ(1.0, 0.0, 0.0)
+    up2      = TGPoint3(); up2.SetXYZ(0.0, 0.0, 1.0)
+    p.AlignToVectors(forward2, up2)
+
+    assert light.direction_world() == pytest.approx((1.0, 0.0, 0.0), abs=1e-6)
+    App.g_kSetManager.DeleteSet("TestSet")
+
+
+def test_directional_without_placement_uses_static_direction():
+    """Lights created via the 8-arg pSet.CreateDirectionalLight path have
+    no placement; direction_world() returns the static _direction_world."""
+    import App
+    pSet = App.SetClass_Create()
+    light = pSet.CreateDirectionalLight(1, 1, 1, 1, 0.5, 0.0, 0.5, "d")
+    assert light.direction_world() == (0.5, 0.0, 0.5)
+
+
 def test_config_directional_light_captures_forward_direction():
     import App
     from engine.appc.lights import Light
@@ -68,7 +103,10 @@ def test_config_directional_light_captures_forward_direction():
     assert light._kind == Light.KIND_DIRECTIONAL
     assert light._color == (0.9, 0.8, 0.6)
     assert light._dimmer == 0.45
-    dx, dy, dz = light._direction_world
+    # direction_world() (not the static _direction_world) is the public
+    # accessor: for placement-backed lights it queries the placement's
+    # rotation each call.
+    dx, dy, dz = light.direction_world()
     assert dx == pytest.approx(-0.099571, abs=1e-5)
     assert dy == pytest.approx(-0.962789, abs=1e-5)
     assert dz == pytest.approx(0.251243, abs=1e-5)

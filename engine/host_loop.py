@@ -298,7 +298,7 @@ def _aggregate_lights(pSet):
             ambient = (r * d, g * d, b * d)
             found_ambient = True
         elif light._kind == Light.KIND_DIRECTIONAL:
-            dx, dy, dz = light._direction_world
+            dx, dy, dz = light.direction_world()
             mag2 = dx * dx + dy * dy + dz * dz
             if mag2 < 1e-12:
                 continue  # zero-vector guard
