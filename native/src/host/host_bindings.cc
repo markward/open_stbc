@@ -20,6 +20,7 @@
 #include <renderer/pipeline.h>
 #include <renderer/frame.h>
 #include <renderer/backdrop_pass.h>
+#include <renderer/sun_pass.h>
 #include <scenegraph/world.h>
 #include <scenegraph/camera.h>
 #include <assets/cache.h>
@@ -43,6 +44,8 @@ scenegraph::Camera g_camera;
 renderer::Lighting g_lighting;
 std::vector<renderer::Backdrop> g_backdrops;
 std::unique_ptr<renderer::BackdropPass> g_backdrop_pass;
+std::vector<renderer::SunDescriptor> g_suns;
+std::unique_ptr<renderer::SunPass> g_sun_pass;
 
 struct LoadedModel {
     std::filesystem::path nif_path;
@@ -97,6 +100,8 @@ void init(int width, int height, const std::string& title) {
     g_lighting = renderer::Lighting{};
     g_backdrops.clear();
     g_backdrop_pass = std::make_unique<renderer::BackdropPass>();
+    g_suns.clear();
+    g_sun_pass = std::make_unique<renderer::SunPass>();
 }
 
 void shutdown() {
@@ -112,6 +117,8 @@ void shutdown() {
     g_backdrops.clear();
     g_backdrop_pass.reset();  // releases sphere + texture caches while the
                               // GL context is still alive.
+    g_suns.clear();
+    g_sun_pass.reset();
     g_window.reset();
     g_prev_key_state.clear();
     // Mirror init()'s lighting reset for symmetry and defense-in-depth:
@@ -144,6 +151,7 @@ void frame() {
 
     g_world.propagate();
     g_backdrop_pass->render(g_backdrops, g_camera, *g_pipeline);
+    g_sun_pass->render(g_suns, g_camera, *g_pipeline);
     g_submitter->submit_opaque(g_world, g_camera, *g_pipeline, lookup, g_lighting);
 
     g_window->poll_events();
@@ -263,6 +271,25 @@ PYBIND11_MODULE(_open_stbc_host, m) {
           },
           py::arg("backdrops"),
           "Set the active set's ordered backdrop list, applied each frame().");
+
+    m.def("set_suns",
+          [](const std::vector<py::dict>& descs) {
+              g_suns.clear();
+              g_suns.reserve(descs.size());
+              for (const auto& d : descs) {
+                  renderer::SunDescriptor s;
+                  auto pos = d["position"].cast<std::tuple<float,float,float>>();
+                  s.position          = {std::get<0>(pos),
+                                         std::get<1>(pos),
+                                         std::get<2>(pos)};
+                  s.radius            = d["radius"].cast<float>();
+                  s.base_texture_path = d["base_texture_path"].cast<std::string>();
+                  s.corona_radius     = d["corona_radius"].cast<float>();
+                  g_suns.push_back(std::move(s));
+              }
+          },
+          py::arg("suns"),
+          "Set the active sun list, applied each frame().");
 
     auto keys = m.def_submodule("keys", "GLFW key-code constants for input bindings.");
     keys.attr("KEY_W") = GLFW_KEY_W;

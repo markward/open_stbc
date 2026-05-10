@@ -65,6 +65,14 @@ def set_lighting(ambient: Tuple[float, float, float],
     _h.set_lighting(ambient, directionals)
 
 
+def set_suns(suns: list) -> None:
+    """Configure the renderer's sun list. Each entry is a dict:
+        {"position": (x,y,z), "radius": float,
+         "base_texture_path": str, "corona_radius": float}
+    """
+    _h.set_suns(suns)
+
+
 def set_backdrops(backdrops: list) -> None:
     """Configure the renderer's ordered backdrop list. Each entry is a
     dict matching engine.appc.backdrops.aggregate_for_renderer's output:
