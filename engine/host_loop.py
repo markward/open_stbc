@@ -144,6 +144,101 @@ class _PlayerControl:
             )
 
 
+class _CameraControl:
+    """Arrow-key orbit + scroll-wheel zoom around the player ship.
+
+    The orbit angles and distance are stored in the ship's body frame, so
+    the camera "rotates with" the ship: when the ship banks/pitches/yaws,
+    the relative camera position is preserved.
+
+    Conventions:
+      orbit_yaw_rad   — rotation around ship-Z. 0 = directly behind, +ve =
+                        camera moves to ship-right, -ve = ship-left.
+                        Wraps freely; not clamped.
+      orbit_pitch_rad — elevation above the ship's XY plane. 0 = level with
+                        the ship; +ve = camera above. Clamped to ±PITCH_LIMIT.
+      distance        — eye-to-ship distance, multiplicative on scroll.
+
+    Defaults reproduce the pre-orbit (-forward*600 + up*200) framing so
+    existing setups look unchanged until the user touches arrows or scroll.
+    """
+
+    TURN_RATE_RAD_PER_S    = 1.5                                # ~86°/s
+    ZOOM_FACTOR_PER_NOTCH  = 0.9                                # one scroll click ≈ 10%
+    PITCH_LIMIT_RAD        = _math.radians(85)                  # avoid pole flip
+    DEFAULT_YAW_RAD        = 0.0
+    DEFAULT_PITCH_RAD      = _math.atan2(200.0, 600.0)          # ≈ 18.43°
+    DEFAULT_DISTANCE       = _math.sqrt(600.0**2 + 200.0**2) * SHIP_SCALE
+    DISTANCE_MIN           =  100.0 * SHIP_SCALE
+    DISTANCE_MAX           = 5000.0 * SHIP_SCALE
+
+    def __init__(self):
+        self.orbit_yaw_rad   = self.DEFAULT_YAW_RAD
+        self.orbit_pitch_rad = self.DEFAULT_PITCH_RAD
+        self.distance        = self.DEFAULT_DISTANCE
+
+    def _reset(self) -> None:
+        self.orbit_yaw_rad   = self.DEFAULT_YAW_RAD
+        self.orbit_pitch_rad = self.DEFAULT_PITCH_RAD
+        self.distance        = self.DEFAULT_DISTANCE
+
+    def apply(self, dt: float, h, scroll_y: float) -> None:
+        """Read arrow keys + C reset + accumulated scroll, update orbit state.
+
+        `h` is the bindings module (or fake) with key_state/key_pressed and a
+        `keys` namespace containing KEY_LEFT/RIGHT/UP/DOWN/C.
+        `scroll_y` is the total wheel delta accumulated since the last call.
+        """
+        if h.key_pressed(h.keys.KEY_C):
+            self._reset()
+            return
+
+        if h.key_state(h.keys.KEY_RIGHT): self.orbit_yaw_rad   += self.TURN_RATE_RAD_PER_S * dt
+        if h.key_state(h.keys.KEY_LEFT):  self.orbit_yaw_rad   -= self.TURN_RATE_RAD_PER_S * dt
+        if h.key_state(h.keys.KEY_UP):    self.orbit_pitch_rad += self.TURN_RATE_RAD_PER_S * dt
+        if h.key_state(h.keys.KEY_DOWN):  self.orbit_pitch_rad -= self.TURN_RATE_RAD_PER_S * dt
+
+        if self.orbit_pitch_rad >  self.PITCH_LIMIT_RAD: self.orbit_pitch_rad =  self.PITCH_LIMIT_RAD
+        if self.orbit_pitch_rad < -self.PITCH_LIMIT_RAD: self.orbit_pitch_rad = -self.PITCH_LIMIT_RAD
+
+        if scroll_y != 0.0:
+            self.distance *= self.ZOOM_FACTOR_PER_NOTCH ** scroll_y
+            if self.distance < self.DISTANCE_MIN: self.distance = self.DISTANCE_MIN
+            if self.distance > self.DISTANCE_MAX: self.distance = self.DISTANCE_MAX
+
+    def compute_camera(self, ship_loc, ship_rot) -> tuple:
+        """Return (eye, target, up) as 3-tuples in world space.
+
+        Offset is built in ship body frame (X=right, Y=forward, Z=up):
+            offset_body = (sin(y)*cos(p), -cos(y)*cos(p), sin(p)) * distance
+        At y=0, p=0 the camera sits directly behind on the body-Y axis.
+        Mapping body→world uses BC's row-vector convention: world_axis_j =
+        ship_rot.GetRow(j).
+        """
+        cy = _math.cos(self.orbit_yaw_rad)
+        sy = _math.sin(self.orbit_yaw_rad)
+        cp = _math.cos(self.orbit_pitch_rad)
+        sp = _math.sin(self.orbit_pitch_rad)
+        d  = self.distance
+
+        ox =  sy * cp * d
+        oy = -cy * cp * d
+        oz =       sp * d
+
+        rgt = ship_rot.GetRow(0)
+        fwd = ship_rot.GetRow(1)
+        up  = ship_rot.GetRow(2)
+
+        eye = (
+            ship_loc.x + ox * rgt.x + oy * fwd.x + oz * up.x,
+            ship_loc.y + ox * rgt.y + oy * fwd.y + oz * up.y,
+            ship_loc.z + ox * rgt.z + oy * fwd.z + oz * up.z,
+        )
+        target = (ship_loc.x, ship_loc.y, ship_loc.z)
+        up_vec = (up.x, up.y, up.z)
+        return eye, target, up_vec
+
+
 def _setup_sdk() -> None:
     """Install SDK finder + AST transforms so SDK script imports work."""
     if str(PROJECT_ROOT) not in sys.path:
@@ -532,10 +627,15 @@ def run(mission_name: str = SHIP_GATE_MISSION,
 
         # Per-tick player input → ship-transform integrator.
         player_control = _PlayerControl()
+        cam_control    = _CameraControl()
         try:
             import _open_stbc_host as _h
         except ImportError:
             _h = None  # bindings module not built; skip input handling.
+        # Bindings older than the orbit-camera change won't expose
+        # consume_scroll_y; fall back to a zero-delta lambda so host_loop
+        # still runs against an old _open_stbc_host.so without rebuilding.
+        _consume_scroll = getattr(_h, "consume_scroll_y", None) if _h else None
         TICK_DT = 1.0 / 60.0
 
         loop = GameLoop()
@@ -543,9 +643,13 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         while not r.should_close():
             loop.tick()
 
-            # Apply keyboard input to the player ship's transform.
+            # Apply keyboard input to the player ship's transform and to the
+            # orbit camera. Scroll delta is consumed once per tick; old
+            # bindings without the binding return 0.0 via the fallback.
+            scroll_y = _consume_scroll() if _consume_scroll is not None else 0.0
             if player is not None and _h is not None:
                 player_control.apply(player, TICK_DT, _h)
+                cam_control.apply(TICK_DT, _h, scroll_y)
 
             # Sync transforms for known instances.
             for ship, iid in ship_instances.items():
@@ -553,21 +657,14 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             for planet, iid in planet_instances.items():
                 r.set_world_transform(iid, _astro_world_matrix(planet))
 
-            # Camera: third-person offset behind the player ship (or origin).
+            # Camera: orbit + zoom around the player ship (or origin fallback).
             if fixed_camera:
                 eye = (0.0, 0.0, 1500.0 * SHIP_SCALE)
                 target = (0.0, 0.0, 0.0)
                 up_vec = (0.0, 1.0, 0.0)
             elif player is not None:
-                R = player.GetWorldRotation()
-                forward = R.GetRow(1)
-                up      = R.GetRow(2)
-                p = player.GetWorldLocation()
-                eye = (p.x - forward.x * CAM_BACK_DIST + up.x * CAM_UP_DIST,
-                       p.y - forward.y * CAM_BACK_DIST + up.y * CAM_UP_DIST,
-                       p.z - forward.z * CAM_BACK_DIST + up.z * CAM_UP_DIST)
-                target = (p.x, p.y, p.z)
-                up_vec = (up.x, up.y, up.z)  # ship-up so banking is visible
+                eye, target, up_vec = cam_control.compute_camera(
+                    player.GetWorldLocation(), player.GetWorldRotation())
             else:
                 eye = (0.0, 30.0, 200.0)
                 target = (0.0, 0.0, 0.0)

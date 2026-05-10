@@ -48,6 +48,15 @@ Window::Window(int width, int height, const std::string& title, bool visible) {
 
     glfwMakeContextCurrent(handle_);
 
+    // Wire mouse-wheel events into scroll_y_accum_. The user pointer lets
+    // the static callback dispatch back to this Window instance.
+    glfwSetWindowUserPointer(handle_, this);
+    glfwSetScrollCallback(handle_, [](GLFWwindow* w, double, double yoffset) {
+        if (auto* self = static_cast<Window*>(glfwGetWindowUserPointer(w))) {
+            self->scroll_y_accum_ += yoffset;
+        }
+    });
+
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
         glfwDestroyWindow(handle_);
         handle_ = nullptr;
@@ -70,8 +79,11 @@ Window::~Window() {
     }
 }
 
-Window::Window(Window&& other) noexcept : handle_(other.handle_) {
+Window::Window(Window&& other) noexcept
+    : handle_(other.handle_), scroll_y_accum_(other.scroll_y_accum_) {
     other.handle_ = nullptr;
+    other.scroll_y_accum_ = 0.0;
+    if (handle_) glfwSetWindowUserPointer(handle_, this);
 }
 
 Window& Window::operator=(Window&& other) noexcept {
@@ -81,7 +93,10 @@ Window& Window::operator=(Window&& other) noexcept {
             release_glfw();
         }
         handle_ = other.handle_;
+        scroll_y_accum_ = other.scroll_y_accum_;
         other.handle_ = nullptr;
+        other.scroll_y_accum_ = 0.0;
+        if (handle_) glfwSetWindowUserPointer(handle_, this);
     }
     return *this;
 }
@@ -106,6 +121,12 @@ void Window::framebuffer_size(int* w, int* h) const noexcept {
 bool Window::key_state(int glfw_key) const noexcept {
     if (!handle_) return false;
     return glfwGetKey(handle_, glfw_key) == GLFW_PRESS;
+}
+
+double Window::consume_scroll_y() noexcept {
+    double v = scroll_y_accum_;
+    scroll_y_accum_ = 0.0;
+    return v;
 }
 
 }  // namespace renderer

@@ -32,10 +32,16 @@ public:
     /// held. State is updated by glfwPollEvents() (called by poll_events()).
     bool key_state(int glfw_key) const noexcept;
 
+    /// Return the accumulated mouse-wheel Y delta since the last call and
+    /// reset the accumulator. Positive = scroll up. Updated from the GLFW
+    /// scroll callback during poll_events().
+    double consume_scroll_y() noexcept;
+
     GLFWwindow* native_handle() noexcept { return handle_; }
 
 private:
     GLFWwindow* handle_ = nullptr;
+    double      scroll_y_accum_ = 0.0;
 };
 
 }  // namespace renderer

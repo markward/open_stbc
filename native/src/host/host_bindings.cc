@@ -352,6 +352,11 @@ PYBIND11_MODULE(_open_stbc_host, m) {
     keys.attr("KEY_7") = GLFW_KEY_7;
     keys.attr("KEY_8") = GLFW_KEY_8;
     keys.attr("KEY_9") = GLFW_KEY_9;
+    keys.attr("KEY_C")     = GLFW_KEY_C;
+    keys.attr("KEY_UP")    = GLFW_KEY_UP;
+    keys.attr("KEY_DOWN")  = GLFW_KEY_DOWN;
+    keys.attr("KEY_LEFT")  = GLFW_KEY_LEFT;
+    keys.attr("KEY_RIGHT") = GLFW_KEY_RIGHT;
 
     m.def("key_state",
           [](int key) {
@@ -362,6 +367,16 @@ PYBIND11_MODULE(_open_stbc_host, m) {
           },
           py::arg("key"),
           "Returns true while the key is held.");
+
+    m.def("consume_scroll_y",
+          []() {
+              if (!g_window) {
+                  throw std::runtime_error("consume_scroll_y: init must be called first");
+              }
+              return g_window->consume_scroll_y();
+          },
+          "Return the accumulated mouse-wheel Y delta since the last call "
+          "and reset the accumulator. Positive = scroll up.");
 
     m.def("key_pressed",
           [](int key) {
