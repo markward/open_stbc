@@ -56,8 +56,11 @@ def test_config_directional_light_captures_forward_direction():
     pSet = App.SetClass_Create()
     App.g_kSetManager.AddSet(pSet, "TestSet")
     p = App.LightPlacement_Create("Directional Light", "TestSet", None)
-    forward = TGPoint3(); forward.SetXYZ(-0.1, -0.96, 0.25)
-    up      = TGPoint3(); up.SetXYZ(0.02, 0.25, 0.97)
+    # Match the unit-length fixture from sdk/.../Systems/Biranu/Biranu2.py.
+    # AlignToVectors normalizes its inputs, so non-unit forwards get rescaled
+    # and won't round-trip exactly.
+    forward = TGPoint3(); forward.SetXYZ(-0.099571, -0.962789, 0.251243)
+    up      = TGPoint3(); up.SetXYZ(0.019077, 0.250604, 0.967902)
     p.AlignToVectors(forward, up)
     p.ConfigDirectionalLight(0.9, 0.8, 0.6, 0.45)
 
@@ -66,7 +69,7 @@ def test_config_directional_light_captures_forward_direction():
     assert light._color == (0.9, 0.8, 0.6)
     assert light._dimmer == 0.45
     dx, dy, dz = light._direction_world
-    assert dx == pytest.approx(-0.1, abs=1e-5)
-    assert dy == pytest.approx(-0.96, abs=1e-5)
-    assert dz == pytest.approx(0.25, abs=1e-5)
+    assert dx == pytest.approx(-0.099571, abs=1e-5)
+    assert dy == pytest.approx(-0.962789, abs=1e-5)
+    assert dz == pytest.approx(0.251243, abs=1e-5)
     App.g_kSetManager.DeleteSet("TestSet")

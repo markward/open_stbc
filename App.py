@@ -24,6 +24,9 @@ from engine.appc.placement import (
     PlacementObject_Create,
     PlacementObject_GetObjectBySetName, PlacementObject_GetObject,
 )
+from engine.appc.lights import (
+    Light, LightPlacement, LightPlacement_Create,
+)
 from engine.appc.ships import (
     ShipClass, ShipClass_Create, ShipClass_GetObject,
     ShipClass_Cast, ShipClass_GetObjectByID,
