@@ -21,6 +21,7 @@
 #include <renderer/frame.h>
 #include <renderer/backdrop_pass.h>
 #include <renderer/sun_pass.h>
+#include <ui/UiSystem.h>
 #include <scenegraph/world.h>
 #include <scenegraph/camera.h>
 #include <assets/cache.h>
@@ -55,6 +56,9 @@ struct LoadedModel {
 std::unique_ptr<assets::AssetCache> g_cache;
 std::vector<LoadedModel> g_loaded_models;  // index = our public ModelHandle - 1
 
+std::unique_ptr<ui::UiSystem> g_ui_system;
+ui::HudState                  g_hud_state;
+
 // Tracks key state from the previous frame() so key_pressed can detect
 // rising edges. Only keys that have been queried via key_pressed appear
 // here; lookup misses (key never queried) are treated as "previously up".
@@ -86,7 +90,8 @@ scenegraph::ModelHandle load_model_impl(const std::string& nif_path,
     return static_cast<scenegraph::ModelHandle>(g_loaded_models.size());
 }
 
-void init(int width, int height, const std::string& title) {
+void init(int width, int height, const std::string& title,
+          const std::string& ui_assets_root = "") {
     if (g_window) {
         throw std::runtime_error("_open_stbc_host: init called while host already initialized");
     }
@@ -102,9 +107,18 @@ void init(int width, int height, const std::string& title) {
     g_backdrop_pass = std::make_unique<renderer::BackdropPass>();
     g_suns.clear();
     g_sun_pass = std::make_unique<renderer::SunPass>();
+
+    if (!ui_assets_root.empty()) {
+        g_ui_system = std::make_unique<ui::UiSystem>(
+            g_window->native_handle(),
+            std::filesystem::path(ui_assets_root));
+    }
 }
 
 void shutdown() {
+    // UI system must be destroyed before g_window — RmlUi shutdown calls into
+    // the GL render interface, which needs a valid GL context.
+    g_ui_system.reset();
     // Destroy GL-handle owners BEFORE the GL context (g_window) goes away.
     // Order matters: pipeline shaders and the submitter's white-fallback
     // texture are GL objects that must be released while the context is
@@ -126,6 +140,7 @@ void shutdown() {
     // subsequent init() will see the documented default, not stale state
     // from the previous session.
     g_lighting = renderer::Lighting{};
+    g_hud_state = ui::HudState{};
 }
 
 bool should_close() {
@@ -154,6 +169,11 @@ void frame() {
     g_sun_pass->render(g_suns, g_camera, *g_pipeline);
     g_submitter->submit_opaque(g_world, g_camera, *g_pipeline, lookup, g_lighting);
 
+    if (g_ui_system) {
+        g_ui_system->update_hud(g_hud_state);
+        g_ui_system->render(fw, fh);
+    }
+
     g_window->poll_events();
     // Snapshot tracked keys' current state so the NEXT call to key_pressed
     // sees the right "previous" value for rising-edge detection.
@@ -167,7 +187,11 @@ void frame() {
 
 PYBIND11_MODULE(_open_stbc_host, m) {
     m.doc() = "open_stbc renderer host bindings (Phase B: window + frame stub)";
-    m.def("init", &init, py::arg("width"), py::arg("height"), py::arg("title"));
+    m.def("init", &init,
+          py::arg("width"), py::arg("height"), py::arg("title"),
+          py::arg("ui_assets_root") = "",
+          "Open a window and initialise the renderer. ui_assets_root points to "
+          "native/assets/ui/; leave empty to skip UI initialisation.");
     m.def("shutdown", &shutdown);
     m.def("should_close", &should_close);
     m.def("frame", &frame);
@@ -290,6 +314,22 @@ PYBIND11_MODULE(_open_stbc_host, m) {
           },
           py::arg("suns"),
           "Set the active sun list, applied each frame().");
+
+    m.def("set_hud_state",
+          [](const py::dict& d) {
+              if (!g_ui_system) return;
+              auto pos = d["pos"].cast<std::tuple<float,float,float>>();
+              g_hud_state.pos_x       = std::get<0>(pos);
+              g_hud_state.pos_y       = std::get<1>(pos);
+              g_hud_state.pos_z       = std::get<2>(pos);
+              g_hud_state.yaw_deg     = d["yaw"].cast<float>();
+              g_hud_state.pitch_deg   = d["pitch"].cast<float>();
+              g_hud_state.roll_deg    = d["roll"].cast<float>();
+              g_hud_state.system_name = d["system"].cast<std::string>();
+              g_hud_state.ship_name   = d["ship"].cast<std::string>();
+          },
+          py::arg("state"),
+          "Update HUD overlay state. No-op when UI is not initialized.");
 
     auto keys = m.def_submodule("keys", "GLFW key-code constants for input bindings.");
     keys.attr("KEY_W") = GLFW_KEY_W;
