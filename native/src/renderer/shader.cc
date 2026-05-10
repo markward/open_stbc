@@ -96,4 +96,14 @@ void Shader::set_int(const std::string& name, int v) const {
     if (loc >= 0) glUniform1i(loc, v);
 }
 
+void Shader::set_vec3_array(const std::string& name,
+                            const glm::vec3* data,
+                            int count) const {
+    if (count <= 0) return;
+    GLint loc = glGetUniformLocation(program_, name.c_str());
+    if (loc >= 0) {
+        glUniform3fv(loc, count, glm::value_ptr(*data));
+    }
+}
+
 }  // namespace renderer
