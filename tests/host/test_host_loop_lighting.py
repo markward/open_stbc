@@ -172,6 +172,119 @@ def test_resolve_active_lighting_set_returns_none_for_no_lights():
         App.g_kSetManager.DeleteSet("Empty")
 
 
+def test_g_lighting_persists_across_frames():
+    """A second frame() without a new set_lighting must use the lighting
+    from the first set_lighting call. Isolates the C++-side persistence
+    of g_lighting from the rendered-pixel test that re-sets it each frame."""
+    from pathlib import Path
+
+    PROJECT_ROOT = Path(__file__).parent.parent.parent
+    GALAXY_NIF = PROJECT_ROOT / "game" / "data" / "Models" / "Ships" / "Galaxy" / "Galaxy.nif"
+    if not GALAXY_NIF.is_file():
+        pytest.skip("BC assets not available")
+
+    os.environ["OPEN_STBC_HOST_HEADLESS"] = "1"
+    import _open_stbc_host
+
+    _open_stbc_host.init(640, 360, "test_lighting_persistence")
+    try:
+        tex_search = str(PROJECT_ROOT / "game" / "data" / "Models" /
+                         "SharedTextures" / "FedShips" / "High")
+        h = _open_stbc_host.load_model(str(GALAXY_NIF), tex_search)
+        iid = _open_stbc_host.create_instance(h)
+        _open_stbc_host.set_world_transform(iid, [
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        ])
+        _open_stbc_host.set_camera(
+            eye=(0.0, 0.0, 1500.0),
+            target=(0.0, 0.0, 0.0),
+            up=(0.0, 1.0, 0.0),
+            fov_y_rad=1.0472, near=1.0, far=100000.0,
+        )
+
+        fw, fh = _open_stbc_host.framebuffer_size()
+        cx, cy = fw // 2, fh // 2
+
+        _open_stbc_host.set_lighting((1.0, 0.0, 0.0), [])
+        _open_stbc_host.frame()
+        r1 = _open_stbc_host.read_pixel(cx, cy)[0]
+
+        # Deliberately no second set_lighting — second frame should
+        # use the same g_lighting state.
+        _open_stbc_host.frame()
+        r2 = _open_stbc_host.read_pixel(cx, cy)[0]
+
+        assert r1 == r2, f"lighting did not persist: r1={r1}, r2={r2}"
+        assert r1 > 100, f"first frame should have been brightly red-lit, got r={r1}"
+    finally:
+        _open_stbc_host.destroy_instance(iid)
+        _open_stbc_host.shutdown()
+
+
+def test_g_lighting_resets_on_shutdown():
+    """After shutdown(), the next init() starts with the default Lighting
+    (not whatever was set in the previous session). Verified by setting
+    bright-red ambient in session A, then in session B not calling
+    set_lighting and checking the rendered pixel is *not* red."""
+    from pathlib import Path
+
+    PROJECT_ROOT = Path(__file__).parent.parent.parent
+    GALAXY_NIF = PROJECT_ROOT / "game" / "data" / "Models" / "Ships" / "Galaxy" / "Galaxy.nif"
+    if not GALAXY_NIF.is_file():
+        pytest.skip("BC assets not available")
+    os.environ["OPEN_STBC_HOST_HEADLESS"] = "1"
+
+    import _open_stbc_host
+
+    def _render_one_frame(set_lighting_call):
+        _open_stbc_host.init(640, 360, "test_lighting_reset")
+        try:
+            tex_search = str(PROJECT_ROOT / "game" / "data" / "Models" /
+                             "SharedTextures" / "FedShips" / "High")
+            h = _open_stbc_host.load_model(str(GALAXY_NIF), tex_search)
+            iid = _open_stbc_host.create_instance(h)
+            _open_stbc_host.set_world_transform(iid, [
+                1.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 1.0,
+            ])
+            _open_stbc_host.set_camera(
+                eye=(0.0, 0.0, 1500.0),
+                target=(0.0, 0.0, 0.0),
+                up=(0.0, 1.0, 0.0),
+                fov_y_rad=1.0472, near=1.0, far=100000.0,
+            )
+            fw, fh = _open_stbc_host.framebuffer_size()
+            cx, cy = fw // 2, fh // 2
+
+            if set_lighting_call is not None:
+                set_lighting_call()
+            _open_stbc_host.frame()
+            return _open_stbc_host.read_pixel(cx, cy)
+        finally:
+            _open_stbc_host.destroy_instance(iid)
+            _open_stbc_host.shutdown()
+
+    # Session A: bright red ambient.
+    rA, gA, bA, _ = _render_one_frame(
+        lambda: _open_stbc_host.set_lighting((1.0, 0.0, 0.0), [])
+    )
+    assert rA > 100, "session A should have been red-lit"
+    assert rA > gA + 50, "session A red should dominate green"
+
+    # Session B: no set_lighting — must NOT reuse session A's red ambient.
+    rB, gB, bB, _ = _render_one_frame(set_lighting_call=None)
+    # Default lighting has equal r/g/b channels (white directional + grey
+    # ambient), so we don't expect red dominance.
+    assert abs(int(rB) - int(gB)) < 30, (
+        f"session B should use neutral defaults, got "
+        f"r={rB} g={gB} b={bB} — looks like stale session-A red leaked")
+
+
 def test_set_lighting_changes_rendered_pixel():
     """End-to-end: set_lighting with bright red ambient changes the
     on-screen pixel sampled at the centre of the frame, vs. set_lighting

@@ -106,6 +106,11 @@ void shutdown() {
     g_world = scenegraph::World{};
     g_window.reset();
     g_prev_key_state.clear();
+    // Mirror init()'s lighting reset for symmetry and defense-in-depth:
+    // any future code path that reads g_lighting between shutdown() and a
+    // subsequent init() will see the documented default, not stale state
+    // from the previous session.
+    g_lighting = renderer::Lighting{};
 }
 
 bool should_close() {
