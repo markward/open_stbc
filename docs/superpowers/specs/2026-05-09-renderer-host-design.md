@@ -341,9 +341,14 @@ precedent (its tracker lives at `native/src/assets/docs/deferred_work.md`):
 
 1. **Skybox path lookup from mission/system config** — replaces the v1
    hard-coded default skybox.
-2. **BC light data interpretation** — read `NiAmbientLight` /
-   `NiDirectionalLight` blocks from scene NIFs and feed real values to the
-   shaders.
+2. **BC light data interpretation** — ✅ Implemented 2026-05-10. See
+   [`2026-05-10-bc-light-data-design.md`](2026-05-10-bc-light-data-design.md).
+   Phase-1 lights flow from BC scripts (`LightPlacement_Create` /
+   `Config*Light` / `pSet.Create*Light`) through `SetClass._lights`,
+   `engine/host_loop`'s per-tick aggregation, and the `set_lighting`
+   binding into `opaque.frag`'s 1 ambient + up-to-4 directional uniforms.
+   NIF-block parsing was deliberately scoped out (zero light blocks in
+   any of the 93 NIFs surveyed across `game/data/` and `sdk/Art/`).
 3. **Animation playback** — evaluate `AnimationClip` data already present in
    `Model` and apply to scene-graph instance transforms or sub-node
    transforms. (Asset pipeline deferred-work item #14 points here.)

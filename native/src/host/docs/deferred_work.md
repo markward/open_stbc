@@ -14,10 +14,40 @@ the list.
    starbases that match "star"). Skybox is procedural in BC. v1 leaves
    `DEFAULT_SKYBOX_NIF = None` in `engine/host_loop.py` and the renderer's
    skybox pass is a no-op.
-2. **BC light data interpretation.** Read `NiAmbientLight` /
-   `NiDirectionalLight` blocks from scene NIFs. Currently lighting is
-   hard-coded in `frame.cc`'s `submit_opaque` (ambient 0.1, single
-   directional from above).
+2. **BC light data interpretation.** ✅ Implemented 2026-05-10.
+   See [`docs/superpowers/specs/2026-05-10-bc-light-data-design.md`](../../../../docs/superpowers/specs/2026-05-10-bc-light-data-design.md).
+
+   - Phase-1 shim (`engine/appc/lights.py`) materialises BC's
+     `LightPlacement` / `Config*Light` / `pSet.Create*Light` calls into
+     `SetClass._lights`.
+   - `engine/host_loop.run` resolves the active set
+     (`g_kSetManager.GetRenderedSet()` → player's set → None) each tick,
+     aggregates 1 ambient + up to 4 directionals, calls
+     `r.set_lighting(...)`.
+   - `opaque.frag` consumes the ambient + directional array.
+
+   **NIF-block light parsing is intentionally not part of this work** — a
+   binary survey of all 93 NIFs in the repo (`game/data/` + `sdk/Art/`)
+   found zero `NiAmbient*` / `NiDirectional*` blocks. Stock BC stores no
+   lighting in scene NIFs.
+
+   Follow-up backlog:
+
+   - **Bridge & cinematic light rendering.** When bridge rendering
+     arrives, revisit `SetClass.CreateAmbientLight`'s 4th-arg semantics
+     (range vs dimmer) — bridges call it with values up to 19.0, treated
+     as dimmer today.
+   - **`AddIlluminatedObject` per-object filtering.** Phase 1 ignores
+     it; lights affect every object in the set. Becomes relevant when
+     characters render.
+   - **Save/load coverage of `Light` and `SetClass._lights`.** Tracked
+     under "Save/load coverage of render state" (existing item #15).
+   - **Point/spot light support.** No stock content uses them. The NIF
+     parser already understands `NiPointLight` / `NiSpotLight` block
+     types for forward compatibility.
+   - **Per-set lighting persistence across set transitions.** The
+     pull-each-tick model re-aggregates every frame; cache by `_lights`
+     identity if profiling later shows it matters.
 3. **Animation playback.** Evaluate `AnimationClip` data already present
    in `Model` (asset pipeline produces it; renderer ignores it).
 4. **Skinned-mesh rendering.** Bone palette uniform, vertex skinning in
