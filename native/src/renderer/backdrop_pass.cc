@@ -84,7 +84,11 @@ void BackdropPass::render(const std::vector<Backdrop>& backdrops,
 
     glDepthMask(GL_FALSE);
     glDepthFunc(GL_LEQUAL);
-    glCullFace(GL_FRONT);  // we render the inside of the sphere
+    // Cull stays at the pipeline default (GL_BACK). With glFrontFace(GL_CW)
+    // and our sphere wound CCW-from-outside, the outside faces are
+    // back-facing (and culled) while the inside faces (what the camera at
+    // the centre sees) are front-facing. So the default cull is exactly
+    // what we want — no switch needed.
 
     for (const auto& b : backdrops) {
         assets::Mesh* sphere = ensure_sphere(b.target_poly_count);
@@ -115,7 +119,6 @@ void BackdropPass::render(const std::vector<Backdrop>& backdrops,
     }
 
     glDisable(GL_BLEND);
-    glCullFace(GL_BACK);
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LESS);
     glBindVertexArray(0);
