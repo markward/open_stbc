@@ -134,6 +134,50 @@ def Planet_Cast(obj) -> "Planet | None":
     return obj if isinstance(obj, Planet) else None
 
 
+def aggregate_suns_for_renderer(project_root, pSets):
+    """Return list[dict] for all Sun objects across pSets.
+
+    Suns with empty base_texture or unresolvable paths are dropped with a
+    once-per-object warning (suppressed after first fire via _sun_warned).
+    Suns with radius <= 0 are dropped silently.
+    """
+    out = []
+    for pSet in pSets:
+        for obj in getattr(pSet, "_objects", {}).values():
+            if not isinstance(obj, Sun):
+                continue
+            radius = obj.GetRadius()
+            if radius <= 0:
+                continue
+            loc = obj.GetWorldLocation()
+            tex_rel = obj.GetModelPath()
+            if not tex_rel:
+                if not obj.__dict__.get("_sun_warned", False):
+                    print(
+                        f"[suns] no texture for Sun at "
+                        f"({loc.x:.0f},{loc.y:.0f},{loc.z:.0f}); skipping",
+                        flush=True,
+                    )
+                    obj.__dict__["_sun_warned"] = True
+                continue
+            abs_path = (project_root / "game" / tex_rel).resolve()
+            if not abs_path.is_file():
+                if not obj.__dict__.get("_sun_warned", False):
+                    print(
+                        f"[suns] texture not found: {tex_rel!r}; skipping",
+                        flush=True,
+                    )
+                    obj.__dict__["_sun_warned"] = True
+                continue
+            out.append({
+                "position":          (loc.x, loc.y, loc.z),
+                "radius":            radius,
+                "base_texture_path": str(abs_path),
+                "corona_radius":     radius + obj.GetAtmosphereRadius(),
+            })
+    return out
+
+
 # ── ProximityManager ────────────────────────────────────────────────────────
 # SDK call sites (Maelstrom/.../E6M4.py): pSet.GetProximityManager().AddObject(pProbe)
 # Per-set proximity tracker — Phase 1 stores added objects so SDK chains
