@@ -341,18 +341,6 @@ def _aggregate_backdrops(pSet):
     return aggregate_for_renderer(pSet, PROJECT_ROOT)
 
 
-def _world_matrix_row_major(ship) -> list:
-    """Convert ship's world-space pose to a 16-float row-major mat4."""
-    loc = ship.GetWorldLocation()
-    rot = ship.GetWorldRotation()
-    return [
-        rot._m[0][0], rot._m[0][1], rot._m[0][2], loc.x,
-        rot._m[1][0], rot._m[1][1], rot._m[1][2], loc.y,
-        rot._m[2][0], rot._m[2][1], rot._m[2][2], loc.z,
-        0.0,          0.0,          0.0,          1.0,
-    ]
-
-
 def _ship_world_matrix(ship) -> list:
     """Row-major TRS mat4 for a ship: mesh scaled by SHIP_SCALE, position unchanged."""
     loc = ship.GetWorldLocation()
@@ -390,10 +378,8 @@ def run(mission_name: str = SHIP_GATE_MISSION,
       OPEN_STBC_HOST_VERBOSE=1      — print loaded ships, player position,
                                       camera state on the first tick.
       OPEN_STBC_HOST_FIXED_CAMERA=1 — ignore third-person follow; use a
-                                      fixed camera at (0, 0, 1500) looking
-                                      at the world origin (matches the
-                                      headless ship-gate test that's known
-                                      to frame the Galaxy correctly).
+                                      fixed camera at (0, 0, 150) looking
+                                      at the world origin.
     """
     import os as _os
     verbose = _os.environ.get("OPEN_STBC_HOST_VERBOSE") == "1"
@@ -409,7 +395,8 @@ def run(mission_name: str = SHIP_GATE_MISSION,
     try:
         # Per-NIF cache so the same mesh isn't reloaded once per ship.
         nif_to_handle: dict[str, int] = {}
-        instances: dict[object, object] = {}  # ship -> InstanceId
+        ship_instances: dict[object, object] = {}    # ship   -> InstanceId
+        planet_instances: dict[object, object] = {}  # planet -> InstanceId
         ships_seen = 0
         for ship in _iter_ships(verbose=verbose):
             ships_seen += 1
@@ -435,14 +422,13 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                     continue
                 nif_to_handle[nif_path] = handle
             iid = r.create_instance(handle)
-            r.set_world_transform(iid, _world_matrix_row_major(ship))
-            instances[ship] = iid
+            r.set_world_transform(iid, _ship_world_matrix(ship))
+            ship_instances[ship] = iid
         if verbose:
             print(f"[host_loop] ships seen by iterator: {ships_seen}; "
-                  f"instances created: {len(instances)}", flush=True)
+                  f"instances created: {len(ship_instances)}", flush=True)
 
         planets_seen = 0
-        planets_loaded = 0
         planet_tex_search = str(PROJECT_ROOT / "game" / DEFAULT_PLANET_TEXTURE_SEARCH)
         for planet in _iter_planets(verbose=verbose):
             planets_seen += 1
@@ -460,24 +446,25 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                     continue
                 nif_to_handle[nif_path] = handle
             iid = r.create_instance(handle)
-            r.set_world_transform(iid, _world_matrix_row_major(planet))
-            instances[planet] = iid
-            planets_loaded += 1
+            r.set_world_transform(iid, _astro_world_matrix(planet))
+            planet_instances[planet] = iid
         if verbose:
             print(f"[host_loop] planets seen: {planets_seen}; "
-                  f"planet instances created: {planets_loaded}", flush=True)
+                  f"planet instances created: {len(planet_instances)}", flush=True)
 
         # Player ship for camera follow.
         player_set = App.g_kSetManager.GetSet(DEFAULT_PLAYER_SET)
         player = player_set.GetObject("player") if player_set is not None else None
-        if player is None and instances:
+        if player is None and ship_instances:
             # Fallback: follow the first ship we found.
-            player = next(iter(instances.keys()))
+            player = next(iter(ship_instances.keys()))
 
         if verbose:
             print(f"[host_loop] mission={mission_name}", flush=True)
-            print(f"[host_loop] {len(instances)} render instance(s) created", flush=True)
-            for ship, _iid in list(instances.items())[:5]:
+            total = len(ship_instances) + len(planet_instances)
+            print(f"[host_loop] {total} render instance(s) created "
+                  f"({len(ship_instances)} ships, {len(planet_instances)} planets)", flush=True)
+            for ship, _iid in list(ship_instances.items())[:5]:
                 p = ship.GetWorldLocation()
                 print(f"[host_loop]   ship script={ship.GetScript()!r} "
                       f"world=({p.x:.2f}, {p.y:.2f}, {p.z:.2f})", flush=True)
@@ -517,8 +504,10 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                 player_control.apply(player, TICK_DT, _h)
 
             # Sync transforms for known instances.
-            for ship, iid in instances.items():
-                r.set_world_transform(iid, _world_matrix_row_major(ship))
+            for ship, iid in ship_instances.items():
+                r.set_world_transform(iid, _ship_world_matrix(ship))
+            for planet, iid in planet_instances.items():
+                r.set_world_transform(iid, _astro_world_matrix(planet))
 
             # Camera: third-person offset behind the player ship (or origin).
             if fixed_camera:
@@ -565,7 +554,9 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             if max_ticks is not None and ticks >= max_ticks:
                 break
 
-        for iid in instances.values():
+        for iid in ship_instances.values():
+            r.destroy_instance(iid)
+        for iid in planet_instances.values():
             r.destroy_instance(iid)
     finally:
         r.shutdown()
