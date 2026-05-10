@@ -15,6 +15,8 @@ embed_shader(SHADER_OPAQUE_VS shaders/opaque.vert opaque_vs)
 embed_shader(SHADER_OPAQUE_FS shaders/opaque.frag opaque_fs)
 embed_shader(SHADER_BACKDROP_VS shaders/backdrop.vert backdrop_vs)
 embed_shader(SHADER_BACKDROP_FS shaders/backdrop.frag backdrop_fs)
+embed_shader(SHADER_SUN_VS shaders/sun.vert sun_vs)
+embed_shader(SHADER_SUN_FS shaders/sun.frag sun_fs)
 
 add_library(renderer STATIC
     window.cc

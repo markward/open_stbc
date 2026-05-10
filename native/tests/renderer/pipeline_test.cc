@@ -25,6 +25,11 @@ TEST_F(PipelineTest, OpaqueShaderCompilesAndLinks) {
     EXPECT_NE(p.opaque_shader().program(), 0u);
 }
 
+TEST_F(PipelineTest, SunShaderCompilesAndLinks) {
+    renderer::Pipeline p;
+    EXPECT_NE(p.sun_shader().program(), 0u);
+}
+
 TEST_F(PipelineTest, GlStateMatchesBCConvention) {
     renderer::Pipeline p;
 
