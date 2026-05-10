@@ -272,59 +272,12 @@ def _resolve_active_lighting_set(player):
 
 
 def _aggregate_lights(pSet):
-    """Collapse SetClass._lights into (ambient_rgb, [directionals × ≤4]).
-
-    Ambient: last-wins across configured ambients, color × dimmer.
-    Directionals: in insertion order, capped at 4 (with a one-shot warning
-        when more were configured), filtering out zero-length directions.
-        Each is ((dx_to_light, dy_to_light, dz_to_light), (r, g, b)).
-    Returns (DEFAULT_AMBIENT, DEFAULT_DIRECTIONALS) when pSet is None or
-    has no usable lights after filtering.
-    """
-    if pSet is None:
-        return DEFAULT_AMBIENT, DEFAULT_DIRECTIONALS
-
-    from engine.appc.lights import Light
-
-    ambient: tuple[float, float, float] = (0.0, 0.0, 0.0)
-    found_ambient = False
-    directionals: list = []
-    overflowed = False
-
-    for light in pSet._lights:
-        if light._kind == Light.KIND_AMBIENT:
-            r, g, b = light._color
-            d = light._dimmer
-            ambient = (r * d, g * d, b * d)
-            found_ambient = True
-        elif light._kind == Light.KIND_DIRECTIONAL:
-            dx, dy, dz = light.direction_world()
-            mag2 = dx * dx + dy * dy + dz * dz
-            if mag2 < 1e-12:
-                continue  # zero-vector guard
-            # BC forward = direction light shines; shader wants TOWARD light.
-            dir_to_light = (-dx, -dy, -dz)
-            r, g, b = light._color
-            dim = light._dimmer
-            color = (r * dim, g * dim, b * dim)
-            if len(directionals) < 4:
-                directionals.append((dir_to_light, color))
-            else:
-                overflowed = True
-
-    if overflowed:
-        # One log line per aggregation call — MissionLib runs this each tick
-        # so we can't suppress to once-per-set without state. The print is
-        # short and the case is rare (only multi-directional mods).
-        print(f"[host_loop] dropped extra directional lights from set "
-              f"{pSet.GetName()!r} (>4 configured)", flush=True)
-
-    if not found_ambient and not directionals:
-        # Active set was selected but had only filtered-out junk; treat as
-        # "no usable lights" → defaults.
-        return DEFAULT_AMBIENT, DEFAULT_DIRECTIONALS
-
-    return ambient, directionals
+    """Thin wrapper over engine.appc.lights.aggregate_for_renderer that
+    plugs in this module's DEFAULT_AMBIENT / DEFAULT_DIRECTIONALS. Kept
+    as a private symbol so existing tests and call sites don't have to
+    juggle the defaults at every call site."""
+    from engine.appc.lights import aggregate_for_renderer
+    return aggregate_for_renderer(pSet, DEFAULT_AMBIENT, DEFAULT_DIRECTIONALS)
 
 
 def _world_matrix_row_major(ship) -> list:

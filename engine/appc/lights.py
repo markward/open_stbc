@@ -96,3 +96,72 @@ def LightPlacement_Create(name, set_name, parent=None):
     if s is not None:
         s.AddObjectToSet(p, name)  # populates p._containing_set
     return p
+
+
+# Maximum directional lights the renderer (opaque.frag) can consume per
+# frame. Mirrors `renderer::Lighting::MaxDirectionals` in the C++ side.
+MAX_DIRECTIONALS = 4
+
+
+def aggregate_for_renderer(pSet, default_ambient, default_directionals):
+    """Collapse SetClass._lights into (ambient_rgb, [directionals × ≤4]).
+
+    Pure: takes a SetClass (or None) plus the caller's chosen defaults,
+    returns the tuple the renderer wants. Lives next to Light /
+    LightPlacement because the projection from BC's storage to the
+    renderer's data shape is light-domain knowledge, not host-loop
+    sequencing.
+
+    Ambient: last-wins across configured ambients, color × dimmer.
+    Directionals: in insertion order, capped at MAX_DIRECTIONALS (with a
+        per-set one-shot warning when more were configured), filtering
+        out zero-length directions. Each is
+            ((dx_to_light, dy_to_light, dz_to_light), (r, g, b))
+    Returns the supplied defaults when pSet is None or has no usable
+    lights after filtering.
+    """
+    if pSet is None:
+        return default_ambient, default_directionals
+
+    ambient: tuple = (0.0, 0.0, 0.0)
+    found_ambient = False
+    directionals: list = []
+    overflowed = False
+
+    for light in pSet._lights:
+        if light._kind == Light.KIND_AMBIENT:
+            r, g, b = light._color
+            d = light._dimmer
+            ambient = (r * d, g * d, b * d)
+            found_ambient = True
+        elif light._kind == Light.KIND_DIRECTIONAL:
+            dx, dy, dz = light.direction_world()
+            mag2 = dx * dx + dy * dy + dz * dz
+            if mag2 < 1e-12:
+                continue  # zero-vector guard
+            # BC forward = direction light shines; shader wants TOWARD light.
+            dir_to_light = (-dx, -dy, -dz)
+            r, g, b = light._color
+            dim = light._dimmer
+            color = (r * dim, g * dim, b * dim)
+            if len(directionals) < MAX_DIRECTIONALS:
+                directionals.append((dir_to_light, color))
+            else:
+                overflowed = True
+
+    if overflowed and not getattr(pSet, "_light_overflow_warned", False):
+        # Once-per-set warning. The aggregation runs every tick, so an
+        # unconditional print would flood stdout at 60Hz. The boolean is
+        # attached to the SetClass so set-level reload (re-Initialize)
+        # creates a fresh SetClass and re-arms the warning.
+        print(f"[lights] dropped extra directional lights from set "
+              f"{pSet.GetName()!r} (>{MAX_DIRECTIONALS} configured)",
+              flush=True)
+        pSet._light_overflow_warned = True
+
+    if not found_ambient and not directionals:
+        # Active set was selected but had only filtered-out junk; treat as
+        # "no usable lights" → defaults.
+        return default_ambient, default_directionals
+
+    return ambient, directionals
