@@ -1,0 +1,14 @@
+<rml>
+<head>
+    <title>HUD</title>
+    <link type="text/rcss" href="hud.rcss"/>
+</head>
+<body>
+    <div id="hud">
+        <div id="ship-name">Ship: ---</div>
+        <div id="system-name">System: ---</div>
+        <div id="pos">Pos: 0.0 0.0 0.0</div>
+        <div id="rot">Rot: Y0° P0° R0°</div>
+    </div>
+</body>
+</rml>
