@@ -179,3 +179,43 @@ def test_get_next_object_wraps_to_first():
 def test_get_next_object_returns_none_for_unknown_id():
     s = SetClass()
     assert s.GetNextObject(999999) is None
+
+
+def test_set_lights_initially_empty():
+    pSet = App.SetClass_Create()
+    assert pSet._lights == []
+    assert pSet._lights_by_name == {}
+    assert pSet.GetLight("missing") is None
+
+
+def test_set_create_ambient_light_4_arg():
+    from engine.appc.lights import Light
+    pSet = App.SetClass_Create()
+    light = pSet.CreateAmbientLight(1.0, 1.0, 1.0, 0.7, "ambientlight1")
+    assert isinstance(light, Light)
+    assert light._kind == Light.KIND_AMBIENT
+    assert light._color == (1.0, 1.0, 1.0)
+    assert light._dimmer == 0.7
+    assert pSet._lights == [light]
+    assert pSet.GetLight("ambientlight1") is light
+
+
+def test_set_create_directional_light_8_arg():
+    from engine.appc.lights import Light
+    pSet = App.SetClass_Create()
+    light = pSet.CreateDirectionalLight(1, 1, 1, 1, 1, 0, 0, "light1")
+    assert light._kind == Light.KIND_DIRECTIONAL
+    assert light._color == (1.0, 1.0, 1.0)
+    assert light._dimmer == 1.0
+    assert light._direction_world == (1.0, 0.0, 0.0)
+    assert pSet.GetLight("light1") is light
+
+
+def test_set_unrelated_renderer_methods_still_stub():
+    """Regression: catch-all _RendererStub still handles non-light methods."""
+    pSet = App.SetClass_Create()
+    # SetBackgroundModel is not implemented — should silently chain via stub.
+    result = pSet.SetBackgroundModel("data/Models/Sets/X.nif", 0, 0, 0)
+    # Result is a chainable stub; the test only checks that the call did
+    # not raise AttributeError.
+    assert result is not None
