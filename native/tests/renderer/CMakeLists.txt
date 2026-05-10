@@ -4,6 +4,7 @@ add_executable(renderer_tests
     pipeline_test.cc
     frame_test.cc
     backdrop_pass_test.cc
+    sun_pass_test.cc
 )
 
 target_link_libraries(renderer_tests
