@@ -7,6 +7,7 @@
 add_library(ui STATIC
     UiSystem.cc
     HudDocument.cc
+    PanelDocument.cc
     ${rmlui_SOURCE_DIR}/Backends/RmlUi_Platform_GLFW.cpp
     ${rmlui_SOURCE_DIR}/Backends/RmlUi_Renderer_GL3.cpp
 )
