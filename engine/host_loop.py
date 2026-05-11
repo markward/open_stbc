@@ -767,7 +767,7 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         # button at the bottom without clipping (the panel has overflow:
         # hidden so under-tall heights silently cut the button off).
         debug_panel = ui.UiPanel(id="debug", anchor="top-right",
-                                 width_vw=18.0, height_vh=26.0,
+                                 width_vw=18.0, height_vh=25.0,
                                  title="Debug", collapsible=True)
         stat_ship   = debug_panel.stat("Ship",   "---")
         stat_system = debug_panel.stat("System", "---")
