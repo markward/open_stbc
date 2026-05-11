@@ -823,6 +823,20 @@ class _MissionLoader:
         return sess
 
 
+def _apply_input(view_mode, player_control, cam_control,
+                 *, player, dt, h, scroll_y) -> None:
+    """Per-tick input dispatch.
+
+    Exterior mode drives both ship and camera from the keyboard. Bridge
+    mode skips both — the ship coasts on its existing velocity / angular
+    rates, and the orbit camera state is preserved untouched so toggling
+    back returns to the same framing.
+    """
+    if view_mode.is_exterior:
+        player_control.apply(player, dt, h)
+        cam_control.apply(dt, h, scroll_y)
+
+
 def run(mission_name: str = SHIP_GATE_MISSION,
         max_ticks: Optional[int] = None) -> int:
     """Boot the renderer, init the named mission, run until the window closes
