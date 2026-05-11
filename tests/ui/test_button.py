@@ -34,3 +34,18 @@ def test_button_destroy_removes_from_dom(fake_dom):
     assert fake_dom.children(root) == [btn.element_id]
     btn.destroy()
     assert fake_dom.children(root) == []
+
+
+def test_button_click_fires_callback(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    fired: list[str] = []
+    btn = UiButton(parent_element=bindings.panel_root(pid), label="X",
+                   on_click=lambda: fired.append("ok"))
+    fake_dom.fire_click(btn.element_id)
+    assert fired == ["ok"]
+
+
+def test_button_no_callback_does_not_explode(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    btn = UiButton(parent_element=bindings.panel_root(pid), label="X")
+    fake_dom.fire_click(btn.element_id)  # must not raise
