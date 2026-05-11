@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import importlib
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 from engine import renderer as r
 from engine.scale import SHIP_SCALE, ASTRO_SCALE, PLANET_NIF_NATIVE_RADIUS
@@ -601,10 +602,6 @@ def _astro_world_matrix(obj) -> list:
         rot._m[0][2]*s, rot._m[1][2]*s, rot._m[2][2]*s, loc.z * ASTRO_SCALE,
         0.0,            0.0,            0.0,            1.0,
     ]
-
-
-from dataclasses import dataclass, field
-from typing import Any
 
 
 @dataclass

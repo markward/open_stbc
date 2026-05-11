@@ -39,7 +39,8 @@ PanelDocument::PanelDocument(Rml::Context* context,
                              const std::filesystem::path& rml_path,
                              const std::string& anchor,
                              float width_vw, float height_vh)
-    : click_listener_(std::make_unique<ClickListener>(this))
+    : anchor_(anchor)
+    , click_listener_(std::make_unique<ClickListener>(this))
 {
     doc_ = context->LoadDocument(rml_path.string());
     if (!doc_) {
@@ -53,17 +54,7 @@ PanelDocument::PanelDocument(Rml::Context* context,
     doc_->SetProperty("position", "absolute");
     doc_->SetProperty("width",  std::to_string(width_vw)  + "vw");
     doc_->SetProperty("height", std::to_string(height_vh) + "vh");
-    // 10dp inset on every edge so panels don't sit flush against the
-    // viewport bounds.
-    if      (anchor == "top-left")     { doc_->SetProperty("left",  "10dp"); doc_->SetProperty("top",    "10dp"); }
-    else if (anchor == "top-right")    { doc_->SetProperty("right", "10dp"); doc_->SetProperty("top",    "10dp"); }
-    else if (anchor == "bottom-left")  { doc_->SetProperty("left",  "10dp"); doc_->SetProperty("bottom", "10dp"); }
-    else if (anchor == "bottom-right") { doc_->SetProperty("right", "10dp"); doc_->SetProperty("bottom", "10dp"); }
-    else if (anchor == "center") {
-        doc_->SetProperty("left",      "50%");
-        doc_->SetProperty("top",       "50%");
-        doc_->SetProperty("transform", "translate(-50%, -50%)");
-    }
+    apply_anchor();
 
     root_ = doc_->GetElementById("root");
     if (!root_) {
@@ -94,6 +85,22 @@ PanelDocument::~PanelDocument() {
     }
 }
 
+void PanelDocument::apply_anchor() {
+    if (!doc_) return;
+    // 10dp inset on every edge so corner panels don't sit flush against
+    // the viewport bounds; "center" uses left/top: 50% plus a translate
+    // to put the element's center at the viewport center.
+    if      (anchor_ == "top-left")     { doc_->SetProperty("left",  "10dp"); doc_->SetProperty("top",    "10dp"); }
+    else if (anchor_ == "top-right")    { doc_->SetProperty("right", "10dp"); doc_->SetProperty("top",    "10dp"); }
+    else if (anchor_ == "bottom-left")  { doc_->SetProperty("left",  "10dp"); doc_->SetProperty("bottom", "10dp"); }
+    else if (anchor_ == "bottom-right") { doc_->SetProperty("right", "10dp"); doc_->SetProperty("bottom", "10dp"); }
+    else if (anchor_ == "center") {
+        doc_->SetProperty("left",      "50%");
+        doc_->SetProperty("top",       "50%");
+        doc_->SetProperty("transform", "translate(-50%, -50%)");
+    }
+}
+
 void PanelDocument::set_visible(bool visible) {
     if (!doc_) return;
     // We tried display:none and pointer-events:none on the document
@@ -101,28 +108,27 @@ void PanelDocument::set_visible(bool visible) {
     // tree regardless. The reliable workaround is to move the document
     // off-screen: it's still loaded and its on_click handlers are
     // intact, but no in-viewport click can possibly hit it.
-    //
-    // For "visible" we drop the off-screen overrides; the anchor's
-    // existing left/top/transform inline properties (set in the
-    // constructor) re-take effect.
     if (visible) {
+        // Clear the offscreen-hide overrides…
         doc_->RemoveProperty("display");
         doc_->RemoveProperty("pointer-events");
         doc_->RemoveProperty("left");
+        doc_->RemoveProperty("right");
         doc_->RemoveProperty("top");
+        doc_->RemoveProperty("bottom");
         doc_->RemoveProperty("transform");
-        // Re-apply the original anchor (only "center" is currently used
-        // by code that toggles visibility, but mirror all four corners
-        // for symmetry with the constructor).
-        doc_->SetProperty("left",      "50%");
-        doc_->SetProperty("top",       "50%");
-        doc_->SetProperty("transform", "translate(-50%, -50%)");
+        // …and replay the constructor-supplied anchor.
+        apply_anchor();
     } else {
         doc_->SetProperty("display",        "none");
         doc_->SetProperty("pointer-events", "none");
         // Belt-and-braces: even if RmlUi's hit-test still iterates
         // display:none documents (it apparently does), put the panel
-        // far off-screen so nothing can intersect it.
+        // far off-screen so nothing can intersect it. Wipe every
+        // anchor-side property the constructor might have set so the
+        // off-screen overrides aren't fighting a "right: 10dp".
+        doc_->RemoveProperty("right");
+        doc_->RemoveProperty("bottom");
         doc_->SetProperty("left",      "-99999dp");
         doc_->SetProperty("top",       "-99999dp");
         doc_->SetProperty("transform", "none");
