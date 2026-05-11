@@ -32,3 +32,11 @@ def test_bridge_pass_set_enabled_accepts_bool_without_init(host_module):
     host_module.bridge_pass_set_enabled(False)
     host_module.bridge_pass_set_enabled(True)
     host_module.bridge_pass_set_enabled(False)  # leave disabled
+
+
+def test_consume_mouse_delta_binding_exists(host_module):
+    assert hasattr(host_module, "consume_mouse_delta")
+
+
+def test_set_cursor_locked_binding_exists(host_module):
+    assert hasattr(host_module, "set_cursor_locked")

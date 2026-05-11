@@ -57,6 +57,18 @@ Window::Window(int width, int height, const std::string& title, bool visible) {
         }
     });
 
+    glfwSetCursorPosCallback(handle_, [](GLFWwindow* w, double x, double y) {
+        if (auto* self = static_cast<Window*>(glfwGetWindowUserPointer(w))) {
+            if (self->cursor_seeded_) {
+                self->mouse_dx_accum_ += x - self->last_cursor_x_;
+                self->mouse_dy_accum_ += y - self->last_cursor_y_;
+            }
+            self->last_cursor_x_ = x;
+            self->last_cursor_y_ = y;
+            self->cursor_seeded_ = true;
+        }
+    });
+
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
         glfwDestroyWindow(handle_);
         handle_ = nullptr;
@@ -80,9 +92,18 @@ Window::~Window() {
 }
 
 Window::Window(Window&& other) noexcept
-    : handle_(other.handle_), scroll_y_accum_(other.scroll_y_accum_) {
+    : handle_(other.handle_),
+      scroll_y_accum_(other.scroll_y_accum_),
+      mouse_dx_accum_(other.mouse_dx_accum_),
+      mouse_dy_accum_(other.mouse_dy_accum_),
+      last_cursor_x_(other.last_cursor_x_),
+      last_cursor_y_(other.last_cursor_y_),
+      cursor_seeded_(other.cursor_seeded_) {
     other.handle_ = nullptr;
     other.scroll_y_accum_ = 0.0;
+    other.mouse_dx_accum_ = 0.0;
+    other.mouse_dy_accum_ = 0.0;
+    other.cursor_seeded_  = false;
     if (handle_) glfwSetWindowUserPointer(handle_, this);
 }
 
@@ -94,8 +115,16 @@ Window& Window::operator=(Window&& other) noexcept {
         }
         handle_ = other.handle_;
         scroll_y_accum_ = other.scroll_y_accum_;
+        mouse_dx_accum_ = other.mouse_dx_accum_;
+        mouse_dy_accum_ = other.mouse_dy_accum_;
+        last_cursor_x_  = other.last_cursor_x_;
+        last_cursor_y_  = other.last_cursor_y_;
+        cursor_seeded_  = other.cursor_seeded_;
         other.handle_ = nullptr;
         other.scroll_y_accum_ = 0.0;
+        other.mouse_dx_accum_ = 0.0;
+        other.mouse_dy_accum_ = 0.0;
+        other.cursor_seeded_  = false;
         if (handle_) glfwSetWindowUserPointer(handle_, this);
     }
     return *this;
@@ -127,6 +156,22 @@ double Window::consume_scroll_y() noexcept {
     double v = scroll_y_accum_;
     scroll_y_accum_ = 0.0;
     return v;
+}
+
+void Window::consume_mouse_delta(double* dx, double* dy) noexcept {
+    *dx = mouse_dx_accum_;
+    *dy = mouse_dy_accum_;
+    mouse_dx_accum_ = 0.0;
+    mouse_dy_accum_ = 0.0;
+}
+
+void Window::set_cursor_locked(bool locked) noexcept {
+    if (!handle_) return;
+    glfwSetInputMode(handle_, GLFW_CURSOR,
+                     locked ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+    // Drop the seed so the next cursor-pos event re-anchors and we don't
+    // see a giant warp delta on lock-state change.
+    cursor_seeded_ = false;
 }
 
 }  // namespace renderer

@@ -37,11 +37,27 @@ public:
     /// scroll callback during poll_events().
     double consume_scroll_y() noexcept;
 
+    /// Return the accumulated mouse cursor delta since the last call (in
+    /// pixels) and reset the accumulator. Updated from the GLFW cursor
+    /// callback during poll_events(). Deltas accumulate even when the
+    /// cursor is unlocked; consumers gate use by other means.
+    void consume_mouse_delta(double* dx, double* dy) noexcept;
+
+    /// Lock or release the cursor. Locked = hidden + warped to centre
+    /// each frame so motion produces unbounded raw deltas. Unlocked =
+    /// normal cursor visible inside the window.
+    void set_cursor_locked(bool locked) noexcept;
+
     GLFWwindow* native_handle() noexcept { return handle_; }
 
 private:
     GLFWwindow* handle_ = nullptr;
     double      scroll_y_accum_ = 0.0;
+    double      mouse_dx_accum_ = 0.0;
+    double      mouse_dy_accum_ = 0.0;
+    double      last_cursor_x_  = 0.0;
+    double      last_cursor_y_  = 0.0;
+    bool        cursor_seeded_  = false;  // false until first cursor-pos event
 };
 
 }  // namespace renderer

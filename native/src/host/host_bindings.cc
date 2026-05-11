@@ -467,6 +467,28 @@ PYBIND11_MODULE(_open_stbc_host, m) {
           "Return the accumulated mouse-wheel Y delta since the last call "
           "and reset the accumulator. Positive = scroll up.");
 
+    m.def("consume_mouse_delta",
+          []() {
+              if (!g_window) {
+                  throw std::runtime_error("consume_mouse_delta: init must be called first");
+              }
+              double dx = 0.0, dy = 0.0;
+              g_window->consume_mouse_delta(&dx, &dy);
+              return std::make_tuple(dx, dy);
+          },
+          "Return (dx, dy) accumulated cursor motion in pixels since the last call. "
+          "Reset on each call. GLFW raw mode while cursor is locked.");
+
+    m.def("set_cursor_locked",
+          [](bool locked) {
+              if (!g_window) {
+                  throw std::runtime_error("set_cursor_locked: init must be called first");
+              }
+              g_window->set_cursor_locked(locked);
+          },
+          py::arg("locked"),
+          "Lock the cursor (hidden + raw deltas) or release it.");
+
     m.def("key_pressed",
           [](int key) {
               if (!g_window) {
