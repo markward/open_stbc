@@ -110,6 +110,10 @@ class UiPanel:
             bindings.panel_root(self.panel_id),
             "bc-panel bc-panel-collapsed" if collapsed else "bc-panel")
 
+    def set_visible(self, visible: bool) -> None:
+        """Show or hide the entire panel. Wraps bindings.set_panel_visible."""
+        bindings.set_panel_visible(self.panel_id, visible)
+
     def set_title(self, title: str) -> None:
         if self._title_element_id is None:
             raise RuntimeError(

@@ -176,3 +176,15 @@ def test_panel_with_header_button_factory_attaches_to_body(fake_dom):
     assert btn.element_id in fake_dom.children(body_id)
     # Direct root children are just [header, body], not the button itself
     assert btn.element_id not in root_children
+
+
+def test_panel_set_visible_toggles_dom_state(fake_dom):
+    """UiPanel.set_visible flips the panel's visibility in the DOM."""
+    panel = UiPanel(id="hud", anchor="top",
+                    width_vw=20.0, height_vh=6.0, title="X")
+    # Panels are visible by default.
+    assert fake_dom._panels[panel.panel_id].visible is True
+    panel.set_visible(False)
+    assert fake_dom._panels[panel.panel_id].visible is False
+    panel.set_visible(True)
+    assert fake_dom._panels[panel.panel_id].visible is True
