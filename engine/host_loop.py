@@ -334,17 +334,15 @@ def _setup_sdk() -> None:
     mission_harness.setup_sdk()
 
 
-def _init_mission(mission_module_name: str):
-    """Initialize a mission via the same path gameloop_harness uses.
+def reset_sdk_globals() -> None:
+    """Clear the SDK globals that a mission populates.
 
-    Returns (mission, episode, game, mod) for the caller to use.
+    Called once at start-of-mission and again on every in-process swap.
+    Keep this list in lockstep with what the SDK actually mutates.
     """
-    from engine.core.game import Game, Episode, Mission, _set_current_game
-    from engine.appc.events import TGEvent
-    from engine.appc.placement import _waypoint_registry
     import App
+    from engine.appc.placement import _waypoint_registry
 
-    # Reset state per session (mirror tools/gameloop_harness.py).
     App.g_kTimerManager._time = 0.0
     App.g_kTimerManager._timers.clear()
     App.g_kRealtimeTimerManager._time = 0.0
@@ -353,6 +351,18 @@ def _init_mission(mission_module_name: str):
     App.g_kSetManager._sets.clear()
     _waypoint_registry.clear()
     App._next_event_type_id = 200
+
+
+def _init_mission(mission_module_name: str):
+    """Initialize a mission via the same path gameloop_harness uses.
+
+    Returns (mission, episode, game, mod) for the caller to use.
+    """
+    from engine.core.game import Game, Episode, Mission, _set_current_game
+    from engine.appc.events import TGEvent
+    import App
+
+    reset_sdk_globals()
 
     mission = Mission()
     episode = Episode()
