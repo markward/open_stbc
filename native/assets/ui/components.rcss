@@ -1,38 +1,25 @@
 /* native/assets/ui/components.rcss
+ *
  * Styles for UiPanel, UiButton, UiCollapsibleList.
- * Color values are populated per-panel via CSS custom properties pushed
- * from engine.ui.theme.css_var_pairs().
+ *
+ * RmlUi's RCSS supports only a subset of modern CSS:
+ *   - No CSS custom properties (--foo) or var().
+ *   - No `vh` units in this code path; use dp.
+ *   - No `transition` shorthand (RmlUi has its own animation property — TODO).
+ *   - No `color: inherit`.
+ *   - Hex with 8 digits = RGBA (e.g. #d82b2b33 == rgba(216,43,43,0.2)).
+ *
+ * Affiliation and menu-level palettes are therefore hardcoded here at the
+ * values LoadInterface.py sets at game start. The Python theme registry
+ * still exists for future runtime tinting — once we wire up the RmlUi
+ * animation system or generate RCSS dynamically.
  */
-
-:root {
-    /* Fallback values — real values pushed at runtime per panel. */
-    --aff-enemy-color:    rgb(216,  43,  43);
-    --aff-friendly-color: rgb( 80, 112, 230);
-    --aff-neutral-color:  rgb(255, 255, 175);
-    --aff-unknown-color:  rgb(127, 127, 127);
-
-    --menu-1-normal:      rgb(216,  94,  86);
-    --menu-1-highlighted: rgb(254, 120,  86);
-    --menu-1-selected:    rgb(127,  60,  43);
-    --menu-2-normal:      rgb(147, 103, 255);
-    --menu-2-highlighted: rgb(173, 132, 255);
-    --menu-2-selected:    rgb( 86,  66, 127);
-    --menu-3-normal:      rgb(207,  96, 159);
-    --menu-3-highlighted: rgb(246, 147, 204);
-    --menu-3-selected:    rgb(103,  48,  79);
-    --menu-4-normal:      rgb(144, 103, 144);
-    --menu-4-highlighted: rgb(175, 144, 175);
-    --menu-4-selected:    rgb( 72,  51,  72);
-
-    --row-height: 4.5vh;
-}
 
 body {
     margin: 0dp;
     padding: 0dp;
-    width: 100%;
-    height: 100%;
     font-family: antonio;
+    font-size: 14dp;
     color: #e8e8d0;
 }
 
@@ -46,121 +33,77 @@ body {
 
 .bc-collapsible {
     display: block;
+    margin-bottom: 4dp;
 }
 
 .bc-collapsible-header {
-    height: var(--row-height);
-    display: flex;
-    align-items: center;
-    color: #e8e8d0;
-    font-size: 14dp;
-    font-weight: 600;
-    letter-spacing: 2dp;
-    text-transform: uppercase;
+    display: block;
+    padding-top: 6dp;
+    padding-bottom: 6dp;
     padding-right: 12dp;
-    border-left-width: 3dp;
-    border-left-style: solid;
+    padding-left: 12dp;
+    margin-bottom: 3dp;
+    border-left: 3dp #7f7f7f;
+    color: #e8e8d0;
+    font-weight: bold;
     cursor: pointer;
+    white-space: nowrap;
 }
 
-/* Affiliation variants drive bg + border color */
-.bc-collapsible-header.aff-enemy {
-    background-color: rgba(216, 43, 43, 0.2);
-    border-left-color: var(--aff-enemy-color);
-}
-.bc-collapsible-header.aff-friendly {
-    background-color: rgba(80, 112, 230, 0.2);
-    border-left-color: var(--aff-friendly-color);
-}
-.bc-collapsible-header.aff-neutral {
-    background-color: rgba(255, 255, 175, 0.2);
-    border-left-color: var(--aff-neutral-color);
-}
-.bc-collapsible-header.aff-unknown {
-    background-color: rgba(127, 127, 127, 0.2);
-    border-left-color: var(--aff-unknown-color);
-}
+.bc-collapsible-header.aff-enemy    { background-color: #d82b2b33; border-left-color: #d82b2b; }
+.bc-collapsible-header.aff-friendly { background-color: #5070e633; border-left-color: #5070e6; }
+.bc-collapsible-header.aff-neutral  { background-color: #ffffaf33; border-left-color: #ffffaf; }
+.bc-collapsible-header.aff-unknown  { background-color: #7f7f7f33; border-left-color: #7f7f7f; }
 
-/* Menu-level variants for non-affiliated collapsibles */
-.bc-collapsible-header.menu-1 {
-    background-color: rgba(216, 94, 86, 0.2);
-    border-left-color: var(--menu-1-normal);
-}
-.bc-collapsible-header.menu-2 {
-    background-color: rgba(147, 103, 255, 0.2);
-    border-left-color: var(--menu-2-normal);
-}
-.bc-collapsible-header.menu-3 {
-    background-color: rgba(207, 96, 159, 0.2);
-    border-left-color: var(--menu-3-normal);
-}
-.bc-collapsible-header.menu-4 {
-    background-color: rgba(144, 103, 144, 0.2);
-    border-left-color: var(--menu-4-normal);
-}
+.bc-collapsible-header.menu-1 { background-color: #d85e5633; border-left-color: #d85e56; }
+.bc-collapsible-header.menu-2 { background-color: #9367ff33; border-left-color: #9367ff; }
+.bc-collapsible-header.menu-3 { background-color: #cf609f33; border-left-color: #cf609f; }
+.bc-collapsible-header.menu-4 { background-color: #90679033; border-left-color: #906790; }
 
 .bc-arrow {
-    width: 28dp;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: inherit;
+    display: inline-block;
+    width: 18dp;
+    text-align: center;
+    color: #ffffff;
 }
 
 .bc-title {
-    flex: 1;
+    display: inline-block;
 }
 
 .bc-collapsible-children {
     display: block;
+    padding-left: 4dp;
 }
 
 /* ── Button ─────────────────────────────────────────────────────────────── */
 
 .bc-button {
-    height: var(--row-height);
-    display: flex;
-    align-items: center;
+    display: block;
+    padding-top: 6dp;
+    padding-bottom: 6dp;
+    padding-right: 12dp;
+    padding-left: 31dp;
+    margin-bottom: 3dp;
     background-color: #3a3a3a;
     color: #e0e0d8;
-    font-size: 14dp;
-    border-left-width: 6dp;
-    border-left-style: solid;
-    padding-left: 31dp;
-    padding-right: 12dp;
+    border-left: 6dp #cf609f;
     cursor: pointer;
-    transition: border-left-width 0.18s ease-out,
-                padding-left      0.18s ease-out,
-                background-color  0.18s ease-out,
-                color             0.18s ease-out,
-                border-left-color 0.18s ease-out;
+    white-space: nowrap;
 }
 
-.bc-button.menu-1 { border-left-color: var(--menu-1-normal); }
-.bc-button.menu-2 { border-left-color: var(--menu-2-normal); }
-.bc-button.menu-3 { border-left-color: var(--menu-3-normal); }
-.bc-button.menu-4 { border-left-color: var(--menu-4-normal); }
+.bc-button.menu-1 { border-left-color: #d85e56; }
+.bc-button.menu-2 { border-left-color: #9367ff; }
+.bc-button.menu-3 { border-left-color: #cf609f; }
+.bc-button.menu-4 { border-left-color: #906790; }
 
 .bc-button.selected {
     color: #ffffff;
-    border-left-width: 9dp;
     padding-left: 28dp;
+    border-left-width: 9dp;
 }
 
-.bc-button.menu-1.selected {
-    background-color: rgba(127, 60, 43, 0.55);
-    border-left-color: var(--menu-1-highlighted);
-}
-.bc-button.menu-2.selected {
-    background-color: rgba(86, 66, 127, 0.65);
-    border-left-color: var(--menu-2-highlighted);
-}
-.bc-button.menu-3.selected {
-    background-color: rgba(103, 48, 79, 0.65);
-    border-left-color: var(--menu-3-highlighted);
-}
-.bc-button.menu-4.selected {
-    background-color: rgba(72, 51, 72, 0.70);
-    border-left-color: var(--menu-4-highlighted);
-}
+.bc-button.menu-1.selected { background-color: #7f3c2b8c; border-left-color: #fe7856; }
+.bc-button.menu-2.selected { background-color: #56427fa6; border-left-color: #ad84ff; }
+.bc-button.menu-3.selected { background-color: #67304fa6; border-left-color: #f693cc; }
+.bc-button.menu-4.selected { background-color: #483348b3; border-left-color: #af90af; }

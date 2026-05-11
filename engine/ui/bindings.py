@@ -84,7 +84,14 @@ class _RealDom:
     def destroy_panel(self, pid):           self._m.destroy_panel(pid)
     def clear_panel(self, pid):             self._m.clear_panel(pid)
     def panel_root(self, pid):              return self._m.panel_root(pid)
-    def set_panel_css_var(self, pid, n, v): self._m.set_panel_css_var(pid, n, v)
+
+    def set_panel_css_var(self, pid, n, v):
+        # RmlUi's RCSS does not consume CSS custom properties; pushing them
+        # into the document only triggers parser warnings. Kept as a no-op
+        # at the real-DOM layer until we either (a) wire up RmlUi animation
+        # for dynamic tinting or (b) generate RCSS sources at runtime. Tests
+        # against FakeDom still record the calls via the FakeDom backend.
+        pass
     def append_div(self, parent, cls):      return self._m.append_div(parent, cls)
     def remove_element(self, eid):          self._m.remove_element(eid)
     def set_class(self, eid, cls):          self._m.set_class(eid, cls)
