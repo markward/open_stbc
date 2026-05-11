@@ -2,7 +2,7 @@
 //
 // pybind11 module exposing the renderer host API to Python. Built as both:
 //   1. A standalone Python extension module (_open_stbc_host.so) for pytest.
-//   2. Statically linked into open_stbc_host (registered via
+//   2. Statically linked into open_stbc (registered via
 //      PyImport_AppendInittab before Py_InitializeEx).
 //
 // Phase B: real window owned by the bindings; init/shutdown control its

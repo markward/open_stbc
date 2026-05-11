@@ -1,6 +1,6 @@
 // native/src/host/host_main.cc
 //
-// open_stbc_host — embedded-CPython renderer host binary.
+// open_stbc — embedded-CPython renderer host binary.
 
 #include <Python.h>
 
@@ -14,12 +14,12 @@
 namespace {
 
 // Locate the project root from the running binary's path. The binary lives at
-// <root>/build/bin/open_stbc_host, so root is two parents up from the binary
-// dir. This is a build-tree assumption — the binary is not yet meant to be
-// installed system-wide.
+// <root>/build/open_stbc, so root is two parents up from the binary's
+// canonical path. This is a build-tree assumption — the binary is not yet
+// meant to be installed system-wide.
 std::filesystem::path discover_project_root(const char* argv0) {
     std::filesystem::path bin_path = std::filesystem::canonical(argv0);
-    return bin_path.parent_path().parent_path().parent_path();
+    return bin_path.parent_path().parent_path();
 }
 
 // Set PYTHONPATH so the embedded interpreter can find engine/ (and the SDK
@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
     configure_python_path(project_root);
 
     if (PyImport_AppendInittab("_open_stbc_host", PyInit__open_stbc_host) != 0) {
-        std::fprintf(stderr, "open_stbc_host: PyImport_AppendInittab failed\n");
+        std::fprintf(stderr, "open_stbc: PyImport_AppendInittab failed\n");
         return 1;
     }
 
