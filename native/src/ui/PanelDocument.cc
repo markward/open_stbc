@@ -77,6 +77,18 @@ PanelDocument::PanelDocument(Rml::Context* context,
 }
 
 PanelDocument::~PanelDocument() {
+    // Detach every click-listener-bearing element BEFORE click_listener_ is
+    // destroyed by the implicit member destructor. RmlUi's deferred document
+    // unload (triggered by doc_->Close()) finalizes on a later context
+    // Update() and walks each element's listener list — if click_listener_
+    // has already been freed by then, that walk dereferences a dangling
+    // pointer and segfaults.
+    for (auto& [eid, el] : elements_) {
+        if (el && click_cbs_.count(eid)) {
+            el->RemoveEventListener("click", click_listener_.get());
+        }
+    }
+    click_cbs_.clear();
     if (doc_) {
         doc_->Close();
     }
