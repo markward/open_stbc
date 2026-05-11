@@ -93,3 +93,34 @@ def test_title_click_does_not_toggle_expansion(fake_dom):
     title_id = fake_dom.children(coll.header_element_id)[1]
     fake_dom.fire_click(title_id)
     assert coll.expanded  # unchanged
+
+
+def test_title_click_fires_on_click_callback(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    fired: list[str] = []
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy",
+                             on_click=lambda: fired.append("hit"))
+    title_id = fake_dom.children(coll.header_element_id)[1]
+    fake_dom.fire_click(title_id)
+    assert fired == ["hit"]
+
+
+def test_arrow_click_does_not_fire_on_click(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    fired: list[str] = []
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy",
+                             on_click=lambda: fired.append("nope"))
+    arrow_id = fake_dom.children(coll.header_element_id)[0]
+    fake_dom.fire_click(arrow_id)
+    assert fired == []
+
+
+def test_set_selected_updates_header_class(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy")
+    assert "selected" not in fake_dom.element(coll.header_element_id).classes
+    coll.set_selected(True)
+    assert "selected" in fake_dom.element(coll.header_element_id).classes
