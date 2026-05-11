@@ -57,3 +57,37 @@ def set_visible(element_id: int, visible: bool) -> None:
 
 def on_click(element_id: int, callback: Callable[[], None]) -> None:
     dom().on_click(element_id, callback)
+
+
+# ── Production initialization ───────────────────────────────────────────────
+
+def init() -> None:
+    """Bind to the real _open_stbc_host extension.
+
+    Must be called after engine.renderer.init() (the C++ host_bindings::init
+    creates the UiSystem). Idempotent — re-calling rebinds to the same module.
+    """
+    global _active_dom
+    import _open_stbc_host as _h
+    _active_dom = _RealDom(_h)
+
+
+class _RealDom:
+    """Wrapper exposing the FakeDom-compatible surface over _open_stbc_host."""
+
+    def __init__(self, mod) -> None:
+        self._m = mod
+
+    def create_panel(self, name, anchor, width_vw, height_vh):
+        return self._m.create_panel(name, anchor, width_vw, height_vh)
+
+    def destroy_panel(self, pid):           self._m.destroy_panel(pid)
+    def clear_panel(self, pid):             self._m.clear_panel(pid)
+    def panel_root(self, pid):              return self._m.panel_root(pid)
+    def set_panel_css_var(self, pid, n, v): self._m.set_panel_css_var(pid, n, v)
+    def append_div(self, parent, cls):      return self._m.append_div(parent, cls)
+    def remove_element(self, eid):          self._m.remove_element(eid)
+    def set_class(self, eid, cls):          self._m.set_class(eid, cls)
+    def set_text(self, eid, text):          self._m.set_text(eid, text)
+    def set_visible(self, eid, vis):        self._m.set_visible(eid, vis)
+    def on_click(self, eid, cb):            self._m.on_click(eid, cb)
