@@ -94,6 +94,35 @@ class UiCollapsibleList:
         bindings.remove_element(self._wrapper_id)
         self._destroyed = True
 
+    # ── Children factories ───────────────────────────────────────────────────
+
+    def button(self, label: str, *,
+               menu_level: int = 3,
+               selected: bool = False,
+               on_click: Optional[Callable[[], None]] = None,
+    ) -> UiButton:
+        btn = UiButton(parent_element=self._children_container_id,
+                       label=label, menu_level=menu_level,
+                       selected=selected, on_click=on_click)
+        self._radio_group.adopt(btn)
+        self._children.append(btn)
+        if selected:
+            self._radio_group.select(btn)
+        return btn
+
+    def collapsible(self, label: str, *,
+                    affiliation: Optional[str] = None,
+                    menu_level: int = 3,
+                    expanded: bool = True,
+                    on_click: Optional[Callable[[], None]] = None,
+    ) -> "UiCollapsibleList":
+        child = UiCollapsibleList(parent_element=self._children_container_id,
+                                  label=label, affiliation=affiliation,
+                                  menu_level=menu_level, expanded=expanded,
+                                  on_click=on_click)
+        self._children.append(child)
+        return child
+
     # ── Internals ────────────────────────────────────────────────────────────
 
     def _header_classes(self) -> str:

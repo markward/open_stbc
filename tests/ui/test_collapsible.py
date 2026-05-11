@@ -1,4 +1,4 @@
-from engine.ui import UiCollapsibleList, bindings
+from engine.ui import UiButton, UiCollapsibleList, bindings
 
 
 def test_collapsible_renders_header_with_title_and_arrow(fake_dom):
@@ -124,3 +124,56 @@ def test_set_selected_updates_header_class(fake_dom):
     assert "selected" not in fake_dom.element(coll.header_element_id).classes
     coll.set_selected(True)
     assert "selected" in fake_dom.element(coll.header_element_id).classes
+
+
+def test_collapsible_button_factory_creates_child(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy")
+    b = coll.button("Shield Generator")
+    assert isinstance(b, UiButton)
+    assert b.label == "Shield Generator"
+    # Button is inside the children container
+    wrapper = fake_dom.children(bindings.panel_root(pid))[0]
+    children_container = fake_dom.children(wrapper)[1]
+    assert b.element_id in fake_dom.children(children_container)
+
+
+def test_collapsible_button_factory_returns_buttons_in_radio_group(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy")
+    a = coll.button("A")
+    b = coll.button("B")
+    fake_dom.fire_click(a.element_id)
+    assert a.selected and not b.selected
+    fake_dom.fire_click(b.element_id)
+    assert b.selected and not a.selected
+
+
+def test_collapsible_nested_collapsible(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    outer = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                              label="o", affiliation="enemy")
+    inner = outer.collapsible("Disruptor Cannons", menu_level=3)
+    assert isinstance(inner, UiCollapsibleList)
+    assert inner.label == "Disruptor Cannons"
+    wrapper = fake_dom.children(bindings.panel_root(pid))[0]
+    outer_children = fake_dom.children(wrapper)[1]
+    # The inner collapsible's wrapper sits inside the outer's children container
+    inner_wrapper_classes = [
+        fake_dom.element(eid).classes for eid in fake_dom.children(outer_children)
+    ]
+    assert any("bc-collapsible" in cs for cs in inner_wrapper_classes)
+
+
+def test_clear_destroys_all_children(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy")
+    coll.button("A"); coll.button("B"); coll.collapsible("C")
+    wrapper = fake_dom.children(bindings.panel_root(pid))[0]
+    children_container = fake_dom.children(wrapper)[1]
+    assert len(fake_dom.children(children_container)) == 3
+    coll.clear()
+    assert fake_dom.children(children_container) == []
