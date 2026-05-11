@@ -42,6 +42,13 @@ DEFAULT_TEXTURE_SEARCH = "data/Models/SharedTextures/FedShips/High"
 DEFAULT_PLANET_TEXTURE_SEARCH = "data/Models/Environment"
 DEFAULT_PLAYER_SET = "Biranu1"  # shared by M1Basic and M2Objects tutorials
 
+# Bridge geometry (PoC: hardcoded DBridge for all ships).
+# On-disk casing is "Dbridge.NIF" — MissionLib references it as
+# "DBridge.nif" but most modern filesystems are case-insensitive; we
+# match the on-disk casing so this works on case-sensitive volumes too.
+DBRIDGE_NIF_REL = "data/Models/Sets/DBridge/Dbridge.NIF"
+DBRIDGE_TEX_REL = "data/Models/Sets/DBridge/High"
+
 # Lighting defaults — used by both the per-tick fallback (when no active set
 # has lights) and as the conceptual source of truth that the C++
 # host_bindings.cc default-constructed Lighting struct mirrors.
@@ -847,6 +854,7 @@ class HostController:
         self.nif_to_handle: dict[str, int] = {}
         self.session: Optional[MissionSession] = None
         self.pending_swap: Optional[str] = None
+        self.bridge_instance: Optional[Any] = None  # InstanceId from create_bridge_instance
         # Invoked once after each successful loader.load(). host_loop wires
         # this to TargetListController.rebuild_from_snapshot so the panel
         # filters the player ship (Game.SetPlayer runs during loader.load
@@ -1080,6 +1088,25 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         controller.renderer = r
         controller.loader = _MissionLoader(controller, verbose=verbose)
         controller.post_load_hook = target_list.rebuild_from_snapshot
+
+        # Bridge interior — eagerly loaded once and reused across mission
+        # swaps. Instance lives on the controller, not the per-mission
+        # session, so MissionSession.teardown doesn't destroy it.
+        bridge_nif_abs = str(PROJECT_ROOT / "game" / DBRIDGE_NIF_REL)
+        bridge_tex_abs = str(PROJECT_ROOT / "game" / DBRIDGE_TEX_REL)
+        bridge_handle  = r.load_model(bridge_nif_abs, bridge_tex_abs)
+        controller.nif_to_handle[bridge_nif_abs] = bridge_handle
+        controller.bridge_instance = r.create_bridge_instance(bridge_handle)
+        # Identity transform — the bridge pass camera works in
+        # bridge-local frame, so the bridge's world position is irrelevant.
+        IDENTITY_MAT4 = [
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        ]
+        r.set_world_transform(controller.bridge_instance, IDENTITY_MAT4)
+
         controller.session = controller.loader.load(mission_name)
         target_list.rebuild_from_snapshot()    # filter player after Game.SetPlayer
 

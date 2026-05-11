@@ -106,3 +106,34 @@ def set_dust_density(count: int) -> None:
     """Reseed the dust particle buffer with `count` particles
     (clamped to [0, 50000])."""
     _h.dust_set_density(count)
+
+
+# ── Bridge view ─────────────────────────────────────────────────────────────
+
+def create_bridge_instance(model: int) -> InstanceId:
+    """Like create_instance but tags the new instance for the bridge pass."""
+    return _h.create_bridge_instance(model)
+
+
+def set_bridge_camera(eye: Tuple[float, float, float],
+                      target: Tuple[float, float, float],
+                      up: Tuple[float, float, float],
+                      fov_y_rad: float, near: float, far: float) -> None:
+    """Set the bridge pass camera. No-op until bridge_pass_set_enabled(True)."""
+    _h.set_bridge_camera(eye, target, up, fov_y_rad, near, far)
+
+
+def bridge_pass_set_enabled(enabled: bool) -> None:
+    """Enable or disable the bridge render pass."""
+    _h.bridge_pass_set_enabled(enabled)
+
+
+def consume_mouse_delta() -> Tuple[float, float]:
+    """Return (dx, dy) accumulated cursor motion in pixels since the last
+    call. Reset on each call. GLFW raw mode while cursor is locked."""
+    return _h.consume_mouse_delta()
+
+
+def set_cursor_locked(locked: bool) -> None:
+    """Lock the cursor (hidden + raw deltas) or release it."""
+    _h.set_cursor_locked(locked)
