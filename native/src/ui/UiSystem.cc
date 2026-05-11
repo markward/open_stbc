@@ -51,6 +51,18 @@ UiSystem::UiSystem(GLFWwindow* window,
             font_path.c_str());
     }
 
+    // Symbol fallback. Antonio's glyph table doesn't cover the Unicode
+    // geometric-shapes block used by the collapsible disclosure arrows
+    // (U+25B6 etc.), so we load Noto Sans Symbols 2 as a fallback face —
+    // RmlUi consults fallback faces for any missing glyph in the primary.
+    auto symbols_path = (assets_root / "fonts" / "NotoSansSymbols2-Regular.ttf").string();
+    if (!Rml::LoadFontFace(symbols_path, /*fallback_face=*/true)) {
+        std::fprintf(stderr,
+            "[ui] Warning: failed to load symbol fallback font '%s' - "
+            "geometric glyphs (arrows etc.) will render as boxes\n",
+            symbols_path.c_str());
+    }
+
     hud_ = std::make_unique<HudDocument>(context_, assets_root / "hud.rml");
     assets_root_ = assets_root;
 }

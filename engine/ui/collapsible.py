@@ -141,11 +141,11 @@ class UiCollapsibleList:
             parts.append("selected")
         return " ".join(parts)
 
-    # Down-pointing triangle when the list is open (◣-ish, content below);
-    # right-pointing when closed (▶, points at the title to suggest "click
-    # to reveal"). Unicode geometric shapes covered by Antonio's coverage.
-    _GLYPH_EXPANDED  = "▼"   # ▼
-    _GLYPH_COLLAPSED = "▶"   # ▶
+    # Unicode triangle arrows from Geometric Shapes block. Antonio doesn't
+    # cover these, so UiSystem loads Noto Sans Symbols 2 as a fallback face
+    # — RmlUi consults fallbacks for any glyph the primary lacks.
+    _GLYPH_EXPANDED  = "▼"   # ▼  black down-pointing triangle
+    _GLYPH_COLLAPSED = "▶"   # ▶  black right-pointing triangle
 
     def _arrow_glyph(self) -> str:
         return self._GLYPH_EXPANDED if self._expanded else self._GLYPH_COLLAPSED
