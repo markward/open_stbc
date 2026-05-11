@@ -16,6 +16,9 @@ from engine.ui import bindings as _ui_bindings
 _SKIP_EPISODE_LEVEL = {"Episode", "."}
 
 
+_DESTROY_DELAY_TICKS = 3  # ticks between hide and actual destruction
+
+
 class MissionPicker:
     def __init__(self, *,
                  registry: MissionRegistry,
@@ -31,18 +34,21 @@ class MissionPicker:
         # callback stashes a deferred action here and drain() does the
         # actual close + on_load/on_cancel at a tick boundary.
         self._pending: Optional[tuple[str, Optional[str]]] = None
+        # Two-phase close: drain() hides the panel immediately; after
+        # _DESTROY_DELAY_TICKS subsequent drains the panel is destroyed.
+        # This avoids RmlUi crashing when a document is torn down too
+        # close to its own click event, AND ensures the panel doesn't
+        # keep eating clicks (hidden documents still appear in the
+        # context's hit-test tree).
+        self._destroy_countdown: int = 0
 
     def is_open(self) -> bool:
         return self._open
 
     def open(self) -> None:
+        # Cancel any pending destruction so we keep the existing panel.
+        self._destroy_countdown = 0
         if self._panel is not None:
-            # Re-show the existing panel rather than rebuilding — destroying
-            # RmlUi documents that just dispatched a click is the classic
-            # source of segfaults, so we keep the picker panel alive across
-            # opens and toggle whole-document visibility (Show/Hide). This
-            # removes the document from layout and from hit-testing when
-            # hidden so the Load Mission button stays clickable.
             _ui_bindings.set_panel_visible(self._panel.panel_id, True)
             self._open = True
             return
@@ -73,13 +79,15 @@ class MissionPicker:
         self._open = True
 
     def close(self) -> None:
-        # Hide the whole document (not just #root) so the panel stops
-        # capturing clicks. Keeping the panel alive avoids the
-        # destroy-mid-event-dispatch hazard.
+        # Phase 1: hide the panel immediately, then start a countdown
+        # to phase 2 (actual destruction). The hide drops the panel
+        # off-screen so it can't intercept clicks even though RmlUi
+        # still has it in the hit-test tree.
         if self._panel is None or not self._open:
             return
         _ui_bindings.set_panel_visible(self._panel.panel_id, False)
         self._open = False
+        self._destroy_countdown = _DESTROY_DELAY_TICKS
 
     def destroy(self) -> None:
         """Tear down the picker entirely. Only called at host shutdown."""
@@ -96,21 +104,30 @@ class MissionPicker:
             self._on_cancel()
 
     def drain(self) -> None:
-        """Process any deferred pick/cancel queued by a UI click.
+        """Process any deferred pick/cancel queued by a UI click, and
+        run the destroy-countdown if a close is pending.
 
-        Call once per host tick. Closing the panel + invoking callbacks
-        happens here, outside the RmlUi event dispatch, so the renderer
-        can safely tear the document down.
+        Call once per host tick. Closing + invoking callbacks happens
+        here, outside the RmlUi event dispatch, so the renderer can
+        safely tear the document down.
         """
-        if self._pending is None:
-            return
-        action, arg = self._pending
-        self._pending = None
-        self.close()
-        if action == "load" and arg is not None:
-            self._on_load(arg)
-        elif action == "cancel":
-            self._on_cancel()
+        if self._pending is not None:
+            action, arg = self._pending
+            self._pending = None
+            self.close()
+            if action == "load" and arg is not None:
+                self._on_load(arg)
+            elif action == "cancel":
+                self._on_cancel()
+
+        # Destroy countdown: after enough ticks have elapsed since the
+        # click, it's safe to actually tear the panel down. Open() resets
+        # the countdown so a re-open within the window cancels destruction.
+        if self._destroy_countdown > 0 and self._panel is not None:
+            self._destroy_countdown -= 1
+            if self._destroy_countdown == 0:
+                self._panel.destroy()
+                self._panel = None
 
     def _make_pick_callback(self, mission: MissionEntry):
         def _pick():
