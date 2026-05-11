@@ -446,6 +446,15 @@ def _apply_view_mode_side_effects(view_mode: "_ViewModeController", h) -> None:
     view_mode._last_synced_is_bridge = target
 
 
+def _handle_esc_for_view_mode(view_mode: "_ViewModeController") -> None:
+    """ESC in bridge mode returns to exterior. ESC in exterior mode does
+    nothing here (the mission-picker handler still gets its turn — see
+    run()). The side-effect sync runs on the next tick and releases the
+    cursor / disables the bridge pass."""
+    if view_mode.is_bridge:
+        view_mode.toggle()
+
+
 class _BridgeCamera:
     """First-person bridge camera with mouse-look.
 
@@ -1198,6 +1207,9 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             if _h is not None and _h.key_pressed(_h.keys.KEY_F9):
                 _h.toggle_ui_visibility()
             if _h is not None and _h.key_pressed(_h.keys.KEY_ESCAPE):
+                # Order: exit bridge mode first, then dismiss any open
+                # picker. If both apply, ESC handles both.
+                _handle_esc_for_view_mode(view_mode)
                 picker.handle_key_esc()
 
             # Apply keyboard input to the player ship's transform and to the
