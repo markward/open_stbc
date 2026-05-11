@@ -623,7 +623,7 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         # consumer (mission picker, targets panel) replaces it.
         from engine import ui
         ui.init()
-        demo_panel = ui.UiPanel(id="demo", anchor="top-right",
+        demo_panel = ui.UiPanel(id="demo", anchor="top-left",
                                 width_vw=18.0, height_vh=55.0)
         bop = demo_panel.collapsible("Bird of Prey-1", affiliation="enemy",
                                      expanded=True)

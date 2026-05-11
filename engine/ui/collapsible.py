@@ -40,6 +40,7 @@ class UiCollapsibleList:
                                                      self._header_classes())
         self._arrow_id = bindings.append_div(self.header_element_id, "bc-arrow")
         self._title_id = bindings.append_div(self.header_element_id, "bc-title")
+        bindings.set_text(self._arrow_id, self._arrow_glyph())
         bindings.set_text(self._title_id, label)
         self._children_container_id = bindings.append_div(
             self._wrapper_id, "bc-collapsible-children")
@@ -67,6 +68,7 @@ class UiCollapsibleList:
         self._expanded = expanded
         bindings.set_visible(self._children_container_id, expanded)
         bindings.set_class(self.header_element_id, self._header_classes())
+        bindings.set_text(self._arrow_id, self._arrow_glyph())
 
     def set_affiliation(self, name: Optional[str]) -> None:
         self._affiliation = name
@@ -138,6 +140,15 @@ class UiCollapsibleList:
         if self._selected:
             parts.append("selected")
         return " ".join(parts)
+
+    # Down-pointing triangle when the list is open (◣-ish, content below);
+    # right-pointing when closed (▶, points at the title to suggest "click
+    # to reveal"). Unicode geometric shapes covered by Antonio's coverage.
+    _GLYPH_EXPANDED  = "▼"   # ▼
+    _GLYPH_COLLAPSED = "▶"   # ▶
+
+    def _arrow_glyph(self) -> str:
+        return self._GLYPH_EXPANDED if self._expanded else self._GLYPH_COLLAPSED
 
     def _toggle_expanded(self) -> None:
         self.set_expanded(not self._expanded)
