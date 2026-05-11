@@ -96,7 +96,10 @@ UiSystem::UiSystem(GLFWwindow* window,
             symbols_path.c_str());
     }
 
-    hud_ = std::make_unique<HudDocument>(context_, assets_root / "hud.rml");
+    // The old hud.rml debug overlay was replaced by an in-engine UiPanel
+    // ("Debug" top-right, built from host_loop.py via UiStatRow). The
+    // HudDocument class stays in the tree as Phase-2 reference but is no
+    // longer instantiated by the runtime.
     assets_root_ = assets_root;
 
     // RmlUi debug overlay — open on demand via the F8 key (handled in
@@ -151,6 +154,13 @@ void UiSystem::toggle_debugger() {
     Rml::Debugger::SetVisible(visible);
 }
 
+void UiSystem::toggle_visibility() {
+    rendering_enabled_ = !rendering_enabled_;
+    // Skip Rml::Debugger when visibility is off, otherwise its window stays
+    // up while everything else disappears.
+    Rml::Debugger::SetVisible(false);
+}
+
 void UiSystem::update_hud(const HudState& state) {
     if (hud_) hud_->update(state);
     if (context_) context_->Update();
@@ -158,6 +168,7 @@ void UiSystem::update_hud(const HudState& state) {
 
 void UiSystem::render(int fb_width, int fb_height) {
     if (!context_) return;
+    if (!rendering_enabled_) return;
     render_iface_->SetViewport(fb_width, fb_height);
     render_iface_->BeginFrame();
     context_->Render();

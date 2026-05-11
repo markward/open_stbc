@@ -7,6 +7,7 @@ from .bindings import init as _bindings_init
 from .button import UiButton
 from .collapsible import UiCollapsibleList
 from .panel import UiPanel
+from .stat_row import UiStatRow
 
 # Global UI scale. Every `dp` value in RCSS / inline style is multiplied
 # by this. 1.0 = native pixels; 2.0 = doubled. Will become user-configurable
@@ -25,4 +26,4 @@ def init() -> None:
 
 
 __all__ = ["init", "bindings", "theme", "UI_SCALE",
-           "UiButton", "UiCollapsibleList", "UiPanel"]
+           "UiButton", "UiCollapsibleList", "UiPanel", "UiStatRow"]

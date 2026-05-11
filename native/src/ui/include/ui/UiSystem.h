@@ -61,6 +61,9 @@ public:
     /// "the panel only renders at top and bottom" without theorising.
     void toggle_debugger();
 
+    /// Toggle whole-UI visibility (every panel + HUD doc).
+    void toggle_visibility();
+
 private:
     std::unique_ptr<SystemInterface_GLFW> sys_iface_;
     std::unique_ptr<RenderInterface_GL3>  render_iface_;
@@ -70,6 +73,7 @@ private:
     std::filesystem::path                 assets_root_;
     std::unordered_map<int, std::unique_ptr<PanelDocument>> panels_;
     int                                   next_panel_id_ = 1;
+    bool                                  rendering_enabled_ = true;
 };
 
 }  // namespace ui

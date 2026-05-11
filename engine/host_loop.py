@@ -625,7 +625,16 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         ui.init()
         demo_panel = ui.UiPanel(id="demo", anchor="top-left",
                                 width_vw=18.0, height_vh=55.0,
-                                title="Targets", collapsible=True)
+                                title="Targets")
+
+        # Debug stat panel, top-right. Replaces the old hud.rml document.
+        debug_panel = ui.UiPanel(id="debug", anchor="top-right",
+                                 width_vw=18.0, height_vh=18.0,
+                                 title="Debug", collapsible=True)
+        stat_ship   = debug_panel.stat("Ship",   "---")
+        stat_system = debug_panel.stat("System", "---")
+        stat_pos    = debug_panel.stat("Pos",    "0 0 0")
+        stat_rot    = debug_panel.stat("Rot",    "Y0\xb0 P0\xb0 R0\xb0")
         bop = demo_panel.collapsible("Bird of Prey-1", affiliation="enemy",
                                      expanded=True)
         bop.button("Shield Generator")
@@ -754,9 +763,12 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         while not r.should_close():
             loop.tick()
 
-            # F8 toggles the RmlUi debugger overlay.
+            # F8 toggles the RmlUi debugger overlay; F9 toggles whole-UI
+            # visibility (skip rendering all RmlUi documents).
             if _h is not None and _h.key_pressed(_h.keys.KEY_F8):
                 _h.toggle_ui_debugger()
+            if _h is not None and _h.key_pressed(_h.keys.KEY_F9):
+                _h.toggle_ui_visibility()
 
             # Apply keyboard input to the player ship's transform and to the
             # orbit camera. Scroll delta is consumed once per tick; old
@@ -803,14 +815,11 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                 except Exception:
                     _raw_script = ""
                 _ship_display = _raw_script.split(".")[-1] if _raw_script else "---"
-                r.set_hud_state({
-                    "pos":    (_p.x, _p.y, _p.z),
-                    "yaw":    _yaw,
-                    "pitch":  _pitch,
-                    "roll":   _roll,
-                    "system": _set_name or "---",
-                    "ship":   _ship_display,
-                })
+                stat_ship.set_value(_ship_display)
+                stat_system.set_value(_set_name or "---")
+                stat_pos.set_value("%.1f %.1f %.1f" % (_p.x, _p.y, _p.z))
+                stat_rot.set_value(
+                    "Y%.0f\xb0 P%.0f\xb0 R%.0f\xb0" % (_yaw, _pitch, _roll))
 
             ambient, directionals = _aggregate_lights(active_set)
             r.set_lighting(ambient, directionals)

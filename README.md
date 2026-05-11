@@ -19,6 +19,17 @@ uv run pytest
 
 See `docs/gap_analysis.md` for the engine gap analysis and implementation phases.
 
+## Running the renderer
+
+Build the renderer host from the project root, then launch the binary directly:
+
+```bash
+cmake -B build -S . && cmake --build build -j
+./build/open_stbc
+```
+
+Keys: WASDQE flies the ship · 1-9/0/R throttle · arrow keys orbit the camera · scroll wheel zooms · C resets · F8 toggles the RmlUi debugger overlay · F9 toggles UI visibility.
+
 ## NIF parser corpus test
 
 `native/tools/scan_nifs/` is a C++ binary that walks a directory tree, runs `nif::load` on every `.nif` file, and reports per-file outcomes — files that reached `End Of File`, files where the walker stopped on an unknown block type (grouped by type), and files that threw (grouped by message). It exits 0 only if every file reached EOF.

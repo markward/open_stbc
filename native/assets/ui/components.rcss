@@ -39,6 +39,12 @@ body {
     overflow: hidden;
 }
 
+/* When the panel is collapsed via its header toggle, shrink to the height
+   of just the header. Set after .bc-panel so it wins on source order. */
+.bc-panel-collapsed {
+    height: auto;
+}
+
 /* ── Panel header (optional: title text + optional collapse toggle) ─────── */
 
 /* Header has NO background of its own — the surrounding .bc-panel provides
@@ -70,10 +76,32 @@ body {
     text-align: center;
     color: #ffffff;
     cursor: pointer;
+    font-size: 12dp;     /* 15% smaller than the body's 14dp default */
 }
 
 .bc-panel-body {
     display: block;
+}
+
+/* ── Stat row (read-only label/value pair) ──────────────────────────────── */
+
+.bc-stat-row {
+    display: block;
+    margin-bottom: 4dp;
+    padding-left: 12dp;
+    padding-right: 12dp;
+    white-space: nowrap;
+}
+
+.bc-stat-label {
+    display: inline-block;
+    width: 80dp;
+    color: #8aa0b4;
+}
+
+.bc-stat-value {
+    display: inline-block;
+    color: #e8f0fa;
 }
 
 /* ── Collapsible header ─────────────────────────────────────────────────── */
@@ -110,8 +138,10 @@ body {
 .bc-arrow {
     display: inline-block;
     width: 18dp;
+    margin-right: 3dp;
     text-align: center;
     color: #ffffff;
+    font-size: 12dp;     /* 15% smaller than the body's 14dp default */
 }
 
 .bc-title {
@@ -130,11 +160,11 @@ body {
     padding-top: 6dp;
     padding-bottom: 6dp;
     padding-right: 12dp;
-    padding-left: 31dp;
+    padding-left: 34dp;
     margin-bottom: 3dp;
     background-color: #3a3a3a;
     color: #e0e0d8;
-    border-left: 6dp #cf609f;
+    border-left: 3dp #cf609f;
     cursor: pointer;
     white-space: nowrap;
 }
@@ -146,8 +176,8 @@ body {
 
 .bc-button.selected {
     color: #ffffff;
-    padding-left: 28dp;
-    border-left-width: 9dp;
+    padding-left: 31dp;
+    border-left-width: 6dp;
 }
 
 .bc-button.menu-1.selected { background-color: #7f3c2b8c; border-left-color: #fe7856; }

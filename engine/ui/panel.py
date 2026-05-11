@@ -11,6 +11,7 @@ from typing import Callable, Literal, Optional
 from . import bindings
 from .button import _RadioGroup, UiButton
 from .collapsible import UiCollapsibleList
+from .stat_row import UiStatRow
 
 
 Anchor = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
@@ -101,6 +102,11 @@ class UiPanel:
         bindings.set_text(
             self._toggle_element_id,
             self._GLYPH_COLLAPSED if collapsed else self._GLYPH_EXPANDED)
+        # Shrink bc-panel to header height when collapsed; back to full
+        # height when expanded.
+        bindings.set_class(
+            bindings.panel_root(self.panel_id),
+            "bc-panel bc-panel-collapsed" if collapsed else "bc-panel")
 
     def set_title(self, title: str) -> None:
         if self._title_element_id is None:
@@ -137,6 +143,11 @@ class UiPanel:
                               expanded=expanded, on_click=on_click)
         self._children.append(c)
         return c
+
+    def stat(self, label: str, value: str = "") -> UiStatRow:
+        row = UiStatRow(parent_element=self.root, label=label, value=value)
+        self._children.append(row)
+        return row
 
     def clear(self) -> None:
         for child in self._children:

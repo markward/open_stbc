@@ -12,6 +12,8 @@
 
 namespace ui {
 
+int PanelDocument::s_next_id_ = 1;
+
 class PanelDocument::ClickListener : public Rml::EventListener {
 public:
     explicit ClickListener(PanelDocument* owner) : owner_(owner) {}
@@ -51,19 +53,18 @@ PanelDocument::PanelDocument(Rml::Context* context,
     doc_->SetProperty("position", "absolute");
     doc_->SetProperty("width",  std::to_string(width_vw)  + "vw");
     doc_->SetProperty("height", std::to_string(height_vh) + "vh");
-    // 30dp top offset is applied uniformly across all top-anchored UI so
-    // panels and the HUD don't sit flush against the very top of the
-    // viewport. Bottom-anchored panels are unaffected.
-    if      (anchor == "top-left")     { doc_->SetProperty("left",  "0dp"); doc_->SetProperty("top",    "30dp"); }
-    else if (anchor == "top-right")    { doc_->SetProperty("right", "0dp"); doc_->SetProperty("top",    "30dp"); }
-    else if (anchor == "bottom-left")  { doc_->SetProperty("left",  "0dp"); doc_->SetProperty("bottom", "0dp"); }
-    else if (anchor == "bottom-right") { doc_->SetProperty("right", "0dp"); doc_->SetProperty("bottom", "0dp"); }
+    // 10dp inset on every edge so panels don't sit flush against the
+    // viewport bounds.
+    if      (anchor == "top-left")     { doc_->SetProperty("left",  "10dp"); doc_->SetProperty("top",    "10dp"); }
+    else if (anchor == "top-right")    { doc_->SetProperty("right", "10dp"); doc_->SetProperty("top",    "10dp"); }
+    else if (anchor == "bottom-left")  { doc_->SetProperty("left",  "10dp"); doc_->SetProperty("bottom", "10dp"); }
+    else if (anchor == "bottom-right") { doc_->SetProperty("right", "10dp"); doc_->SetProperty("bottom", "10dp"); }
 
     root_ = doc_->GetElementById("root");
     if (!root_) {
         throw std::runtime_error("PanelDocument: panel.rml missing #root element");
     }
-    root_id_ = next_id_++;
+    root_id_ = s_next_id_++;
     elements_[root_id_] = root_;
     root_->SetAttribute<Rml::String>("data-eid", std::to_string(root_id_));
 
@@ -83,7 +84,7 @@ int PanelDocument::append_div(int parent_id, const std::string& class_names) {
     }
     Rml::ElementPtr el_ptr = doc_->CreateElement("div");
     Rml::Element* el = el_ptr.get();
-    int eid = next_id_++;
+    int eid = s_next_id_++;
     el->SetAttribute<Rml::String>("data-eid", std::to_string(eid));
     if (!class_names.empty()) {
         el->SetClassNames(class_names.c_str());

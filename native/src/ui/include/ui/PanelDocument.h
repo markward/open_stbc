@@ -63,7 +63,12 @@ private:
     Rml::Element*         root_       = nullptr;
     int                   root_id_    = 0;
 
-    int                   next_id_    = 1;
+    /// Element-id counter shared across every PanelDocument. Per-panel
+    /// counters would collide because the binding layer resolves element
+    /// ids by "first panel that owns this id wins" (host_bindings.cc).
+    /// Two panels each numbering their #root as 1 routes the second
+    /// panel's appends into the first panel's tree.
+    static int            s_next_id_;
     std::unordered_map<int, Rml::Element*>            elements_;
     std::unordered_map<int, std::function<void()>>    click_cbs_;
 

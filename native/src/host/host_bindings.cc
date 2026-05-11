@@ -359,6 +359,7 @@ PYBIND11_MODULE(_open_stbc_host, m) {
     keys.attr("KEY_LEFT")  = GLFW_KEY_LEFT;
     keys.attr("KEY_RIGHT") = GLFW_KEY_RIGHT;
     keys.attr("KEY_F8")    = GLFW_KEY_F8;
+    keys.attr("KEY_F9")    = GLFW_KEY_F9;
 
     m.def("key_state",
           [](int key) {
@@ -440,6 +441,12 @@ PYBIND11_MODULE(_open_stbc_host, m) {
           []() {
               if (!g_ui_system) return;
               g_ui_system->toggle_debugger();
+          });
+
+    m.def("toggle_ui_visibility",
+          []() {
+              if (!g_ui_system) return;
+              g_ui_system->toggle_visibility();
           });
 
     // ── UI panel + element primitives ───────────────────────────────────
