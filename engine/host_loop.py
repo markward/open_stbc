@@ -619,6 +619,30 @@ def run(mission_name: str = SHIP_GATE_MISSION,
     r.init(1280, 720, "open_stbc",
            str(PROJECT_ROOT / "native" / "assets" / "ui"))
     try:
+        # Demo UI panel — proves the components render. Remove once a real
+        # consumer (mission picker, targets panel) replaces it.
+        from engine import ui
+        ui.init()
+        demo_panel = ui.UiPanel(id="demo", anchor="top-left",
+                                width_vw=18.0, height_vh=55.0,
+                                title="Targets", collapsible=True)
+        bop = demo_panel.collapsible("Bird of Prey-1", affiliation="enemy",
+                                     expanded=True)
+        bop.button("Shield Generator")
+        bop.button("Warp Core", selected=True)
+        bop.collapsible("Disruptor Cannons", menu_level=3, expanded=False)
+        bop.button("Torpedoes")
+        bop.button("Impulse Engines")
+        bop.collapsible("Warp Engines", menu_level=3, expanded=False)
+        bop.button("Cloaking Device")
+        bop.button("Sensor Array")
+        demo_panel.collapsible("USS Yamato", affiliation="friendly",
+                               expanded=False)
+        demo_panel.collapsible("Tellarite Caravan", affiliation="neutral",
+                               expanded=False)
+        demo_panel.collapsible("Subspace Echo 47", affiliation="unknown",
+                               expanded=False)
+
         # Per-NIF cache so the same mesh isn't reloaded once per ship.
         nif_to_handle: dict[str, int] = {}
         ship_instances: dict[object, object] = {}    # ship   -> InstanceId
@@ -729,6 +753,10 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         ticks = 0
         while not r.should_close():
             loop.tick()
+
+            # F8 toggles the RmlUi debugger overlay.
+            if _h is not None and _h.key_pressed(_h.keys.KEY_F8):
+                _h.toggle_ui_debugger()
 
             # Apply keyboard input to the player ship's transform and to the
             # orbit camera. Scroll delta is consumed once per tick; old

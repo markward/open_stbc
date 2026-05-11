@@ -7,6 +7,7 @@
 add_library(ui STATIC
     UiSystem.cc
     HudDocument.cc
+    PanelDocument.cc
     ${rmlui_SOURCE_DIR}/Backends/RmlUi_Platform_GLFW.cpp
     ${rmlui_SOURCE_DIR}/Backends/RmlUi_Renderer_GL3.cpp
 )
@@ -26,6 +27,6 @@ target_compile_definitions(ui PRIVATE
 
 # glad must be included before any GL headers; linking it here makes its
 # include path available to the backend sources.
-target_link_libraries(ui PUBLIC RmlUi::Core glad glfw)
+target_link_libraries(ui PUBLIC RmlUi::Core RmlUi::Debugger glad glfw)
 
 target_compile_features(ui PUBLIC cxx_std_20)

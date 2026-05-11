@@ -16,13 +16,14 @@ set_target_properties(_open_stbc_host PROPERTIES
 
 # Host executable. Statically links the same bindings translation unit, then
 # host_main registers the init function via PyImport_AppendInittab before
-# Py_InitializeEx.
-add_executable(open_stbc_host
+# Py_InitializeEx. Output lands directly at ${CMAKE_BINARY_DIR}/open_stbc so
+# the run command is `./build/open_stbc` from the project root.
+add_executable(open_stbc
     host_main.cc
     ${HOST_BINDINGS_SOURCES}
 )
 
-target_link_libraries(open_stbc_host
+target_link_libraries(open_stbc
     PRIVATE
         Python3::Python
         pybind11::embed
@@ -32,11 +33,11 @@ target_link_libraries(open_stbc_host
         assets
 )
 
-target_compile_features(open_stbc_host PRIVATE cxx_std_20)
-target_include_directories(open_stbc_host PRIVATE .)
+target_compile_features(open_stbc PRIVATE cxx_std_20)
+target_include_directories(open_stbc PRIVATE .)
 
-set_target_properties(open_stbc_host PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+set_target_properties(open_stbc PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
 # Block parsers in libnif.a self-register via static initializers. Without
@@ -48,14 +49,14 @@ set_target_properties(open_stbc_host PROPERTIES
 if(APPLE)
     target_link_options(_open_stbc_host PRIVATE
         "LINKER:-force_load,$<TARGET_FILE:nif>")
-    target_link_options(open_stbc_host PRIVATE
+    target_link_options(open_stbc PRIVATE
         "LINKER:-force_load,$<TARGET_FILE:nif>")
 elseif(UNIX)
     target_link_options(_open_stbc_host PRIVATE
         "LINKER:--whole-archive"
         "$<TARGET_FILE:nif>"
         "LINKER:--no-whole-archive")
-    target_link_options(open_stbc_host PRIVATE
+    target_link_options(open_stbc PRIVATE
         "LINKER:--whole-archive"
         "$<TARGET_FILE:nif>"
         "LINKER:--no-whole-archive")

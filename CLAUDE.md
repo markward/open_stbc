@@ -38,6 +38,7 @@ The original engine is a compiled C++ binary exposed to Python via a SWIG-genera
 | Gap analysis | `docs/gap_analysis.md` | 8 gaps, 21 open questions, solution paths |
 | Open questions | `docs/open_questions.md` | 4 instrumentation questions — Q4 closed |
 | Live game | `game/` | BC installation (gitignored) — needed for instrumentation |
+| UI components | `engine/ui/`, `docs/superpowers/specs/2026-05-11-ui-components-design.md` | Reusable Button + CollapsibleList; theme registries mirror LoadInterface.py |
 
 ## Open questions status
 
@@ -126,6 +127,19 @@ Current shims:
 - `LoadBridge.py` — empty `SetClass` registration so `g_kSetManager.GetSet("bridge")` works headless
 
 Add new SDK-name shadows at the root only when needed; keep application code in `engine/`. If a third shim shows up, consider grouping them into a `shims/` directory and updating `_SDKFinder` accordingly.
+
+## Build layout — single source of truth
+
+There is **one** build tree at `<project-root>/build/`. The renderer host binary is at **`build/open_stbc`** and the Python extension module is at **`build/python/_open_stbc_host.cpython-*.so`**. Do not introduce alternate output locations.
+
+- Build: `cmake -B build -S . && cmake --build build -j`
+- Run:   `./build/open_stbc`
+
+Hard rules:
+
+- **Never** spawn a new binary at a different path (e.g. `build/bin/open_stbc_host`, `native/build/...`, anywhere else). If you find such a binary, treat it as stale and delete it — do not run it.
+- **Never** run `cmake` from inside `native/` (that produces a parallel `native/build/` tree that diverges from the canonical one).
+- If the runtime fails with `AttributeError: module '_open_stbc_host' has no attribute X`, the cause is a stale binary or stale `.so` — rebuild from `build/`, do not change the Python side.
 
 ## Setup
 
