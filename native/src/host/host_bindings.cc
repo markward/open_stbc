@@ -180,7 +180,9 @@ void frame() {
     g_world.propagate();
     g_backdrop_pass->render(g_backdrops, g_camera, *g_pipeline);
     g_sun_pass->render(g_suns, g_camera, *g_pipeline);
-    g_submitter->submit_opaque(g_world, g_camera, *g_pipeline, lookup, g_lighting);
+    g_submitter->submit_opaque_in_pass(
+        g_world, g_camera, *g_pipeline, lookup, g_lighting,
+        scenegraph::Pass::Space);
 
     const double now = glfwGetTime();
     const float  dt  = static_cast<float>(now - g_prev_frame_time_seconds);
