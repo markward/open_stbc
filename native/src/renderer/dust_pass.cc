@@ -208,7 +208,11 @@ void DustPass::rebuild_instance_buffer(std::uint32_t seed, int count) {
 
 bool DustPass::ensure_texture() {
     if (texture_) return texture_->id() != 0;
-    const char* path = "data/Textures/spacedust.tga";
+    // BC installation lives under `game/` per CLAUDE.md. Other passes
+    // receive absolute paths from Python (engine/appc/backdrops.py
+    // resolves them against project_root / "game"); the dust pass owns
+    // its single texture, so the relative path is hardcoded here.
+    const char* path = "game/data/Textures/spacedust.tga";
     std::ifstream in(path, std::ios::binary);
     if (!in) {
         std::fprintf(stderr, "[dust] failed to open '%s'\n", path);

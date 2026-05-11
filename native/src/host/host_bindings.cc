@@ -21,6 +21,7 @@
 #include <renderer/frame.h>
 #include <renderer/backdrop_pass.h>
 #include <renderer/sun_pass.h>
+#include <renderer/dust_pass.h>
 #include <ui/UiSystem.h>
 #include <ui/PanelDocument.h>
 #include <scenegraph/world.h>
@@ -48,6 +49,8 @@ std::vector<renderer::Backdrop> g_backdrops;
 std::unique_ptr<renderer::BackdropPass> g_backdrop_pass;
 std::vector<renderer::SunDescriptor> g_suns;
 std::unique_ptr<renderer::SunPass> g_sun_pass;
+std::unique_ptr<renderer::DustPass> g_dust_pass;
+double g_prev_frame_time_seconds = 0.0;
 
 struct LoadedModel {
     std::filesystem::path nif_path;
@@ -108,6 +111,8 @@ void init(int width, int height, const std::string& title,
     g_backdrop_pass = std::make_unique<renderer::BackdropPass>();
     g_suns.clear();
     g_sun_pass = std::make_unique<renderer::SunPass>();
+    g_dust_pass = std::make_unique<renderer::DustPass>();
+    g_prev_frame_time_seconds = glfwGetTime();
 
     if (!ui_assets_root.empty()) {
         g_ui_system = std::make_unique<ui::UiSystem>(
@@ -134,6 +139,7 @@ void shutdown() {
                               // GL context is still alive.
     g_suns.clear();
     g_sun_pass.reset();
+    g_dust_pass.reset();
     g_window.reset();
     g_prev_key_state.clear();
     // Mirror init()'s lighting reset for symmetry and defense-in-depth:
@@ -169,6 +175,11 @@ void frame() {
     g_backdrop_pass->render(g_backdrops, g_camera, *g_pipeline);
     g_sun_pass->render(g_suns, g_camera, *g_pipeline);
     g_submitter->submit_opaque(g_world, g_camera, *g_pipeline, lookup, g_lighting);
+
+    const double now = glfwGetTime();
+    const float  dt  = static_cast<float>(now - g_prev_frame_time_seconds);
+    g_prev_frame_time_seconds = now;
+    if (g_dust_pass) g_dust_pass->render(g_camera, dt, *g_pipeline);
 
     if (g_ui_system) {
         g_ui_system->update_hud(g_hud_state);
