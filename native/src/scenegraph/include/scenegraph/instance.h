@@ -14,10 +14,16 @@ struct InstanceId {
     bool operator==(const InstanceId&) const = default;
 };
 
+/// Which renderer pass an instance is drawn in.
+/// - Space: ships, planets, suns, dust, backdrops (default).
+/// - Bridge: the bridge interior geometry, drawn after a depth clear.
+enum class Pass : std::uint8_t { Space = 0, Bridge = 1 };
+
 struct Instance {
     ModelHandle model_handle = 0;
     glm::mat4 world{1.0f};
     bool visible = true;
+    Pass pass = Pass::Space;
 };
 
 }  // namespace scenegraph

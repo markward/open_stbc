@@ -34,6 +34,10 @@ void World::set_visible(InstanceId id, bool visible) {
     if (auto* inst = get(id)) inst->visible = visible;
 }
 
+void World::set_pass(InstanceId id, Pass pass) {
+    if (auto* inst = get(id)) inst->pass = pass;
+}
+
 bool World::is_valid(InstanceId id) const noexcept {
     return id.index < slots_.size()
         && slots_[id.index].alive

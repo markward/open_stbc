@@ -52,4 +52,55 @@ TEST(World, SetVisibleFlipsFlag) {
     EXPECT_FALSE(w.get(id)->visible);
 }
 
+TEST(World, NewInstanceDefaultsToSpacePass) {
+    scenegraph::World w;
+    auto id = w.create_instance(7);
+    auto* inst = w.get(id);
+    ASSERT_NE(inst, nullptr);
+    EXPECT_EQ(inst->pass, scenegraph::Pass::Space);
+}
+
+TEST(World, SetPassUpdatesField) {
+    scenegraph::World w;
+    auto id = w.create_instance(7);
+    w.set_pass(id, scenegraph::Pass::Bridge);
+    EXPECT_EQ(w.get(id)->pass, scenegraph::Pass::Bridge);
+}
+
+TEST(World, ForEachVisibleInPassFiltersByPass) {
+    scenegraph::World w;
+    auto a = w.create_instance(1);
+    auto b = w.create_instance(2);
+    auto c = w.create_instance(3);
+    w.set_pass(b, scenegraph::Pass::Bridge);
+    // Only c stays in Space; b is in Bridge; a is default (Space).
+    (void)a; (void)c;
+
+    std::vector<scenegraph::ModelHandle> seen_space;
+    w.for_each_visible_in_pass(scenegraph::Pass::Space,
+                               [&](const scenegraph::Instance& i) {
+        seen_space.push_back(i.model_handle);
+    });
+    std::vector<scenegraph::ModelHandle> seen_bridge;
+    w.for_each_visible_in_pass(scenegraph::Pass::Bridge,
+                               [&](const scenegraph::Instance& i) {
+        seen_bridge.push_back(i.model_handle);
+    });
+
+    EXPECT_EQ(seen_space.size(), 2u);
+    EXPECT_EQ(seen_bridge.size(), 1u);
+    EXPECT_EQ(seen_bridge[0], 2u);
+}
+
+TEST(World, ForEachVisibleInPassRespectsVisibilityFlag) {
+    scenegraph::World w;
+    auto a = w.create_instance(1);
+    w.set_pass(a, scenegraph::Pass::Bridge);
+    w.set_visible(a, false);
+    int count = 0;
+    w.for_each_visible_in_pass(scenegraph::Pass::Bridge,
+                               [&](const scenegraph::Instance&) { ++count; });
+    EXPECT_EQ(count, 0);
+}
+
 }  // namespace

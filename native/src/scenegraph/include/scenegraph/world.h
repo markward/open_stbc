@@ -13,6 +13,7 @@ public:
     void destroy_instance(InstanceId id);
     void set_world_transform(InstanceId id, const glm::mat4& world);
     void set_visible(InstanceId id, bool visible);
+    void set_pass(InstanceId id, Pass pass);
 
     bool is_valid(InstanceId id) const noexcept;
     Instance* get(InstanceId id) noexcept;
@@ -29,6 +30,18 @@ public:
     void for_each_visible(Fn&& fn) const {
         for (std::size_t i = 0; i < slots_.size(); ++i) {
             if (slots_[i].alive && slots_[i].instance.visible) {
+                fn(slots_[i].instance);
+            }
+        }
+    }
+
+    /// Iterate every visible instance whose `pass` matches `pass`.
+    template <typename Fn>
+    void for_each_visible_in_pass(Pass pass, Fn&& fn) const {
+        for (std::size_t i = 0; i < slots_.size(); ++i) {
+            if (slots_[i].alive
+                && slots_[i].instance.visible
+                && slots_[i].instance.pass == pass) {
                 fn(slots_[i].instance);
             }
         }
