@@ -49,3 +49,28 @@ def test_panel_destroy_destroys_panel(fake_dom):
     import pytest
     with pytest.raises(KeyError):
         fake_dom.panel_root(pid)
+
+
+def test_panel_sets_initial_css_vars_from_theme(fake_dom):
+    panel = UiPanel(id="p")
+    vars_ = fake_dom.panel_css_vars(panel.panel_id)
+    # Affiliation defaults present
+    assert vars_["--aff-enemy-color"]    == "rgb(216,43,43)"
+    assert vars_["--aff-friendly-color"] == "rgb(80,112,230)"
+    # Menu-level 3 defaults present
+    assert vars_["--menu-3-normal"]      == "rgb(207,96,159)"
+    assert vars_["--menu-3-highlighted"] == "rgb(246,147,204)"
+    assert vars_["--menu-3-selected"]    == "rgb(103,48,79)"
+
+
+def test_theme_change_after_panel_creation_repushes_vars(fake_dom):
+    from engine.ui import theme
+    panel = UiPanel(id="p")
+    theme.set_affiliation("enemy", (1, 2, 3))
+    try:
+        # Caller pushes — there's no auto-watch
+        panel.refresh_theme()
+        assert fake_dom.panel_css_vars(panel.panel_id)["--aff-enemy-color"] \
+            == "rgb(1,2,3)"
+    finally:
+        theme.reset_affiliations()

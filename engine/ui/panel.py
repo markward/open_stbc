@@ -31,6 +31,7 @@ class UiPanel:
         self._destroyed = False
 
         self.panel_id = bindings.create_panel(id, anchor, width_vw, height_vh)
+        self.refresh_theme()
 
     @property
     def root(self) -> int:
@@ -73,3 +74,9 @@ class UiPanel:
             return
         bindings.destroy_panel(self.panel_id)
         self._destroyed = True
+
+    def refresh_theme(self) -> None:
+        """Push the current theme registry values to the panel's CSS variables."""
+        from . import theme
+        for name, value in theme.css_var_pairs().items():
+            bindings.set_panel_css_var(self.panel_id, name, value)

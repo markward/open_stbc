@@ -74,3 +74,24 @@ def known_affiliations() -> tuple[str, ...]:
 
 def known_menu_levels() -> tuple[int, ...]:
     return tuple(_MENU_LEVEL_DEFAULTS)
+
+
+def _rgb_css(rgb: RGB) -> str:
+    return "rgb({},{},{})".format(*rgb)
+
+
+def css_var_pairs() -> dict[str, str]:
+    """Return the full set of CSS custom properties driven by the registries.
+
+    Names follow the conventions used in components.rcss:
+      --aff-<name>-color
+      --menu-<level>-normal / highlighted / selected
+    """
+    out: dict[str, str] = {}
+    for name, rgb in _affiliation.items():
+        out["--aff-" + name + "-color"] = _rgb_css(rgb)
+    for level, p in _menu_levels.items():
+        out["--menu-" + str(level) + "-normal"]      = _rgb_css(p.normal)
+        out["--menu-" + str(level) + "-highlighted"] = _rgb_css(p.highlighted)
+        out["--menu-" + str(level) + "-selected"]    = _rgb_css(p.selected)
+    return out
