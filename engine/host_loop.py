@@ -9,7 +9,7 @@ import importlib
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 from engine import renderer as r
 from engine.scale import SHIP_SCALE, ASTRO_SCALE, PLANET_NIF_NATIVE_RADIUS
@@ -736,6 +736,12 @@ class HostController:
         self.nif_to_handle: dict[str, int] = {}
         self.session: Optional[MissionSession] = None
         self.pending_swap: Optional[str] = None
+        # Invoked once after each successful loader.load(). host_loop wires
+        # this to TargetListController.rebuild_from_snapshot so the panel
+        # filters the player ship (Game.SetPlayer runs during loader.load
+        # AFTER the ship is added to the set, so the initial publish_added
+        # for the player can't filter itself out).
+        self.post_load_hook: Optional[Callable[[], None]] = None
 
     def swap_mission(self, mission_name: str) -> None:
         self.pending_swap = mission_name
@@ -747,6 +753,8 @@ class HostController:
         self.pending_swap = None
         if self.session is not None:
             self.session.teardown(self.renderer)
+        from engine.appc import ship_lifecycle
+        ship_lifecycle.reset()
         reset_sdk_globals()
         assert self.loader is not None, "HostController.loader must be set"
         try:
@@ -757,6 +765,9 @@ class HostController:
                   f"{type(e).__name__}: {e}", flush=True)
             traceback.print_exc()
             self.session = None
+            return
+        if self.post_load_hook is not None:
+            self.post_load_hook()
 
 
 class _MissionLoader:
