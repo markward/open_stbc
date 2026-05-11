@@ -330,6 +330,21 @@ PYBIND11_MODULE(_open_stbc_host, m) {
           py::arg("suns"),
           "Set the active sun list, applied each frame().");
 
+    m.def("dust_set_enabled",
+          [](bool enabled) {
+              if (g_dust_pass) g_dust_pass->set_enabled(enabled);
+          },
+          py::arg("enabled"),
+          "Toggle the space-dust pass at runtime. Default: on.");
+
+    m.def("dust_set_density",
+          [](int count) {
+              if (g_dust_pass) g_dust_pass->set_density(count);
+          },
+          py::arg("count"),
+          "Reseed the dust particle buffer with `count` particles "
+          "(clamped to [0, 50000]).");
+
     m.def("set_hud_state",
           [](const py::dict& d) {
               if (!g_ui_system) return;
@@ -369,6 +384,7 @@ PYBIND11_MODULE(_open_stbc_host, m) {
     keys.attr("KEY_DOWN")  = GLFW_KEY_DOWN;
     keys.attr("KEY_LEFT")  = GLFW_KEY_LEFT;
     keys.attr("KEY_RIGHT") = GLFW_KEY_RIGHT;
+    keys.attr("KEY_F7")    = GLFW_KEY_F7;
     keys.attr("KEY_F8")    = GLFW_KEY_F8;
     keys.attr("KEY_F9")    = GLFW_KEY_F9;
 
