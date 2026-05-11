@@ -760,11 +760,15 @@ def run(mission_name: str = SHIP_GATE_MISSION,
 
         loop = GameLoop()
         ticks = 0
+        _dust_enabled = True   # mirrors DustPass default
         while not r.should_close():
             loop.tick()
 
-            # F8 toggles the RmlUi debugger overlay; F9 toggles whole-UI
-            # visibility (skip rendering all RmlUi documents).
+            # F7 toggles space dust; F8 toggles the RmlUi debugger
+            # overlay; F9 toggles whole-UI visibility.
+            if _h is not None and _h.key_pressed(_h.keys.KEY_F7):
+                _dust_enabled = not _dust_enabled
+                _h.dust_set_enabled(_dust_enabled)
             if _h is not None and _h.key_pressed(_h.keys.KEY_F8):
                 _h.toggle_ui_debugger()
             if _h is not None and _h.key_pressed(_h.keys.KEY_F9):
