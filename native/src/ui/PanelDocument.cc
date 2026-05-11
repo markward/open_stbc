@@ -59,6 +59,11 @@ PanelDocument::PanelDocument(Rml::Context* context,
     else if (anchor == "top-right")    { doc_->SetProperty("right", "10dp"); doc_->SetProperty("top",    "10dp"); }
     else if (anchor == "bottom-left")  { doc_->SetProperty("left",  "10dp"); doc_->SetProperty("bottom", "10dp"); }
     else if (anchor == "bottom-right") { doc_->SetProperty("right", "10dp"); doc_->SetProperty("bottom", "10dp"); }
+    else if (anchor == "center") {
+        doc_->SetProperty("left",      "50%");
+        doc_->SetProperty("top",       "50%");
+        doc_->SetProperty("transform", "translate(-50%, -50%)");
+    }
 
     root_ = doc_->GetElementById("root");
     if (!root_) {
