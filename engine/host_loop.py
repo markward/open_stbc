@@ -919,6 +919,14 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         demo_panel.collapsible("Subspace Echo 47", affiliation="unknown",
                                expanded=False)
 
+        # Bridge view marker — visible only when KEY_SPACE has toggled
+        # _ViewModeController into bridge mode. PoC: text-only, no
+        # bridge geometry yet.
+        bridge_hud = ui.UiPanel(id="bridge_hud", anchor="top",
+                                width_vw=20.0, height_vh=6.0,
+                                title="BRIDGE VIEW")
+        bridge_hud.set_visible(False)
+
         # Controller owns the renderer, the nif-handle cache, and the
         # current mission session. _MissionLoader.load() runs the
         # mission init + scene build; HostController.swap_mission()
@@ -952,6 +960,7 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         # Per-tick player input → ship-transform integrator.
         player_control = _PlayerControl()
         cam_control    = _CameraControl()
+        view_mode      = _ViewModeController()
         try:
             import _open_stbc_host as _h
         except ImportError:
@@ -980,6 +989,11 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             session = controller.session
             player = session.player if session is not None else None
 
+            # SPACE toggles bridge/exterior view modality. Polled before
+            # the F-key handlers so the modality switch happens first in
+            # the tick.
+            if _h is not None:
+                view_mode.apply(_h)
             # F7 toggles space dust; F8 toggles the RmlUi debugger
             # overlay; F9 toggles whole-UI visibility; ESC dismisses the
             # mission picker (no-op when it isn't open).
@@ -998,8 +1012,9 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             # bindings without the binding return 0.0 via the fallback.
             scroll_y = _consume_scroll() if _consume_scroll is not None else 0.0
             if player is not None and _h is not None:
-                player_control.apply(player, TICK_DT, _h)
-                cam_control.apply(TICK_DT, _h, scroll_y)
+                _apply_input(view_mode, player_control, cam_control,
+                             player=player, dt=TICK_DT, h=_h,
+                             scroll_y=scroll_y)
 
             # Sync transforms for known instances.
             if session is not None:
@@ -1014,15 +1029,17 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                 target = (0.0, 0.0, 0.0)
                 up_vec = (0.0, 1.0, 0.0)
             elif player is not None:
-                eye, target, up_vec = cam_control.compute_camera(
-                    player.GetWorldLocation(), player.GetWorldRotation(),
-                    dt=TICK_DT)
+                eye, target, up_vec = _compute_camera(
+                    view_mode, cam_control,
+                    player=player, dt=TICK_DT)
             else:
                 eye = (0.0, 30.0, 200.0)
                 target = (0.0, 0.0, 0.0)
                 up_vec = (0.0, 1.0, 0.0)
             r.set_camera(eye=eye, target=target, up=up_vec,
                          fov_y_rad=1.0472, near=1.0, far=2_000_000.0)
+
+            bridge_hud.set_visible(view_mode.is_bridge)
 
             active_set = _resolve_active_set(player)
 
