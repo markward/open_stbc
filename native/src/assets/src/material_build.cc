@@ -68,7 +68,8 @@ void apply_texture_property(
     const nif::NiTextureProperty& src,
     const std::unordered_map<std::uint32_t, int>* image_to_texture,
     const std::unordered_set<std::uint32_t>* glow_image_links,
-    const std::unordered_set<std::uint32_t>* specular_image_links)
+    const std::unordered_set<std::uint32_t>* specular_image_links,
+    const std::unordered_map<std::uint32_t, int>* sibling_specular_for_image)
 {
     // Single-texture v3.x property — usually populates the Base stage.
     //
@@ -106,6 +107,18 @@ void apply_texture_property(
         auto& glow = m.stages[static_cast<std::size_t>(Material::StageSlot::Glow)];
         glow.texture_index = tex_idx;
         glow.apply_mode    = 2;
+    }
+    // Phase 1 AddLOD shim: if the asset loader probed for a sibling
+    // `_specular` texture next to this image and found one, bind it to
+    // the Gloss slot. The hull texture stays in Base / Glow as above;
+    // only the spec mask comes from the sibling lookup.
+    if (sibling_specular_for_image) {
+        auto it = sibling_specular_for_image->find(src.image_link);
+        if (it != sibling_specular_for_image->end()) {
+            auto& gloss = m.stages[static_cast<std::size_t>(Material::StageSlot::Gloss)];
+            gloss.texture_index = it->second;
+            gloss.apply_mode    = 2;
+        }
     }
 }
 
@@ -165,7 +178,8 @@ Material build_material(const MaterialInputs& in) {
     if (in.zbuffer)       apply_zbuffer_property(m, *in.zbuffer);
     if (in.vertex_color)  apply_vertex_color_property(m, *in.vertex_color);
     if (in.texture) apply_texture_property(m, *in.texture,
-        in.image_to_texture, in.glow_image_links, in.specular_image_links);
+        in.image_to_texture, in.glow_image_links, in.specular_image_links,
+        in.sibling_specular_for_image);
     if (in.texturing)     apply_texturing_property(m, *in.texturing, in.image_to_texture);
     if (in.multi_texture) apply_multi_texture_property(m, *in.multi_texture, in.image_to_texture);
     return m;

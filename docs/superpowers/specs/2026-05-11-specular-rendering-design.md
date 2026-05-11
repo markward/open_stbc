@@ -88,13 +88,19 @@ comparison.
 ```cpp
 namespace renderer {
 // Map normalized BC glossiness [0,1] → Blinn-Phong exponent.
-// Chosen mapping: linear remap into [4, 128].
-//   gloss=0.12 → 19   gloss=0.25 → 35   gloss=0.30 → 41   gloss=1.0 → 128
-// Outlier gloss=4.0 clamps to 128.
+// Chosen mapping: linear remap into [48, 1536].
+//   gloss=0.12 → 226   gloss=0.25 → 420   gloss=0.30 → 494   gloss=1.0 → 1536
+// Outlier gloss=4.0 clamps to 1536.
+//
+// Tuned interactively against the Galaxy and Keldon spec maps; lower
+// exponents produced soft, almost-diffuse shoulders that didn't read
+// as "specular", while values around this range give the tight panel
+// highlights that match how the original BC content was authored.
 inline float glossiness_to_specular_power(float g) {
-    return 4.0f + 124.0f * std::clamp(g, 0.0f, 1.0f);
-    // Alt (D3D era):  return 2.0f + 254.0f * std::clamp(g, 0.0f, 1.0f);
-    // Alt (exp2):     return std::pow(2.0f, std::clamp(g, 0.0f, 1.0f) * 10.0f);
+    return 48.0f + 1488.0f * std::clamp(g, 0.0f, 1.0f);
+    // Alt (gentler):   return 4.0f + 124.0f * std::clamp(g, 0.0f, 1.0f);
+    // Alt (D3D era):   return 2.0f + 254.0f * std::clamp(g, 0.0f, 1.0f);
+    // Alt (exp2):      return std::pow(2.0f, std::clamp(g, 0.0f, 1.0f) * 10.0f);
 }
 }  // namespace renderer
 ```
@@ -263,10 +269,10 @@ New `TEST(MaterialBuild, SpecularImageBindsToGlossSlot)`:
 ### C++ — `native/tests/renderer/lighting_test.cc` (new)
 
 Pins the gloss → exponent mapping:
-- `glossiness_to_specular_power(0.0f) == 4.0f`
-- `glossiness_to_specular_power(0.25f) == 35.0f`
-- `glossiness_to_specular_power(1.0f) == 128.0f`
-- `glossiness_to_specular_power(4.0f) == 128.0f`  (clamp check)
+- `glossiness_to_specular_power(0.0f)  == 48.0f`
+- `glossiness_to_specular_power(0.25f) == 420.0f`
+- `glossiness_to_specular_power(1.0f)  == 1536.0f`
+- `glossiness_to_specular_power(4.0f)  == 1536.0f`  (clamp check)
 
 Trips CI on accidental curve changes; trivially updated for intentional
 retunes.
@@ -274,11 +280,12 @@ retunes.
 ## Risks
 
 1. **Highlight intensity may not match BC's original engine.** The
-   `[4, 128]` mapping is a defensible guess; BC's exact curve is
-   unknown without instrumentation. The mapping function is one inline
-   call site — A/B against the D3D-era `[2, 256]` or `pow(2, g·10)` is a
-   one-line edit. The pinned-value test exists to catch *accidental*
-   changes, not to lock the curve.
+   `[48, 1536]` mapping is a defensible interactive tune; BC's exact
+   curve is unknown without instrumentation. The mapping function is
+   one inline call site — A/B against the gentler `[4, 128]`, the
+   D3D-era `[2, 256]`, or `pow(2, g·10)` is a one-line edit. The
+   pinned-value test exists to catch *accidental* changes, not to
+   lock the curve.
 
    *Test gap:* the renderer-level tests are smoke tests, not
    differentials. A subtle bug — for example, the spec uniform set but
@@ -297,13 +304,39 @@ retunes.
    programs with their own assignments, so no conflict, but the
    convention deserves a one-line comment in `frame.cc`.
 
+## Phase 1 AddLOD sibling shim
+
+Stock BC NIFs reference only the diffuse / `_glow` texture in their
+`NiImage` blocks; the `_specular.tga` companions exist on disk but are
+injected at runtime by BC's engine when `AddLOD(...)` passes
+`"_specular"` as its 9th positional arg. Phase 1 bypasses `AddLOD`
+entirely, so the spec slot was empty for every loaded ship.
+
+`load_all_textures` now probes the texture search path for a sibling
+`<basename>_specular.tga` next to each loaded NiImage. Stripping a
+trailing `_glow` from the stem before substituting `_specular` resolves
+`CardGalor01_glow.tga` → `CardGalor01_specular.tga` (the AddLOD case)
+and `Hull.tga` → `Hull_specular.tga` (the hypothetical no-`_glow` case)
+to the right place. Found siblings are uploaded as additional textures
+and recorded in a `sibling_specular_for_image` map keyed by the
+original NiImage's link id. `apply_texture_property` consults the map
+after Base/Glow binding and routes the sibling to `StageSlot::Gloss`.
+
+This makes the spec pass visible on every BC ship whose AddLOD call
+passes a `"_specular"` arg (Keldon, Vorcha, Marauder, CardHybrid,
+CardStarbase, BiranuStation, RanKuf, BombFreighter). Federation hulls
+have no spec siblings on disk, so they remain matte — consistent with
+BC's original engine behavior.
+
 ## Deferred / nice-to-have
 
 - Runtime A/B hotkey for cycling gloss-mapping curves. The C++ function
   is structured for this; UI hookup is deferred until needed.
-- Threading the actual `AddLOD` suffix arg from Python through the asset
-  loader. Glow already deferred this; spec inherits the same deferral so
-  both can be de-hardcoded together.
+- Full `AddLOD` suffix threading from Python through the asset loader.
+  The sibling shim above covers stock BC content but doesn't honor the
+  `AddLOD` arg itself; mod packs that pass non-default suffixes won't
+  pick them up until the arg is plumbed through `_open_stbc_host.load_model`
+  to `ModelBuildContext`.
 - PBR shader variant activated when `_normal` / `_rough` / `_metal` maps
   are present. Viable once mod content ships those maps; stock BC has
   none. `StageSlot` enum has room.

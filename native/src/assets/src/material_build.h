@@ -32,6 +32,15 @@ struct MaterialInputs {
     /// StageSlot::Gloss (specular mask). Unlike glow, specular images
     /// do NOT dual-bind to Base — they are standalone masks.
     const std::unordered_set<std::uint32_t>* specular_image_links = nullptr;
+
+    /// Phase 1 AddLOD shim: NIF link_id of a non-`_specular` NiImage ->
+    /// Model::textures index of a sibling `*_specular.tga` file that the
+    /// asset loader probed for and found on disk. When a property's
+    /// base-stage image_link is in this map, the spec sibling is bound
+    /// to StageSlot::Gloss in addition to the hull texture's normal
+    /// Base/Glow binding. Stand-in for BC's runtime AddLOD `_specular`
+    /// suffix arg until full AddLOD threading lands.
+    const std::unordered_map<std::uint32_t, int>* sibling_specular_for_image = nullptr;
 };
 
 Material build_material(const MaterialInputs&);
