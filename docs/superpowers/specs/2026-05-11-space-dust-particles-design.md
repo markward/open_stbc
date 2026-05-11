@@ -41,7 +41,7 @@ recoverable from Python.
 4. Integrate as a new `DustPass` alongside `BackdropPass` / `SunPass`,
    mirroring those passes' shape (header, impl, two shaders, owned by
    host bindings).
-5. Provide a runtime on/off toggle (debug key `F8`) and a stub for
+5. Provide a runtime on/off toggle (debug key `F7`) and a stub for
    future per-system density modulation.
 
 ## Non-goals (Phase 1)
@@ -75,7 +75,7 @@ A new render pass mirroring `BackdropPass`.
 - `native/src/host/host_bindings.cc` — own a `DustPass` unique_ptr;
   expose `dust_set_enabled(bool)` and `dust_set_density(int)` to
   Python.
-- `engine/host_loop.py` — bind `F8` to toggle the dust pass.
+- `engine/host_loop.py` — bind `F7` to toggle the dust pass.
 - `native/src/renderer/CMakeLists.txt` — add new sources and shader
   embed targets.
 
@@ -238,9 +238,11 @@ def set_dust_enabled(enabled: bool) -> None: ...
 def set_dust_density(count: int) -> None: ...
 ```
 
-In [engine/host_loop.py](engine/host_loop.py), `F8` is wired to
-toggle the enabled state. `F9` already toggles the UI; `F8` is the
-next free function key.
+In [engine/host_loop.py](engine/host_loop.py), `F7` is wired to
+toggle the enabled state. `F8` is taken by the RmlUi debugger; `F9`
+toggles UI visibility; `F7` is the next free function key. This also
+requires adding `KEY_F7 = GLFW_KEY_F7` to the `keys` submodule in
+`host_bindings.cc`.
 
 ## Tunable constants
 
@@ -286,7 +288,7 @@ returns garbage. Verification is by eye in `./build/open_stbc`:
 - Dust visible when stationary as faint static dots.
 - Dust elongates into streaks proportional to ship velocity.
 - Streaks aligned with camera motion direction.
-- `F8` toggles the pass cleanly with no flicker.
+- `F7` toggles the pass cleanly with no flicker.
 - No popping at the sphere boundary (alpha fade is doing its job).
 - Ships and planets correctly occlude particles behind them.
 - Sun corona still draws correctly (dust does not contaminate later
