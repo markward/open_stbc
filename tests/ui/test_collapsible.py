@@ -43,3 +43,53 @@ def test_collapsible_destroy_removes_subtree(fake_dom):
     assert fake_dom.children(root) != []
     coll.destroy()
     assert fake_dom.children(root) == []
+
+
+def test_collapsible_starts_expanded_by_default(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy")
+    # The children container is the second wrapper child
+    wrapper = fake_dom.children(bindings.panel_root(pid))[0]
+    children_container = fake_dom.children(wrapper)[1]
+    assert fake_dom.element(children_container).visible is True
+
+
+def test_collapsible_starts_collapsed_when_requested(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy", expanded=False)
+    wrapper = fake_dom.children(bindings.panel_root(pid))[0]
+    children_container = fake_dom.children(wrapper)[1]
+    assert fake_dom.element(children_container).visible is False
+
+
+def test_arrow_click_toggles_expansion(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy")
+    arrow_id = fake_dom.children(coll.header_element_id)[0]
+    assert coll.expanded
+    fake_dom.fire_click(arrow_id)
+    assert not coll.expanded
+    fake_dom.fire_click(arrow_id)
+    assert coll.expanded
+
+
+def test_header_class_reflects_expanded_state(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy")
+    assert "expanded" in fake_dom.element(coll.header_element_id).classes
+    coll.set_expanded(False)
+    assert "collapsed" in fake_dom.element(coll.header_element_id).classes
+    assert "expanded" not in fake_dom.element(coll.header_element_id).classes
+
+
+def test_title_click_does_not_toggle_expansion(fake_dom):
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy")
+    title_id = fake_dom.children(coll.header_element_id)[1]
+    fake_dom.fire_click(title_id)
+    assert coll.expanded  # unchanged
