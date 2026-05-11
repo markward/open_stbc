@@ -39,15 +39,16 @@ std::vector<glm::vec4> generate_dust_particles(std::uint32_t seed,
     };
 
     for (int i = 0; i < count; ++i) {
-        // Rejection sampling in a cube → uniform in sphere. Avg ~1.9
-        // iterations per particle; the bounded count keeps this cheap.
-        float x, y, z, r2;
-        do {
-            x = next_unit() * 2.0f - 1.0f;
-            y = next_unit() * 2.0f - 1.0f;
-            z = next_unit() * 2.0f - 1.0f;
-            r2 = x*x + y*y + z*z;
-        } while (r2 > 1.0f || r2 < 1e-8f);
+        // Uniform in the cube [-radius, radius]^3. The shader wraps each
+        // axis independently in a 2*radius cube, so uniform-in-cube is
+        // the only seeding that survives wrap without density artifacts.
+        // The fragment shader clips to the inscribed sphere, so visible
+        // particles remain spherically bounded; ~48% of seeded particles
+        // are in the cube's corners and get discarded — bake that into
+        // kParticleCount upstream if a visible-density target matters.
+        const float x = next_unit() * 2.0f - 1.0f;
+        const float y = next_unit() * 2.0f - 1.0f;
+        const float z = next_unit() * 2.0f - 1.0f;
         const float jitter = next_unit();
         out.emplace_back(x * radius, y * radius, z * radius, jitter);
     }

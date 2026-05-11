@@ -5,8 +5,6 @@
 
 #include <glm/glm.hpp>
 
-#include <cmath>
-
 TEST(DustPassGen, DeterministicSeedProducesIdenticalBuffers) {
     auto a = renderer::generate_dust_particles(12345u, 100, 40.0f);
     auto b = renderer::generate_dust_particles(12345u, 100, 40.0f);
@@ -20,16 +18,24 @@ TEST(DustPassGen, DeterministicSeedProducesIdenticalBuffers) {
     }
 }
 
-TEST(DustPassGen, AllPositionsInsideSphereWithCorrectJitter) {
+TEST(DustPassGen, AllPositionsInsideCubeWithCorrectJitter) {
     const float R = 40.0f;
-    auto particles = renderer::generate_dust_particles(0xABCDu, 2048, R);
-    ASSERT_EQ(particles.size(), 2048u);
+    auto particles = renderer::generate_dust_particles(0xABCDu, 4096, R);
+    ASSERT_EQ(particles.size(), 4096u);
+    bool any_outside_sphere = false;
     for (const auto& p : particles) {
-        const float r = std::sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
-        EXPECT_LE(r, R + 1e-4f);
+        EXPECT_GE(p.x, -R); EXPECT_LE(p.x, R);
+        EXPECT_GE(p.y, -R); EXPECT_LE(p.y, R);
+        EXPECT_GE(p.z, -R); EXPECT_LE(p.z, R);
         EXPECT_GE(p.w, 0.0f);
         EXPECT_LT(p.w, 1.0f);
+        const float r2 = p.x*p.x + p.y*p.y + p.z*p.z;
+        if (r2 > R*R) any_outside_sphere = true;
     }
+    // Cube distribution: ~48% of particles fall in corners outside the
+    // inscribed sphere. Confirm this is happening — proves we're not
+    // accidentally still seeding in a sphere.
+    EXPECT_TRUE(any_outside_sphere);
 }
 
 TEST(DustPassGen, ZeroCountProducesEmptyBuffer) {

@@ -98,12 +98,18 @@ wrapping around the camera.
 
 ### Storage
 
-- **Particle count:** 2048 (sparse, per design discussion).
+- **Particle count:** 4096 seeded; ~2150 visible after the fragment
+  shader's sphere clip. Sparse by design.
 - **Volume radius:** `R = 40.0` BC units around the camera. Particles
   outside this radius are discarded by the fragment shader.
 - **Per-instance data:** `vec4(x, y, z, jitter)`.
   - `x, y, z` are world coordinates at init (uniformly distributed in
-    a sphere of radius `R`, deterministically seeded).
+    the **cube** `[-R, R]^3`, deterministically seeded). Cube — not
+    sphere — because the vertex shader's toroidal wrap operates on
+    each axis independently in a 2R cube; seeding in a sphere
+    produces visible density variations as the camera moves more than
+    a fraction of `R`. The fragment shader's `length(local) > R →
+    discard` keeps the visible region spherical.
   - `jitter` is a single `float ∈ [0, 1)` seeded at init. The vertex
     shader derives brightness and size from it:
     ```
@@ -315,3 +321,9 @@ returns garbage. Verification is by eye in `./build/open_stbc`:
    survive process restart via the same config plumbing as other
    graphics options. Phase 1 keeps it ephemeral (default-on each
    launch).
+6. **Particles deflected by ship hulls.** When Bullet physics arrives,
+   promote dust particles to lightweight physics bodies (or use Bullet
+   collision queries) so they bounce off ship geometry rather than
+   passing through. Gives the "shoving aside" effect at close range
+   without needing a separate shader-side push uniform. Deferred until
+   Bullet integration lands.

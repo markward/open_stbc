@@ -14,9 +14,15 @@ namespace renderer {
 
 class Pipeline;
 
-/// Generate `count` particle records uniformly distributed inside a
-/// sphere of radius `radius`, with deterministic per-particle jitter in
+/// Generate `count` particle records uniformly distributed inside the
+/// cube [-radius, radius]^3, with deterministic per-particle jitter in
 /// the w channel. Pure CPU; testable without a GL context.
+///
+/// Cube — not sphere — because the vertex shader's toroidal wrap
+/// operates on each axis independently in a 2*radius cube. Seeding in a
+/// sphere produces visible density variations as the camera moves more
+/// than a fraction of `radius`. The fragment shader clips visible
+/// particles to the inscribed sphere.
 ///
 /// Output layout: vec4(x, y, z, jitter) where jitter in [0, 1).
 std::vector<glm::vec4> generate_dust_particles(std::uint32_t seed,
@@ -36,11 +42,13 @@ public:
     // Tunable constants. Documented in the spec as the dials for visual
     // tuning. Changing these does not break correctness; it only changes
     // how the effect looks.
-    static constexpr int   kParticleCount        = 2048;
+    // Sphere is ~52% of the cube the particles are seeded in; the rest
+    // are discarded by the fragment shader. 1024 seeded → ~535 visible.
+    static constexpr int   kParticleCount        = 1024;
     static constexpr float kVolumeRadius         = 40.0f;       // BC units
     static constexpr float kSmearSeconds         = 1.0f / 30.0f;
-    static constexpr float kSizeMin              = 0.8f;        // BC units
-    static constexpr float kSizeMax              = 1.4f;
+    static constexpr float kSizeMin              = 0.04f;       // BC units
+    static constexpr float kSizeMax              = 0.07f;
     static constexpr float kBrightnessMin        = 0.5f;
     static constexpr float kBrightnessMax        = 1.0f;
     static constexpr float kVelocityClampSeconds = 0.1f;        // dt guard
