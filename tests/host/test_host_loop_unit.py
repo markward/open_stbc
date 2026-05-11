@@ -5,7 +5,7 @@ def test_imports():
     from engine import host_loop
     assert hasattr(host_loop, "run")
     assert isinstance(host_loop.SHIP_GATE_MISSION, str)
-    assert host_loop.SHIP_GATE_MISSION == "Custom.Tutorial.Episode.M1Basic.M1Basic"
+    assert host_loop.SHIP_GATE_MISSION == "Custom.Tutorial.Episode.M2Objects.M2Objects"
 
 
 def test_renderer_module_exposes_bindings():

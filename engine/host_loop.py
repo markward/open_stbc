@@ -37,10 +37,10 @@ def _extract_ypr(R) -> tuple:
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # v1 ship-gate selections — Task 25 pins these from the pick_*.py scan results.
-SHIP_GATE_MISSION = "Custom.Tutorial.Episode.M1Basic.M1Basic"
+SHIP_GATE_MISSION = "Custom.Tutorial.Episode.M2Objects.M2Objects"
 DEFAULT_TEXTURE_SEARCH = "data/Models/SharedTextures/FedShips/High"
 DEFAULT_PLANET_TEXTURE_SEARCH = "data/Models/Environment"
-DEFAULT_PLAYER_SET = "Biranu1"  # M1 Basic-specific
+DEFAULT_PLAYER_SET = "Biranu1"  # shared by M1Basic and M2Objects tutorials
 
 # Lighting defaults — used by both the per-tick fallback (when no active set
 # has lights) and as the conceptual source of truth that the C++
