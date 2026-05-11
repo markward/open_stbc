@@ -94,10 +94,10 @@ body {
 }
 
 /* Action button that follows a stat row (e.g., "Load Mission" at the
-   bottom of the Debug panel): give it a 5dp top gap so it doesn't sit
-   flush against the last stat row. */
+   bottom of the Debug panel): give it a 20dp top gap so it stands
+   apart from the last stat row. */
 .bc-stat-row + .bc-button {
-    margin-top: 5dp;
+    margin-top: 20dp;
 }
 
 .bc-stat-label {
