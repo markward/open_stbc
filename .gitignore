@@ -57,6 +57,9 @@ MANIFEST
 .python-version
 uv.lock.bak
 
+# Brainstorming session artifacts
+.superpowers/
+
 # =============================================================================
 # RUNTIME ARTIFACTS
 # =============================================================================
