@@ -95,3 +95,14 @@ def set_hud_state(state: dict) -> None:
     No-op if the UI system was not initialized (headless runs, empty ui_assets_root).
     """
     _h.set_hud_state(state)
+
+
+def set_dust_enabled(enabled: bool) -> None:
+    """Toggle the space-dust pass. Default: on after init()."""
+    _h.dust_set_enabled(enabled)
+
+
+def set_dust_density(count: int) -> None:
+    """Reseed the dust particle buffer with `count` particles
+    (clamped to [0, 50000])."""
+    _h.dust_set_density(count)

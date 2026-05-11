@@ -39,6 +39,7 @@ The original engine is a compiled C++ binary exposed to Python via a SWIG-genera
 | Open questions | `docs/open_questions.md` | 4 instrumentation questions — Q4 closed |
 | Live game | `game/` | BC installation (gitignored) — needed for instrumentation |
 | UI components | `engine/ui/`, `docs/superpowers/specs/2026-05-11-ui-components-design.md` | Reusable Button + CollapsibleList; theme registries mirror LoadInterface.py |
+| Space dust pass | `native/src/renderer/dust_pass.cc`, `docs/superpowers/specs/2026-05-11-space-dust-particles-design.md` | Camera-anchored dust particles with motion smear; F7 toggles |
 
 ## Open questions status
 
