@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import importlib
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 from engine import renderer as r
 from engine.scale import SHIP_SCALE, ASTRO_SCALE, PLANET_NIF_NATIVE_RADIUS
@@ -334,17 +335,15 @@ def _setup_sdk() -> None:
     mission_harness.setup_sdk()
 
 
-def _init_mission(mission_module_name: str):
-    """Initialize a mission via the same path gameloop_harness uses.
+def reset_sdk_globals() -> None:
+    """Clear the SDK globals that a mission populates.
 
-    Returns (mission, episode, game, mod) for the caller to use.
+    Called once at start-of-mission and again on every in-process swap.
+    Keep this list in lockstep with what the SDK actually mutates.
     """
-    from engine.core.game import Game, Episode, Mission, _set_current_game
-    from engine.appc.events import TGEvent
-    from engine.appc.placement import _waypoint_registry
     import App
+    from engine.appc.placement import _waypoint_registry
 
-    # Reset state per session (mirror tools/gameloop_harness.py).
     App.g_kTimerManager._time = 0.0
     App.g_kTimerManager._timers.clear()
     App.g_kRealtimeTimerManager._time = 0.0
@@ -353,6 +352,18 @@ def _init_mission(mission_module_name: str):
     App.g_kSetManager._sets.clear()
     _waypoint_registry.clear()
     App._next_event_type_id = 200
+
+
+def _init_mission(mission_module_name: str):
+    """Initialize a mission via the same path gameloop_harness uses.
+
+    Returns (mission, episode, game, mod) for the caller to use.
+    """
+    from engine.core.game import Game, Episode, Mission, _set_current_game
+    from engine.appc.events import TGEvent
+    import App
+
+    reset_sdk_globals()
 
     mission = Mission()
     episode = Episode()
@@ -593,6 +604,128 @@ def _astro_world_matrix(obj) -> list:
     ]
 
 
+@dataclass
+class MissionSession:
+    """Per-mission scene state owned by HostController.
+
+    Tracks the renderer instances created for the current mission so a
+    swap can destroy them without re-deriving them from the SDK's set
+    manager (which is itself about to be cleared).
+    """
+    mission_name: str
+    ship_instances:   dict[Any, int] = field(default_factory=dict)
+    planet_instances: dict[Any, int] = field(default_factory=dict)
+    player: Optional[Any] = None
+
+    def teardown(self, renderer) -> None:
+        for iid in list(self.ship_instances.values()):
+            renderer.destroy_instance(iid)
+        for iid in list(self.planet_instances.values()):
+            renderer.destroy_instance(iid)
+        self.ship_instances.clear()
+        self.planet_instances.clear()
+        self.player = None
+
+
+class HostController:
+    """Per-process state for the running renderer + a single mission.
+
+    The nif_to_handle cache lives here (not in MissionSession) so the
+    same NIF doesn't re-upload when the next mission reuses it.
+    """
+    def __init__(self) -> None:
+        self.renderer: Any = None
+        self.loader: Any = None
+        self.nif_to_handle: dict[str, int] = {}
+        self.session: Optional[MissionSession] = None
+        self.pending_swap: Optional[str] = None
+
+    def swap_mission(self, mission_name: str) -> None:
+        self.pending_swap = mission_name
+
+    def _drain_pending_swap(self) -> None:
+        if self.pending_swap is None:
+            return
+        name = self.pending_swap
+        self.pending_swap = None
+        if self.session is not None:
+            self.session.teardown(self.renderer)
+        reset_sdk_globals()
+        assert self.loader is not None, "HostController.loader must be set"
+        try:
+            self.session = self.loader.load(name)
+        except Exception as e:
+            import traceback
+            print(f"[host] mission swap to {name!r} failed: "
+                  f"{type(e).__name__}: {e}", flush=True)
+            traceback.print_exc()
+            self.session = None
+
+
+class _MissionLoader:
+    """Bundles _init_mission + render-instance construction so HostController
+    can call a single .load(name) method.
+
+    Kept inside this module so it can use the existing _iter_ships /
+    _iter_planets / _ship_nif_path / _planet_nif_path helpers without
+    re-exporting them.
+    """
+    def __init__(self, controller: "HostController", verbose: bool):
+        self._c = controller
+        self._verbose = verbose
+
+    def load(self, mission_name: str) -> MissionSession:
+        import App
+        _init_mission(mission_name)
+        sess = MissionSession(mission_name=mission_name)
+        r_ = self._c.renderer
+
+        tex_search = str(PROJECT_ROOT / "game" / DEFAULT_TEXTURE_SEARCH)
+        for ship in _iter_ships(verbose=self._verbose):
+            nif_path = _ship_nif_path(ship, verbose=self._verbose)
+            if nif_path is None:
+                continue
+            handle = self._c.nif_to_handle.get(nif_path)
+            if handle is None:
+                try:
+                    handle = r_.load_model(nif_path, tex_search)
+                except Exception as e:
+                    if self._verbose:
+                        print(f"[host_loop]   skip ship: load_model({nif_path}) raised: "
+                              f"{type(e).__name__}: {e}", flush=True)
+                    continue
+                self._c.nif_to_handle[nif_path] = handle
+            iid = r_.create_instance(handle)
+            r_.set_world_transform(iid, _ship_world_matrix(ship))
+            sess.ship_instances[ship] = iid
+
+        planet_tex_search = str(PROJECT_ROOT / "game" / DEFAULT_PLANET_TEXTURE_SEARCH)
+        for planet in _iter_planets(verbose=self._verbose):
+            nif_path = _planet_nif_path(planet, verbose=self._verbose)
+            if nif_path is None:
+                continue
+            handle = self._c.nif_to_handle.get(nif_path)
+            if handle is None:
+                try:
+                    handle = r_.load_model(nif_path, planet_tex_search)
+                except Exception as e:
+                    if self._verbose:
+                        print(f"[host_loop]   skip planet: load_model({nif_path}) raised: "
+                              f"{type(e).__name__}: {e}", flush=True)
+                    continue
+                self._c.nif_to_handle[nif_path] = handle
+            iid = r_.create_instance(handle)
+            r_.set_world_transform(iid, _astro_world_matrix(planet))
+            sess.planet_instances[planet] = iid
+
+        player_set = App.g_kSetManager.GetSet(DEFAULT_PLAYER_SET)
+        player = player_set.GetObject("player") if player_set is not None else None
+        if player is None and sess.ship_instances:
+            player = next(iter(sess.ship_instances.keys()))
+        sess.player = player
+        return sess
+
+
 def run(mission_name: str = SHIP_GATE_MISSION,
         max_ticks: Optional[int] = None) -> int:
     """Boot the renderer, init the named mission, run until the window closes
@@ -611,7 +744,6 @@ def run(mission_name: str = SHIP_GATE_MISSION,
     fixed_camera = _os.environ.get("OPEN_STBC_HOST_FIXED_CAMERA") == "1"
 
     _setup_sdk()
-    _init_mission(mission_name)
 
     import App
     from engine.core.loop import GameLoop
@@ -628,8 +760,11 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                                 title="Targets")
 
         # Debug stat panel, top-right. Replaces the old hud.rml document.
+        # Height accommodates the title + 4 stat rows + the "Load Mission"
+        # button at the bottom without clipping (the panel has overflow:
+        # hidden so under-tall heights silently cut the button off).
         debug_panel = ui.UiPanel(id="debug", anchor="top-right",
-                                 width_vw=18.0, height_vh=18.0,
+                                 width_vw=18.0, height_vh=25.0,
                                  title="Debug", collapsible=True)
         stat_ship   = debug_panel.stat("Ship",   "---")
         stat_system = debug_panel.stat("System", "---")
@@ -652,98 +787,35 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         demo_panel.collapsible("Subspace Echo 47", affiliation="unknown",
                                expanded=False)
 
-        # Per-NIF cache so the same mesh isn't reloaded once per ship.
-        nif_to_handle: dict[str, int] = {}
-        ship_instances: dict[object, object] = {}    # ship   -> InstanceId
-        planet_instances: dict[object, object] = {}  # planet -> InstanceId
-        ships_seen = 0
-        for ship in _iter_ships(verbose=verbose):
-            ships_seen += 1
-            if verbose:
-                cls = type(ship).__name__
-                try:
-                    sn = ship.GetScript()
-                except Exception:
-                    sn = "<no script>"
-                print(f"[host_loop] consider ship: class={cls} script={sn!r}", flush=True)
-            nif_path = _ship_nif_path(ship, verbose=verbose)
-            if nif_path is None:
-                continue
-            handle = nif_to_handle.get(nif_path)
-            if handle is None:
-                tex_search = str(PROJECT_ROOT / "game" / DEFAULT_TEXTURE_SEARCH)
-                try:
-                    handle = r.load_model(nif_path, tex_search)
-                except Exception as e:
-                    if verbose:
-                        print(f"[host_loop]   skip: load_model({nif_path}) raised: "
-                              f"{type(e).__name__}: {e}", flush=True)
-                    continue
-                nif_to_handle[nif_path] = handle
-            iid = r.create_instance(handle)
-            r.set_world_transform(iid, _ship_world_matrix(ship))
-            ship_instances[ship] = iid
-        if verbose:
-            print(f"[host_loop] ships seen by iterator: {ships_seen}; "
-                  f"instances created: {len(ship_instances)}", flush=True)
-
-        planets_seen = 0
-        planet_tex_search = str(PROJECT_ROOT / "game" / DEFAULT_PLANET_TEXTURE_SEARCH)
-        for planet in _iter_planets(verbose=verbose):
-            planets_seen += 1
-            nif_path = _planet_nif_path(planet, verbose=verbose)
-            if nif_path is None:
-                continue
-            handle = nif_to_handle.get(nif_path)
-            if handle is None:
-                try:
-                    handle = r.load_model(nif_path, planet_tex_search)
-                except Exception as e:
-                    if verbose:
-                        print(f"[host_loop]   skip planet: load_model({nif_path}) raised: "
-                              f"{type(e).__name__}: {e}", flush=True)
-                    continue
-                nif_to_handle[nif_path] = handle
-            iid = r.create_instance(handle)
-            r.set_world_transform(iid, _astro_world_matrix(planet))
-            planet_instances[planet] = iid
-        if verbose:
-            print(f"[host_loop] planets seen: {planets_seen}; "
-                  f"planet instances created: {len(planet_instances)}", flush=True)
-
-        # Player ship for camera follow.
-        player_set = App.g_kSetManager.GetSet(DEFAULT_PLAYER_SET)
-        player = player_set.GetObject("player") if player_set is not None else None
-        if player is None and ship_instances:
-            # Fallback: follow the first ship we found.
-            player = next(iter(ship_instances.keys()))
+        # Controller owns the renderer, the nif-handle cache, and the
+        # current mission session. _MissionLoader.load() runs the
+        # mission init + scene build; HostController.swap_mission()
+        # queues a deferred swap that drains at the next tick.
+        controller = HostController()
+        controller.renderer = r
+        controller.loader = _MissionLoader(controller, verbose=verbose)
+        controller.session = controller.loader.load(mission_name)
 
         if verbose:
+            ss = controller.session
             print(f"[host_loop] mission={mission_name}", flush=True)
-            total = len(ship_instances) + len(planet_instances)
+            total = len(ss.ship_instances) + len(ss.planet_instances)
             print(f"[host_loop] {total} render instance(s) created "
-                  f"({len(ship_instances)} ships, {len(planet_instances)} planets)", flush=True)
-            for ship, _iid in list(ship_instances.items())[:5]:
-                p = ship.GetWorldLocation()
-                print(f"[host_loop]   ship script={ship.GetScript()!r} "
-                      f"world=({p.x:.2f}, {p.y:.2f}, {p.z:.2f})", flush=True)
-            if player is not None:
-                pp = player.GetWorldLocation()
-                cls = type(player).__name__
-                try:
-                    sn = player.GetScript()
-                except Exception as e:
-                    sn = f"<GetScript raised: {e!r}>"
-                # Where does the player live? Check every set for membership.
-                in_sets = []
-                for sname, pset in App.g_kSetManager._sets.items():
-                    if any(o is player for o in getattr(pset, "_objects", {}).values()):
-                        in_sets.append(sname)
-                print(f"[host_loop] player class={cls} script={sn!r} "
-                      f"world=({pp.x:.2f}, {pp.y:.2f}, {pp.z:.2f}) "
-                      f"in_sets={in_sets}", flush=True)
-            else:
-                print("[host_loop] no player ship found", flush=True)
+                  f"({len(ss.ship_instances)} ships, "
+                  f"{len(ss.planet_instances)} planets)", flush=True)
+
+        # Mission picker — scans the SDK script tree and offers an
+        # in-process swap via controller.swap_mission().
+        from engine.missions import discover as discover_missions
+        from engine.mission_picker import MissionPicker
+
+        registry = discover_missions(PROJECT_ROOT / "sdk" / "Build" / "scripts")
+        picker = MissionPicker(
+            registry=registry,
+            on_load=controller.swap_mission,
+            on_cancel=lambda: None,
+        )
+        debug_panel.button("Load Mission", on_click=picker.open, radio=False)
 
         # Per-tick player input → ship-transform integrator.
         player_control = _PlayerControl()
@@ -764,8 +836,18 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         while not r.should_close():
             loop.tick()
 
+            # Drain deferred picker actions (close + on_load/on_cancel)
+            # first — picker click handlers fire inside RmlUi's dispatch
+            # so they queue rather than tear panels down synchronously.
+            # Then drain any queued mission swap before scene work.
+            picker.drain()
+            controller._drain_pending_swap()
+            session = controller.session
+            player = session.player if session is not None else None
+
             # F7 toggles space dust; F8 toggles the RmlUi debugger
-            # overlay; F9 toggles whole-UI visibility.
+            # overlay; F9 toggles whole-UI visibility; ESC dismisses the
+            # mission picker (no-op when it isn't open).
             if _h is not None and _h.key_pressed(_h.keys.KEY_F7):
                 _dust_enabled = not _dust_enabled
                 _h.dust_set_enabled(_dust_enabled)
@@ -773,6 +855,8 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                 _h.toggle_ui_debugger()
             if _h is not None and _h.key_pressed(_h.keys.KEY_F9):
                 _h.toggle_ui_visibility()
+            if _h is not None and _h.key_pressed(_h.keys.KEY_ESCAPE):
+                picker.handle_key_esc()
 
             # Apply keyboard input to the player ship's transform and to the
             # orbit camera. Scroll delta is consumed once per tick; old
@@ -783,10 +867,11 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                 cam_control.apply(TICK_DT, _h, scroll_y)
 
             # Sync transforms for known instances.
-            for ship, iid in ship_instances.items():
-                r.set_world_transform(iid, _ship_world_matrix(ship))
-            for planet, iid in planet_instances.items():
-                r.set_world_transform(iid, _astro_world_matrix(planet))
+            if session is not None:
+                for ship, iid in session.ship_instances.items():
+                    r.set_world_transform(iid, _ship_world_matrix(ship))
+                for planet, iid in session.planet_instances.items():
+                    r.set_world_transform(iid, _astro_world_matrix(planet))
 
             # Camera: orbit + zoom around the player ship (or origin fallback).
             if fixed_camera:
@@ -847,10 +932,8 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             if max_ticks is not None and ticks >= max_ticks:
                 break
 
-        for iid in ship_instances.values():
-            r.destroy_instance(iid)
-        for iid in planet_instances.values():
-            r.destroy_instance(iid)
+        if controller.session is not None:
+            controller.session.teardown(r)
     finally:
         r.shutdown()
 

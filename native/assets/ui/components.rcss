@@ -93,6 +93,13 @@ body {
     white-space: nowrap;
 }
 
+/* Action button that follows a stat row (e.g., "Load Mission" at the
+   bottom of the Debug panel): give it a 20dp top gap so it stands
+   apart from the last stat row. */
+.bc-stat-row + .bc-button {
+    margin-top: 20dp;
+}
+
 .bc-stat-label {
     display: inline-block;
     width: 80dp;
@@ -184,3 +191,18 @@ body {
 .bc-button.menu-2.selected { background-color: #56427fa6; border-left-color: #ad84ff; }
 .bc-button.menu-3.selected { background-color: #67304fa6; border-left-color: #f693cc; }
 .bc-button.menu-4.selected { background-color: #483348b3; border-left-color: #af90af; }
+
+/* Centered modal panels — anchor="center" via PanelDocument.cc. */
+/* Positioning is applied as inline properties in the C++ binding;     */
+/* this class is reserved for any per-modal styling we add later.      */
+.bc-panel-center { }
+
+/* Footer container for a single right-aligned panel button (e.g. Cancel). */
+.bc-panel-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 8dp;
+    padding-right: 8dp;
+    padding-bottom: 8dp;
+    padding-left: 8dp;
+}

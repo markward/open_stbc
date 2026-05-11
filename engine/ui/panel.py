@@ -14,7 +14,7 @@ from .collapsible import UiCollapsibleList
 from .stat_row import UiStatRow
 
 
-Anchor = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
+Anchor = Literal["top-left", "top-right", "bottom-left", "bottom-right", "center"]
 
 
 class UiPanel:
@@ -44,6 +44,8 @@ class UiPanel:
         self._children: list[object] = []
         self._radio_group = _RadioGroup()
         self._destroyed = False
+        self._footer_element_id: Optional[int] = None
+        self._footer_button: Optional[UiButton] = None
 
         self.panel_id = bindings.create_panel(id, anchor, width_vw, height_vh)
         self.refresh_theme()
@@ -118,18 +120,52 @@ class UiPanel:
     def _handle_toggle_click(self) -> None:
         self.set_collapsed(not self._collapsed)
 
+    def set_footer_button(self, label: str,
+                          on_click: Optional[Callable[[], None]] = None,
+    ) -> UiButton:
+        """Create or re-bind the panel's single footer button.
+
+        The footer container is created lazily on first call. Subsequent
+        calls update the label and on_click on the same button.
+        """
+        if self._footer_element_id is None:
+            self._footer_element_id = bindings.append_div(
+                bindings.panel_root(self.panel_id), "bc-panel-footer")
+            self._footer_button = UiButton(
+                parent_element=self._footer_element_id,
+                label=label, menu_level=3, selected=False,
+                on_click=on_click,
+            )
+        else:
+            assert self._footer_button is not None
+            self._footer_button.set_label(label)
+            self._footer_button._on_click = on_click
+        return self._footer_button
+
     def button(self, label: str, *,
                menu_level: int = 3,
                selected: bool = False,
                on_click: Optional[Callable[[], None]] = None,
+               radio: bool = True,
     ) -> UiButton:
+        """Create a button as a direct child of this panel.
+
+        With ``radio=True`` (the default) the button joins the panel's
+        radio group: only one of those buttons can be selected at a
+        time, and clicking the already-selected one is a no-op.
+
+        For action buttons whose handler should fire on EVERY click
+        (e.g., "Load Mission"), pass ``radio=False``. Such buttons are
+        not selectable and never block their own re-firing.
+        """
         btn = UiButton(parent_element=self.root, label=label,
                        menu_level=menu_level, selected=selected,
                        on_click=on_click)
-        self._radio_group.adopt(btn)
+        if radio:
+            self._radio_group.adopt(btn)
+            if selected:
+                self._radio_group.select(btn)
         self._children.append(btn)
-        if selected:
-            self._radio_group.select(btn)
         return btn
 
     def collapsible(self, label: str, *,

@@ -58,10 +58,20 @@ public:
     /// Clear all body children. The root element itself stays.
     void clear();
 
+    /// Toggle whole-document visibility. When hidden, the document is
+    /// removed from layout and does NOT receive pointer events — clicks
+    /// pass through to whatever's behind it.
+    void set_visible(bool visible);
+
 private:
     Rml::ElementDocument* doc_       = nullptr;
     Rml::Element*         root_       = nullptr;
     int                   root_id_    = 0;
+
+    /// Constructor-set anchor; replayed by set_visible(true) so a
+    /// re-shown panel returns to its original anchor instead of having
+    /// the offscreen-hide overrides linger.
+    std::string           anchor_;
 
     /// Element-id counter shared across every PanelDocument. Per-panel
     /// counters would collide because the binding layer resolves element
@@ -74,6 +84,11 @@ private:
 
     class ClickListener;  // forward decl; defined in .cc
     std::unique_ptr<ClickListener> click_listener_;
+
+    /// Apply the inline anchor properties (left/right/top/bottom and any
+    /// transform) for ``anchor_`` to the document. Used by the constructor
+    /// AND by set_visible(true) to clear the offscreen-hide overrides.
+    void apply_anchor();
 
     void recursive_drop_subtree(int element_id);
 };

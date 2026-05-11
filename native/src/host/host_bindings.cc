@@ -387,6 +387,7 @@ PYBIND11_MODULE(_open_stbc_host, m) {
     keys.attr("KEY_F7")    = GLFW_KEY_F7;
     keys.attr("KEY_F8")    = GLFW_KEY_F8;
     keys.attr("KEY_F9")    = GLFW_KEY_F9;
+    keys.attr("KEY_ESCAPE") = GLFW_KEY_ESCAPE;
 
     m.def("key_state",
           [](int key) {
@@ -499,6 +500,11 @@ PYBIND11_MODULE(_open_stbc_host, m) {
     m.def("clear_panel", [](int panel_id) {
         if (!g_ui_system) return;
         if (auto* p = g_ui_system->get_panel(panel_id)) p->clear();
+    });
+
+    m.def("set_panel_visible", [](int panel_id, bool visible) {
+        if (!g_ui_system) return;
+        if (auto* p = g_ui_system->get_panel(panel_id)) p->set_visible(visible);
     });
 
     m.def("panel_root", [](int panel_id) -> int {
