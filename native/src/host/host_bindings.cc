@@ -22,6 +22,7 @@
 #include <renderer/backdrop_pass.h>
 #include <renderer/sun_pass.h>
 #include <ui/UiSystem.h>
+#include <ui/PanelDocument.h>
 #include <scenegraph/world.h>
 #include <scenegraph/camera.h>
 #include <assets/cache.h>
@@ -425,5 +426,111 @@ PYBIND11_MODULE(_open_stbc_host, m) {
               int fw = 0, fh = 0;
               g_window->framebuffer_size(&fw, &fh);
               return std::make_tuple(fw, fh);
+          });
+
+    // ── UI panel + element primitives ───────────────────────────────────
+    //
+    // Panel ids are unique across the UiSystem. Element ids are unique
+    // within a panel and the binding layer resolves which panel owns a
+    // given element id by linear scan — fine for our small number of
+    // panels (typically 1-4).
+    m.def("create_panel",
+          [](const std::string& /*name*/, const std::string& anchor,
+             float width_vw, float height_vh) -> int {
+              if (!g_ui_system) {
+                  throw std::runtime_error("create_panel: ui system not initialized");
+              }
+              return g_ui_system->create_panel(anchor, width_vw, height_vh);
+          });
+
+    m.def("destroy_panel", [](int panel_id) {
+        if (!g_ui_system) return;
+        g_ui_system->destroy_panel(panel_id);
+    });
+
+    m.def("clear_panel", [](int panel_id) {
+        if (!g_ui_system) return;
+        if (auto* p = g_ui_system->get_panel(panel_id)) p->clear();
+    });
+
+    m.def("panel_root", [](int panel_id) -> int {
+        if (!g_ui_system) return 0;
+        auto* p = g_ui_system->get_panel(panel_id);
+        return p ? p->root_element_id() : 0;
+    });
+
+    m.def("set_panel_css_var",
+          [](int panel_id, const std::string& name, const std::string& value) {
+              if (!g_ui_system) return;
+              if (auto* p = g_ui_system->get_panel(panel_id))
+                  p->set_css_var(name, value);
+          });
+
+    m.def("append_div",
+          [](int parent_id, const std::string& class_names) -> int {
+              if (!g_ui_system) return 0;
+              for (auto& kv : g_ui_system->panels_for_bindings()) {
+                  if (kv.second->has_element(parent_id)) {
+                      return kv.second->append_div(parent_id, class_names);
+                  }
+              }
+              throw std::runtime_error("append_div: parent_id not found in any panel");
+          });
+
+    m.def("remove_element", [](int element_id) {
+        if (!g_ui_system) return;
+        for (auto& kv : g_ui_system->panels_for_bindings()) {
+            if (kv.second->has_element(element_id)) {
+                kv.second->remove_element(element_id); return;
+            }
+        }
+    });
+
+    m.def("set_class",
+          [](int element_id, const std::string& class_names) {
+              if (!g_ui_system) return;
+              for (auto& kv : g_ui_system->panels_for_bindings()) {
+                  if (kv.second->has_element(element_id)) {
+                      kv.second->set_class(element_id, class_names); return;
+                  }
+              }
+          });
+
+    m.def("set_text",
+          [](int element_id, const std::string& text) {
+              if (!g_ui_system) return;
+              for (auto& kv : g_ui_system->panels_for_bindings()) {
+                  if (kv.second->has_element(element_id)) {
+                      kv.second->set_text(element_id, text); return;
+                  }
+              }
+          });
+
+    m.def("set_visible",
+          [](int element_id, bool visible) {
+              if (!g_ui_system) return;
+              for (auto& kv : g_ui_system->panels_for_bindings()) {
+                  if (kv.second->has_element(element_id)) {
+                      kv.second->set_visible(element_id, visible); return;
+                  }
+              }
+          });
+
+    m.def("on_click",
+          [](int element_id, py::object callback) {
+              if (!g_ui_system) return;
+              for (auto& kv : g_ui_system->panels_for_bindings()) {
+                  if (kv.second->has_element(element_id)) {
+                      if (callback.is_none()) {
+                          kv.second->on_click(element_id, nullptr);
+                      } else {
+                          kv.second->on_click(element_id, [callback]() {
+                              py::gil_scoped_acquire gil;
+                              callback();
+                          });
+                      }
+                      return;
+                  }
+              }
           });
 }
