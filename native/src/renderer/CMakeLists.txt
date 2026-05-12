@@ -31,6 +31,7 @@ add_library(renderer STATIC
     dust_pass.cc
     aabb.cc
     shield_state.cc
+    skin_shield.cc
 )
 target_include_directories(renderer
     PUBLIC include

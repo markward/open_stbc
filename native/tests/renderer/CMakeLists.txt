@@ -9,6 +9,7 @@ add_executable(renderer_tests
     dust_pass_test.cc
     aabb_test.cc
     shield_state_test.cc
+    skin_shield_test.cc
 )
 
 target_link_libraries(renderer_tests
