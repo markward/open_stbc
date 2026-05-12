@@ -30,6 +30,7 @@ add_library(renderer STATIC
     sun_pass.cc
     dust_pass.cc
     aabb.cc
+    shield_state.cc
 )
 target_include_directories(renderer
     PUBLIC include
