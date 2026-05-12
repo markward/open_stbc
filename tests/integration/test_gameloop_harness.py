@@ -113,3 +113,28 @@ def test_profile_flag_produces_report(sdk_setup):
         assert isinstance(name, str)
         assert isinstance(mission_count, int)
         assert isinstance(total_calls, int)
+
+
+def test_no_object_emitter_property_create_stub_rows(sdk_setup):
+    """After Task 1-7 land, sovereign / galaxy / nebula / etc. hardpoint
+    loads should not produce any ObjectEmitterProperty_Create* stub-tracker
+    rows during a real harness run across all discovered missions. Catches
+    future regressions where someone removes the factory or the Cast.
+    """
+    import App
+    import tools.mission_harness as mh
+    from tools.gameloop_harness import run_mission_with_loop
+
+    App._stub_tracker.clear()
+    missions = mh.discover_missions()
+    # Hardpoint loads happen during mission Initialize(), before the tick
+    # loop. n_ticks=1 keeps the test fast (~few seconds) while still
+    # exercising every mission's setup path.
+    for name in missions:
+        run_mission_with_loop(name, n_ticks=1, profile=True)
+
+    leaks = [
+        row for row in App._stub_tracker.report()
+        if row[0].startswith("ObjectEmitterProperty_Create")
+    ]
+    assert leaks == [], f"ObjectEmitterProperty_Create* still in stub tracker: {leaks[:10]}"
