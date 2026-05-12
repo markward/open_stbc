@@ -176,26 +176,19 @@ class ShieldProperty(PoweredSubsystemProperty):
         return self._skin_shielding
 
     def SetSkinShielding(self, value):
-        v = int(value)
-        self._skin_shielding = v
-        # Transition dual-write: existing data-bag readers keep working
-        # until Task 4 removes this line.
-        self._data[("SkinShielding", ())] = v
+        self._skin_shielding = int(value)
 
     def GetShieldGlowDecay(self):
         return self._shield_glow_decay
 
     def SetShieldGlowDecay(self, value):
-        v = float(value)
-        self._shield_glow_decay = v
-        self._data[("ShieldGlowDecay", ())] = v
+        self._shield_glow_decay = float(value)
 
     def GetShieldGlowColor(self):
         return self._shield_glow_color
 
     def SetShieldGlowColor(self, color):
         self._shield_glow_color = color
-        self._data[("ShieldGlowColor", ())] = color
         # Preserve the color-consumer tracker hook that TGModelProperty's
         # auto-synthesized setter used to provide.  Matches the shim's
         # _getframe(1) caller-attribution behavior in properties.py:32-43.
