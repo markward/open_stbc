@@ -1213,6 +1213,18 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                 _h.toggle_ui_debugger()
             if _h is not None and _h.key_pressed(_h.keys.KEY_F9):
                 _h.toggle_ui_visibility()
+            # F10: debug shield-hit at the player's center. Verifies the
+            # shield render pass end-to-end without needing the damage
+            # system. No-op if no player ship is loaded.
+            if (_h is not None
+                    and _h.key_pressed(_h.keys.KEY_F10)
+                    and player is not None
+                    and session is not None):
+                iid = session.ship_instances.get(player)
+                if iid is not None:
+                    from engine.shields import fire_debug_hit
+                    fire_debug_hit(_h, instance_id=iid,
+                                   world_point=player.GetWorldLocation())
             if _h is not None and _h.key_pressed(_h.keys.KEY_ESCAPE):
                 # Order: exit bridge mode first, then dismiss any open
                 # picker. If both apply, ESC handles both.
