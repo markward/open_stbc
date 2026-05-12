@@ -461,6 +461,13 @@ def setup_sdk() -> None:
 
     _BASELINE_MODULES = set(sys.modules.keys())
 
+    # Install the LaunchObject emission hook so any TGScriptAction that
+    # routes through Actions.ShipScriptActions.LaunchObject lands in the
+    # engine wrapper (which records via App._emission_recorder instead
+    # of spawning real ships). Idempotent — safe to call repeatedly.
+    from engine.appc.emission import install_launch_object_hook
+    install_launch_object_hook()
+
 
 def run_mission(module_name: str) -> tuple[str, Exception | None]:
     """Import module_name and call Initialize(pMission).
