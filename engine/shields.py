@@ -39,8 +39,9 @@ def _find_shield_property(ship):
     return None
 
 
-def _color_tuple(prop, key, default=(1.0, 1.0, 1.0, 1.0)):
-    val = prop._data.get((key, ()))
+def _color_tuple(prop, default=(1.0, 1.0, 1.0, 1.0)):
+    """Read the ship's ShieldGlowColor as an RGBA tuple, default white."""
+    val = prop.GetShieldGlowColor()
     if isinstance(val, App.TGColorA):
         return (val.r, val.g, val.b, val.a)
     return default
@@ -50,7 +51,7 @@ def register_ship_shield(host, instance_id, ship,
                          aabb_center, aabb_half_extents):
     """Push a ship's shield render state to the C++ pass.
 
-    Reads the ship's ShieldProperty data-bag for:
+    Reads the ship's ShieldProperty for:
     - ShieldGlowColor → default flash color
     - ShieldGlowDecay → exponential decay constant (seconds)
     - SkinShielding   → 1 = hull-conforming, 0/absent = ellipsoid (default)
@@ -61,10 +62,10 @@ def register_ship_shield(host, instance_id, ship,
     prop = _find_shield_property(ship)
     if prop is None:
         return
-    skin = prop._data.get(("SkinShielding", ()), 0)
+    skin = prop.GetSkinShielding()
     mode = SHIELD_MODE_SKIN if skin else SHIELD_MODE_ELLIPSOID
-    decay = prop._data.get(("ShieldGlowDecay", ()), 1.0)
-    color = _color_tuple(prop, "ShieldGlowColor")
+    decay = prop.GetShieldGlowDecay()
+    color = _color_tuple(prop)
     host.shield_register(
         instance_id=instance_id,
         mode=mode,
