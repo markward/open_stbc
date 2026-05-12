@@ -108,6 +108,29 @@ class ShipClass(DamageableObject):
     def GetHull(self):                            return self._hull
     def SetHull(self, h) -> None:                 self._hull = h
 
+    def GetSubsystemByProperty(self, prop):
+        """Find the live subsystem whose source property is `prop`.
+
+        Mirrors sdk/.../App.py:5438 — the SDK calls this from
+        loadspacehelper.AdjustShipForDifficulty to map each
+        SubsystemProperty in the ship's property set to its live
+        subsystem instance.  Returns None if no slot matches.
+        """
+        for sub in (
+            self._sensor_subsystem,
+            self._impulse_engine_subsystem,
+            self._warp_engine_subsystem,
+            self._torpedo_system,
+            self._phaser_system,
+            self._pulse_weapon_system,
+            self._tractor_beam_system,
+            self._shield_subsystem,
+            self._hull,
+        ):
+            if sub is not None and sub.GetProperty() is prop:
+                return sub
+        return None
+
     # ── Property -> subsystem dispatch ───────────────────────────────────────
     # Walks self.GetPropertySet() and copies template values onto the live
     # ship + subsystems.  Mirrors SDK loadspacehelper.py:94 — called once,
