@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dauntless — Star Trek: Bridge Commander, rebuilt</title>
+<meta name="description" content="Experimental open reimplementation of the Star Trek: Bridge Commander engine, rebuilt with help from Claude. Project roadmap and recent progress.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* In-game UI accent palette — used as 3px strips, not panel fills */
+    --c-orange:  #ff9933;
+    --c-peach:   #ffcc66;
+    --c-red:     #cc3344;
+    --c-red-dim: #6e1a23;
+    --c-pink:    #cc4f8a;
+    --c-blue:    #4a86c4;
+    --c-blue-dim:#1d3a5a;
+    --c-violet:  #b07acc;
+    --c-green:   #5fbf6a;
+    --c-yellow:  #e6c34a;
+
+    /* Surfaces */
+    --bg:           #000;
+    --panel:        rgba(10, 12, 18, 0.78);
+    --panel-solid:  #0a0c12;
+    --panel-hover:  rgba(20, 24, 34, 0.85);
+    --row:          rgba(255, 255, 255, 0.025);
+    --hairline:     rgba(255, 255, 255, 0.07);
+    --hairline-2:   rgba(255, 255, 255, 0.12);
+
+    /* Type */
+    --t:            #e8eaef;
+    --t-dim:        #8a8d96;
+    --t-faint:      #5a5d66;
+    --t-strong:     #ffffff;
+
+    --rail-w:       240px;
+    --topbar-h:     44px;
+    --radius:       6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--t);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.55;
+    font-size: 14px;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Starfield */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(1px 1px at 20% 30%, #fff, transparent),
+      radial-gradient(1px 1px at 60% 70%, #fff, transparent),
+      radial-gradient(1px 1px at 80% 10%, #ffd9b3, transparent),
+      radial-gradient(2px 2px at 33% 80%, #fff, transparent),
+      radial-gradient(1px 1px at 90% 60%, #fff, transparent),
+      radial-gradient(1px 1px at 15% 90%, #ffd9b3, transparent),
+      radial-gradient(1px 1px at 50% 15%, #fff, transparent),
+      radial-gradient(2px 2px at 75% 45%, #fff, transparent),
+      radial-gradient(1px 1px at 5% 50%, #fff, transparent),
+      radial-gradient(2px 2px at 95% 30%, #fff, transparent),
+      radial-gradient(ellipse at 70% 20%, rgba(80, 30, 100, 0.10), transparent 60%),
+      radial-gradient(ellipse at 20% 80%, rgba(30, 60, 110, 0.10), transparent 60%);
+    background-size: 900px 900px, 900px 900px, 900px 900px, 900px 900px, 900px 900px, 900px 900px, 900px 900px, 900px 900px, 900px 900px, 900px 900px, 100% 100%, 100% 100%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.55;
+  }
+
+  a { color: var(--c-blue); text-decoration: none; transition: color 0.15s; }
+  a:hover { color: var(--c-peach); }
+  code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.86em;
+    background: rgba(255, 153, 51, 0.08);
+    color: var(--c-peach);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  strong { color: var(--t-strong); font-weight: 600; }
+  em { color: var(--c-peach); font-style: normal; }
+
+  /* ─── TOP STATUS BAR ─── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: var(--topbar-h);
+    background: var(--panel);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--hairline);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--t-dim);
+  }
+
+  .topbar .brand {
+    color: var(--t-strong);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+  }
+  .topbar .sep { color: var(--t-faint); }
+  .topbar .phase-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--c-orange);
+  }
+  .topbar .phase-tag::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--c-orange);
+    box-shadow: 0 0 6px var(--c-orange);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .topbar .spacer { flex: 1; }
+  .topbar a { color: var(--t-dim); }
+  .topbar a:hover { color: var(--t-strong); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ─── LAYOUT ─── */
+  .layout {
+    display: grid;
+    grid-template-columns: var(--rail-w) 1fr;
+    gap: 20px;
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+    align-items: start;
+  }
+
+  /* ─── LEFT NAV PANEL (TARGETS-style) ─── */
+  .nav {
+    position: sticky;
+    top: calc(var(--topbar-h) + 20px);
+    background: var(--panel);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    overflow: hidden;
+    max-height: calc(100vh - var(--topbar-h) - 40px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--hairline-2) transparent;
+  }
+
+  .nav::-webkit-scrollbar { width: 6px; }
+  .nav::-webkit-scrollbar-thumb { background: var(--hairline-2); border-radius: 3px; }
+
+  .nav-header {
+    padding: 12px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--t-dim);
+    border-bottom: 1px solid var(--hairline);
+    background: rgba(0,0,0,0.3);
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px 10px 12px;
+    border-left: 3px solid transparent;
+    color: var(--t);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+    border-bottom: 1px solid var(--row);
+  }
+  .nav-item:last-child { border-bottom: none; }
+  .nav-item:hover {
+    background: var(--panel-hover);
+    color: var(--t-strong);
+  }
+  .nav-item .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--t-faint);
+    min-width: 24px;
+    letter-spacing: 0.1em;
+  }
+
+  /* Accent colors per nav item — quiet, restrained */
+  .nav-item[data-accent="orange"]  { border-left-color: var(--c-orange); }
+  .nav-item[data-accent="peach"]   { border-left-color: var(--c-peach); }
+  .nav-item[data-accent="violet"]  { border-left-color: var(--c-violet); }
+  .nav-item[data-accent="blue"]    { border-left-color: var(--c-blue); }
+  .nav-item[data-accent="pink"]    { border-left-color: var(--c-pink); }
+  .nav-item[data-accent="green"]   { border-left-color: var(--c-green); }
+  .nav-item[data-accent="red"]     { border-left-color: var(--c-red); }
+
+  /* ─── MAIN ─── */
+  main {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+  }
+
+  .panel {
+    background: var(--panel);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    scroll-margin-top: calc(var(--topbar-h) + 20px);
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .panel-header .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.24em;
+    color: var(--t-dim);
+  }
+  .panel-header .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--t-faint);
+    letter-spacing: 0.18em;
+  }
+  .panel-header .spacer { flex: 1; }
+  .panel-header .accent-dot {
+    width: 8px; height: 8px;
+    background: var(--c-orange);
+    border-radius: 50%;
+  }
+
+  /* ─── HERO ─── */
+  .hero {
+    background: var(--panel);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 48px 40px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    top: -100px; right: -80px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(255, 153, 51, 0.10) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .hero .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.24em;
+    color: var(--c-peach);
+    margin-bottom: 20px;
+  }
+  .hero .eyebrow::before {
+    content: '';
+    width: 24px; height: 1px;
+    background: var(--c-peach);
+  }
+
+  .hero h1 {
+    font-family: 'Antonio', 'Inter', sans-serif;
+    font-size: clamp(56px, 8vw, 96px);
+    font-weight: 700;
+    line-height: 0.95;
+    letter-spacing: 0.005em;
+    text-transform: uppercase;
+    color: var(--t-strong);
+    margin-bottom: 8px;
+  }
+  .hero h1 .accent {
+    color: var(--c-orange);
+    font-weight: 700;
+  }
+  .hero .subline {
+    font-size: 16px;
+    color: var(--t-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    margin-bottom: 28px;
+    font-weight: 500;
+  }
+
+  .hero .lede {
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--t);
+    max-width: 68ch;
+    margin-bottom: 24px;
+    font-weight: 400;
+  }
+
+  .hero .motto {
+    display: inline-block;
+    padding: 8px 16px;
+    border: 1px solid var(--hairline-2);
+    border-left: 3px solid var(--c-peach);
+    border-radius: 0 4px 4px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--c-peach);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    margin-bottom: 28px;
+  }
+
+  .hero .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    padding: 6px 12px;
+    border: 1px solid var(--hairline-2);
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--t-dim);
+    background: rgba(0,0,0,0.2);
+  }
+  .chip.active {
+    border-color: var(--c-orange);
+    color: var(--c-orange);
+    background: rgba(255, 153, 51, 0.08);
+  }
+  .chip.peach {
+    border-color: rgba(255, 204, 102, 0.4);
+    color: var(--c-peach);
+    background: rgba(255, 204, 102, 0.06);
+  }
+
+  /* ─── TYPOGRAPHY ─── */
+  h2 {
+    font-family: 'Antonio', 'Inter', sans-serif;
+    font-size: 34px;
+    font-weight: 600;
+    color: var(--t-strong);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 1.15;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--t-strong);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 28px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--t-strong);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin: 0 0 8px;
+  }
+
+  p {
+    margin-bottom: 14px;
+    color: var(--t);
+    max-width: 72ch;
+  }
+  p:last-child { margin-bottom: 0; }
+
+  ul { margin: 12px 0; padding-left: 22px; }
+  li { margin-bottom: 6px; color: var(--t); }
+
+  /* ─── CARD GRID ─── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .card {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--c-orange);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .card:hover {
+    background: rgba(0, 0, 0, 0.4);
+    border-color: var(--hairline-2);
+  }
+  .card.peach  { border-left-color: var(--c-peach); }
+  .card.violet { border-left-color: var(--c-violet); }
+  .card.blue   { border-left-color: var(--c-blue); }
+  .card.pink   { border-left-color: var(--c-pink); }
+  .card.green  { border-left-color: var(--c-green); }
+  .card.red    { border-left-color: var(--c-red); }
+
+  .card h4 { color: var(--c-orange); }
+  .card.peach h4  { color: var(--c-peach); }
+  .card.violet h4 { color: var(--c-violet); }
+  .card.blue h4   { color: var(--c-blue); }
+  .card.pink h4   { color: var(--c-pink); }
+  .card.green h4  { color: var(--c-green); }
+  .card.red h4    { color: var(--c-red); }
+
+  .card p { color: var(--t-dim); font-size: 13px; line-height: 1.55; max-width: none; }
+  .card p strong { color: var(--t); }
+
+  /* ─── CALLOUT ─── */
+  .callout {
+    background: rgba(74, 134, 196, 0.06);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--c-blue);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin: 20px 0;
+  }
+  .callout::before {
+    content: 'Experimental Note';
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--c-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .callout.warning {
+    border-left-color: var(--c-yellow);
+    background: rgba(230, 195, 74, 0.06);
+  }
+  .callout.warning::before {
+    content: 'Status Note';
+    color: var(--c-yellow);
+  }
+  .callout p { color: var(--t); font-size: 14px; }
+  .callout p:last-child { margin-bottom: 0; }
+
+  /* ─── LATEST SIGNAL ─── */
+  .latest {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .latest .narrative .stamp {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--c-orange);
+    margin-bottom: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .latest .narrative .stamp::before {
+    content: '';
+    width: 4px; height: 4px;
+    background: var(--c-orange);
+    border-radius: 50%;
+  }
+  .latest .narrative p { font-size: 14px; }
+
+  .latest .shot {
+    border: 1px solid var(--hairline-2);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #000;
+    position: relative;
+  }
+  .latest .shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: zoom-in;
+    transition: opacity 0.15s;
+  }
+  .latest .shot img:hover { opacity: 0.92; }
+
+  /* ─── LIGHTBOX ─── */
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    cursor: zoom-out;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease-out;
+  }
+  .lightbox.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .lightbox img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    border: 1px solid var(--hairline-2);
+    border-radius: var(--radius);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    cursor: default;
+  }
+  .lightbox .close {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--hairline-2);
+    background: rgba(10, 12, 18, 0.7);
+    color: var(--t);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .lightbox .close:hover {
+    background: var(--panel-hover);
+    color: var(--t-strong);
+    border-color: var(--c-orange);
+  }
+  .lightbox .hint {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--t-faint);
+  }
+  .latest .shot .caption {
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--t-dim);
+    border-top: 1px solid var(--hairline);
+    background: rgba(0,0,0,0.5);
+  }
+  .latest .shot.placeholder {
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--t-faint);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+  }
+
+  /* ─── PHASE LIST (TARGETS-list pattern) ─── */
+  .phases {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: rgba(0,0,0,0.2);
+  }
+  .phase {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px 14px 14px;
+    border-left: 3px solid var(--t-faint);
+    border-bottom: 1px solid var(--hairline);
+    background: transparent;
+    transition: background 0.12s;
+    min-width: 0;
+  }
+  .phase:last-child { border-bottom: none; }
+  .phase:hover { background: var(--panel-hover); }
+
+  .phase .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--t-faint);
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+  .phase .body { min-width: 0; }
+  .phase .title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--t);
+    margin-bottom: 2px;
+    letter-spacing: 0.01em;
+  }
+  .phase .desc {
+    font-size: 13px;
+    color: var(--t-dim);
+    line-height: 1.5;
+  }
+  .phase .status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--t-faint);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .phase .status::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--t-faint);
+  }
+
+  .phase.done {
+    border-left-color: var(--c-green);
+  }
+  .phase.done .num    { color: var(--c-green); }
+  .phase.done .title  { color: var(--t-strong); }
+  .phase.done .status { color: var(--c-green); }
+  .phase.done .status::before { background: var(--c-green); }
+
+  .phase.active {
+    border-left-color: var(--c-orange);
+    background: rgba(255, 153, 51, 0.05);
+  }
+  .phase.active .num    { color: var(--c-orange); }
+  .phase.active .title  { color: var(--t-strong); }
+  .phase.active .status { color: var(--c-orange); }
+  .phase.active .status::before {
+    background: var(--c-orange);
+    box-shadow: 0 0 6px var(--c-orange);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  /* ─── SPECS LIST ─── */
+  .specs {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 4px 24px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    background: rgba(0,0,0,0.2);
+  }
+  .specs dt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--t-dim);
+    padding: 8px 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .specs dd {
+    font-size: 13px;
+    color: var(--t);
+    padding: 8px 0;
+    border-bottom: 1px solid var(--hairline);
+    line-height: 1.5;
+  }
+  .specs dt:last-of-type, .specs dd:last-of-type { border-bottom: none; }
+
+  /* ─── QUOTE ─── */
+  blockquote {
+    border-left: 3px solid var(--c-violet);
+    padding: 14px 20px;
+    margin: 20px 0;
+    background: rgba(176, 122, 204, 0.04);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-style: italic;
+    color: var(--t);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  blockquote .attr {
+    display: block;
+    margin-top: 10px;
+    font-style: normal;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--c-violet);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+  }
+
+  /* ─── FOOTER ─── */
+  footer {
+    text-align: center;
+    padding: 32px 20px 48px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--t-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    line-height: 2;
+    position: relative;
+    z-index: 1;
+  }
+  footer .motto {
+    color: var(--c-peach);
+  }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; }
+    .nav { position: static; max-height: none; }
+    .latest { grid-template-columns: 1fr; }
+    .specs { grid-template-columns: 1fr; gap: 0; }
+    .specs dt { padding-bottom: 2px; border-bottom: none; }
+    .specs dd { padding-top: 0; padding-bottom: 12px; }
+    .phase { grid-template-columns: 44px 1fr; }
+    .phase .status { grid-column: 2; margin-top: 6px; }
+  }
+
+  @media (max-width: 600px) {
+    .panel { padding: 20px; }
+    .hero { padding: 32px 24px; }
+    .hero h1 { font-size: 40px; }
+    .topbar { padding: 0 14px; gap: 10px; font-size: 10px; }
+    .topbar .hide-sm { display: none; }
+  }
+
+  /* Reveal animation */
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hero, .panel { animation: rise 0.5s ease-out backwards; }
+  .panel:nth-of-type(1) { animation-delay: 0.05s; }
+  .panel:nth-of-type(2) { animation-delay: 0.1s; }
+  .panel:nth-of-type(3) { animation-delay: 0.15s; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <span class="brand">DAUNTLESS</span>
+  <span class="sep">/</span>
+  <span class="hide-sm">Star Trek: Bridge Commander — open rebuild</span>
+  <span class="spacer"></span>
+  <span class="phase-tag">Phase 03 · Active</span>
+  <span class="sep hide-sm">·</span>
+  <a class="hide-sm" href="#">View repo →</a>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT NAV — modelled on the TARGETS panel -->
+  <nav class="nav" aria-label="Section navigation">
+    <div class="nav-header">Sections</div>
+    <a href="#experiment"  class="nav-item" data-accent="orange"><span class="num">01</span><span>The Experiment</span></a>
+    <a href="#mission"     class="nav-item" data-accent="peach"><span class="num">02</span><span>Mission</span></a>
+    <a href="#latest"      class="nav-item" data-accent="violet"><span class="num">03</span><span>Latest Signal</span></a>
+    <a href="#roadmap"     class="nav-item" data-accent="blue"><span class="num">04</span><span>Phase Roadmap</span></a>
+    <a href="#hood"        class="nav-item" data-accent="pink"><span class="num">05</span><span>Under the Hood</span></a>
+    <a href="#crew"        class="nav-item" data-accent="green"><span class="num">06</span><span>Who's Building</span></a>
+    <a href="#disclaimer"  class="nav-item" data-accent="red"><span class="num">07</span><span>Disclaimer</span></a>
+  </nav>
+
+  <main>
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="eyebrow">Experimental Reconstruction · 2026</div>
+      <h1>Star Trek: <br> Bridge Commander<br><span class="accent">Dauntless</span></h1>
+      <div class="subline">Open rebuild of the engine, 24 years on</div>
+
+      <p class="lede">
+        Rebuilding a classic, powered by AI. We are building an open, cross-platform replacement for the <em>Star Trek: Bridge Commander</em> engine—and breaking new ground as the first project of this size to use a large language model as the lead co-pilot.
+      </p>
+
+      <div class="motto">May the wind be at our backs</div>
+
+      <div class="chips">
+        <span class="chip active">Phase 03 · Active</span>
+        <span class="chip">Claude-assisted</span>
+        <span class="chip">C++ · CPython embedded</span>
+        <span class="chip">macOS · Linux · Windows</span>
+        <span class="chip peach">Fan Project</span>
+      </div>
+    </div>
+
+    <!-- THE EXPERIMENT -->
+    <section id="experiment" class="panel">
+      <div class="panel-header">
+        <span class="accent-dot" style="background: var(--c-orange);"></span>
+        <span class="num">01</span>
+        <span class="label">The Experiment</span>
+        <span class="spacer"></span>
+      </div>
+      <h2>What this is, and what it isn't</h2>
+      <p style="margin-top:12px;">
+        <strong>This is an experiment, and we don't know how it ends.</strong> The goal: take the original
+        <em>Star Trek: Bridge Commander</em> — a 2002 Windows-only game whose entire gameplay logic
+        lives in Python but whose engine is a compiled, closed-source C++ binary — and rebuild that
+        engine from scratch so the original Python scripts run again on modern macOS, Linux, and Windows.
+      </p>
+      <p>
+        What makes this experiment unusual is the method. Almost every line of code in this project
+        was written with <strong>Claude</strong> (Anthropic's LLM) as a pair-programmer.
+        That includes the NIF asset loader, the C++ renderer, the host loop that embeds CPython,
+        the physics integration, the shaders — the lot. As far as we're aware, this is the first
+        serious attempt to reconstruct a legacy game engine of this size with an LLM as the principal collaborator.
+      </p>
+      <p>
+        It might not work. It might stall at Phase 05 with the AI scripts running fine but combat
+        refusing to feel right. It might hit a wall at character animation. It might surprise everyone
+        and ship. The point of putting this page up is to make the attempt visible — what's been built,
+        what's next, what broke last week.
+      </p>
+
+      <div class="callout">
+        <p>
+          If you are reading this and thinking <em>"that's not how you rebuild a game engine,"</em>
+          you're probably right. Half the reason this project exists is to find out
+          <em>which</em> half is right. Progress will be honest.
+        </p>
+      </div>
+    </section>
+
+    <!-- MISSION -->
+    <section id="mission" class="panel">
+      <div class="panel-header">
+        <span class="accent-dot" style="background: var(--c-peach);"></span>
+        <span class="num">02</span>
+        <span class="label">Mission</span>
+        <span class="spacer"></span>
+      </div>
+      <h2>What we're building</h2>
+      <p style="margin-top:12px;">
+        The original game ships as a Windows binary — <code>Appc.dll</code> — with every screen,
+        every mission, every ship and weapon definition written in Python. Roughly 1,200 Python files
+        sit on disk in the SDK, fully readable, fully unchanged since 2002. What's missing is anything
+        to actually drive them.
+      </p>
+      <p>The plan is to replace <code>Appc.dll</code> with an open C++ engine that:</p>
+
+      <div class="cards">
+        <div class="card">
+          <h4>Runs the original scripts</h4>
+          <p>Embeds CPython 3 and drives BC's existing Python game loop. No forking the SDK, no rewriting missions — the goal is bit-for-bit script compatibility.</p>
+        </div>
+        <div class="card peach">
+          <h4>Renders natively</h4>
+          <p>An in-house C++ renderer parses BC's NIF asset blocks directly, with passes for opaque hull, shields, glow, and space-dust particles.</p>
+        </div>
+        <div class="card violet">
+          <h4>Crosses platforms</h4>
+          <p>macOS first, Linux next, Windows at 1.0. Single codebase, no Wine, no DirectX. The first time BC will be playable natively outside Windows.</p>
+        </div>
+        <div class="card blue">
+          <h4>Stays open</h4>
+          <p>Open-source engine, every commit public. The community that kept BC alive for two decades is the natural audience — mod support is on the roadmap.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- LATEST SIGNAL -->
+    <section id="latest" class="panel">
+      <div class="panel-header">
+        <span class="accent-dot" style="background: var(--c-violet);"></span>
+        <span class="num">03</span>
+        <span class="label">Latest Signal</span>
+        <span class="spacer"></span>
+      </div>
+
+      <div class="latest">
+        <div class="narrative">
+          <div class="stamp">Stardate 2026-05-11 · Engineering Log</div>
+          <p>
+            <strong>Yesterday was a big one.</strong> The target-list panel in the screenshot is brand new
+            — driven by a <code>TargetListController</code> that subscribes to a fresh ship-lifecycle
+            pub/sub (<em>ship-added</em> on <code>SetClass.AddObjectToSet</code>, <em>ship-destroyed</em>
+            on <code>SetDead</code>). It replaces a hard-coded demo panel, populates subsystem buttons
+            from the actual scene, and resets cleanly when the host swaps missions.
+          </p>
+          <p>
+            Underneath it sits a new <strong>reusable UI component library</strong> — <code>UiPanel</code>,
+            <code>UiButton</code>, <code>UiCollapsibleList</code>, <code>UiStatRow</code> — with a theme
+            registry pulling defaults from the original <code>LoadInterface.py</code>. RmlUi backs the rendering,
+            pybind11 exposes the C++ panel/element primitives to Python, and a <code>FakeDom</code> shim
+            lets the whole thing unit-test without a window. <code>F9</code> toggles the live UI debugger.
+          </p>
+          <p>
+            Two other features landed the same day. The <strong>mission picker</strong> is a modal
+            (cancel + <code>ESC</code>) wired into a <code>MissionSession</code> + <code>HostController.swap_mission</code>
+            path, with an SDK script discovery walker and a binary <code>TGL</code> reader feeding the
+            <code>MissionRegistry</code>. And a <strong>bridge-view PoC</strong>: pressing space toggles
+            a <code>_BridgeCamera</code> with mouse-look anchored to the ship frame, an eager-loaded
+            <code>DBridge.NIF</code>, cursor lock + mouse-delta bindings on the host, and a dedicated
+            bridge render pass with scenegraph tagging so space and bridge geometry don't bleed into each other.
+            <code>ESC</code> exits bridge mode.
+          </p>
+          <p>
+            Supporting wins, same day: a <strong>Blinn-Phong specular pass</strong> driven by <code>_spec</code> /
+            <code>_specular</code> mask textures (auto-bound via an <code>AddLOD</code> sibling-spec shim),
+            the <strong>space-dust pass</strong> tuned down to half particle count with capped streak length,
+            and spring-lag on the ship-follow camera so rotation no longer snaps.
+          </p>
+          <p>
+            Phase 03 (UI Framework) is properly in motion. Next: aligning more of BC's original interface
+            screens — Quick Battle setup, options — to the new component library.
+          </p>
+        </div>
+
+        <div class="shot">
+          <img src="img/latest.png" alt="Sovereign-class ship rendered in the Dauntless engine, with the new in-game target-list UI showing Galaxy-class subsystems and two Galaxy-class ships in the background"
+               onerror="this.style.display='none';this.parentElement.classList.add('placeholder');this.parentElement.innerHTML='<div>img/latest.png</div><div style=&quot;font-size:9px;&quot;>Drop screenshot here</div>';">
+          <div class="caption">Live target list · UI component library landed · 2026-05-11</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PHASE ROADMAP -->
+    <section id="roadmap" class="panel">
+      <div class="panel-header">
+        <span class="accent-dot" style="background: var(--c-blue);"></span>
+        <span class="num">04</span>
+        <span class="label">Phase Roadmap</span>
+        <span class="spacer"></span>
+        <span class="num">15 phases to 1.0</span>
+      </div>
+      <p style="margin-bottom: 20px; color: var(--t-dim);">
+        Each phase is a self-contained milestone — something visible and shippable.
+        Status is honest: <strong style="color:var(--c-green);">Complete</strong> means it works end-to-end today,
+        <strong style="color:var(--c-orange);">In Progress</strong> means we're actively pushing on it,
+        and <strong style="color:var(--t-dim);">Standby</strong> means it hasn't started.
+      </p>
+
+      <div class="phases">
+
+        <article class="phase done">
+          <div class="num">01</div>
+          <div class="body">
+            <div class="title">Headless logic engine</div>
+            <div class="desc">Original BC Python scripts running against a stubbed <code>Appc</code>, with PyBullet driving physics. Missions load, timers fire, AI ticks.</div>
+          </div>
+          <div class="status">Complete</div>
+        </article>
+
+        <article class="phase done">
+          <div class="num">02</div>
+          <div class="body">
+            <div class="title">Native renderer &amp; flight</div>
+            <div class="desc">C++ host loop, NIF asset loading, ship controls, rough star-system loading. The engine flies under its own power.</div>
+          </div>
+          <div class="status">Complete</div>
+        </article>
+
+        <article class="phase active">
+          <div class="num">03</div>
+          <div class="body">
+            <div class="title">UI framework</div>
+            <div class="desc">Reusable UI components — buttons, lists, panels — aligned with the original <code>LoadInterface</code> scripts so BC's screens render on the new stack.</div>
+          </div>
+          <div class="status">In Progress</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">04</div>
+          <div class="body">
+            <div class="title">AI scripts online</div>
+            <div class="desc">The original tactical and strategic AI scripts run unmodified on the new engine. NPCs make their own decisions.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">05</div>
+          <div class="body">
+            <div class="title">Targeting &amp; combat</div>
+            <div class="desc">Weapons, lock-on, shields, sub-system damage — replicated to original BC behaviour and balance.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">06</div>
+          <div class="body">
+            <div class="title">Audio engine</div>
+            <div class="desc">OpenAL pipeline online: weapon SFX, engine hum, ambient bridge, music cues driven by the original sound scripts.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">07</div>
+          <div class="body">
+            <div class="title">Bridge interior</div>
+            <div class="desc">Render the player's bridge with crew stations and viewscreen. Stand on the deck of your own ship.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">08</div>
+          <div class="body">
+            <div class="title">Save &amp; load</div>
+            <div class="desc">Restore BC's pickle-based save path so mid-mission state round-trips across the new engine end to end.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">09</div>
+          <div class="body">
+            <div class="title">Quick Battle</div>
+            <div class="desc">First end-to-end playable game mode — pick a ship, pick a scenario, fight. The first time the project feels like a game.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">10</div>
+          <div class="body">
+            <div class="title">UI polish pass</div>
+            <div class="desc">HiDPI, theming, modernisation of the BC UI surface. Looks good on a 5K display.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">11</div>
+          <div class="body">
+            <div class="title">Character animation</div>
+            <div class="desc">Animated bridge crew restored — idles, turns, console interactions.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">12</div>
+          <div class="body">
+            <div class="title">Voice &amp; cinematics</div>
+            <div class="desc">In-mission voice-over playback, lip-sync hooks, and the scripted cinematic camera system the campaign relies on.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">13</div>
+          <div class="body">
+            <div class="title">Single-player campaign</div>
+            <div class="desc">Full mission compatibility — the original campaign playable from start to finish on the new engine.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">14</div>
+          <div class="body">
+            <div class="title">1.0 release</div>
+            <div class="desc">Packaged builds for macOS, Linux, and Windows. Installer, signing, public release notes. The ship-it milestone.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+        <article class="phase">
+          <div class="num">15</div>
+          <div class="body">
+            <div class="title">Mod &amp; SDK compatibility</div>
+            <div class="desc">Load community mods that target the original BC script API; document any divergences. Optional content-tools bundle for asset conversion.</div>
+          </div>
+          <div class="status">Standby</div>
+        </article>
+
+      </div>
+
+      <div class="callout warning">
+        <p>
+          Phases past <strong>05 · Targeting &amp; Combat</strong> are educated guesses about scope and order.
+          Reality will reshuffle them. If a phase turns out to be three phases, the roadmap will be honest
+          about that when it happens.
+        </p>
+      </div>
+    </section>
+
+    <!-- UNDER THE HOOD -->
+    <section id="hood" class="panel">
+      <div class="panel-header">
+        <span class="accent-dot" style="background: var(--c-pink);"></span>
+        <span class="num">05</span>
+        <span class="label">Under the Hood</span>
+        <span class="spacer"></span>
+      </div>
+      <h2>Technical stack</h2>
+
+      <dl class="specs" style="margin-top: 16px;">
+        <dt>Host process</dt><dd>C++ executable embedding CPython 3 — drives the BC Python game loop natively, no shim DLL.</dd>
+        <dt>Renderer</dt><dd>In-house C++ renderer parsing BC's NIF asset blocks. Passes: opaque hull, sovereign shields, glow (via AddLOD), space dust.</dd>
+        <dt>Physics</dt><dd>PyBullet during the Phase 1 headless work; transitioning to native Bullet through the C++ host as Phase 2 settles.</dd>
+        <dt>Audio</dt><dd>OpenAL — stands up in Phase 06 alongside the audio script bindings.</dd>
+        <dt>UI</dt><dd>RmlUi for HUD overlays; reusable component library mirrors the original BC LoadInterface scripts.</dd>
+        <dt>Asset pipeline</dt><dd>BC NIF files (NetImmerse / Gamebryo blocks). Right-handed coordinate space, W-first quaternions, link-ID streaming.</dd>
+        <dt>Platforms</dt><dd>macOS-first development. Linux follows. Windows joins for 1.0. Single codebase, no DirectX dependency.</dd>
+        <dt>Source material</dt><dd>BC SDK v1.1 — 1,228 Python files, fully readable, unchanged since 2002.</dd>
+      </dl>
+
+      <h3>How Claude fits</h3>
+      <p>
+        The collaboration model in plain English: a human (Mark) directs, reviews, and makes architecture
+        calls. Claude writes the bulk of the C++, shaders, build scripts, and tooling. Each non-trivial
+        change goes through a brainstorm → spec → plan → implementation loop, with the spec committed to
+        <code>docs/superpowers/specs/</code> before code is written. Every commit is human-reviewed before merge.
+      </p>
+      <p>
+        The repository is structured to make this auditable: design specs are first-class artefacts,
+        surveys of the original game's behaviour live alongside the code, and the project's
+        <code>CLAUDE.md</code> is itself documentation for both human and AI readers.
+      </p>
+    </section>
+
+    <!-- CREW -->
+    <section id="crew" class="panel">
+      <div class="panel-header">
+        <span class="accent-dot" style="background: var(--c-green);"></span>
+        <span class="num">06</span>
+        <span class="label">Who's Building This</span>
+        <span class="spacer"></span>
+      </div>
+
+      <div class="cards">
+        <div class="card peach">
+          <h4>Captain</h4>
+          <p><strong>Mark Ward</strong> — direction, architecture review, in-game testing, all the "is this actually right" calls. Holds the keys to the repository.</p>
+        </div>
+        <div class="card violet">
+          <h4>Engineering</h4>
+          <p><strong>Claude (Anthropic)</strong> — bulk implementation: C++ engine, NIF loader, renderer passes, shaders, build system, test scaffolding. Pair-programmer in residence.</p>
+        </div>
+        <div class="card pink">
+          <h4>Original Crew</h4>
+          <p><strong>Totally Games &amp; Activision (2002)</strong> — wrote every script this project loads. Their work is the spec; this project is the new engine running underneath it.</p>
+        </div>
+      </div>
+
+      <blockquote>
+        Our challenge to the game industry and ourselves was to reinvent the venerable genre of space
+        combat games while at the same time creating a game that leveraged the best known science fiction universe.
+        <span class="attr">— Lawrence Holland · Creative Director · Totally Games · 2002</span>
+      </blockquote>
+
+      <p style="margin-top: 16px; color: var(--t-dim);">
+        Twenty-four years later, the goal is more modest: keep the wind at their backs.
+      </p>
+    </section>
+
+    <!-- DISCLAIMER -->
+    <section id="disclaimer" class="panel">
+      <div class="panel-header">
+        <span class="accent-dot" style="background: var(--c-red);"></span>
+        <span class="num">07</span>
+        <span class="label">Disclaimer</span>
+        <span class="spacer"></span>
+      </div>
+
+      <p>
+        This is a <strong>non-commercial fan project</strong>. It is not affiliated with, endorsed by,
+        or sponsored by Activision, Totally Games, Paramount, or CBS. <em>Star Trek</em>,
+        <em>Star Trek: Bridge Commander</em>, and all related marks are trademarks of their respective owners.
+      </p>
+      <p>
+        <strong>No original game assets are distributed</strong> by this project. The engine is open
+        source; running it requires a legitimately-owned copy of the original
+        <em>Star Trek: Bridge Commander</em> (2002) for the game's Python scripts, textures, models, and audio.
+      </p>
+      <p>
+        Code in this repository is original work; AI-assisted authorship is disclosed and human-reviewed
+        before merge. This page itself is part of the experiment.
+      </p>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  Project Dauntless · Open reimplementation of Star Trek: Bridge Commander<br>
+  Built with Claude · Fan project · Non-commercial<br>
+  <span class="motto">May the wind be at our backs</span>
+</footer>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer" hidden>
+  <button type="button" class="close" aria-label="Close">×</button>
+  <img alt="">
+  <div class="hint">Click anywhere or press ESC to close</div>
+</div>
+
+<script>
+  (function () {
+    var lb = document.getElementById('lightbox');
+    var lbImg = lb.querySelector('img');
+    var closeBtn = lb.querySelector('.close');
+
+    function open(src, alt) {
+      lbImg.src = src;
+      lbImg.alt = alt || '';
+      lb.hidden = false;
+      // force reflow so the transition fires
+      void lb.offsetWidth;
+      lb.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function close() {
+      lb.classList.remove('open');
+      document.body.style.overflow = '';
+      setTimeout(function () {
+        if (!lb.classList.contains('open')) {
+          lb.hidden = true;
+          lbImg.src = '';
+        }
+      }, 200);
+    }
+
+    document.querySelectorAll('.shot img').forEach(function (img) {
+      img.addEventListener('click', function () {
+        open(img.currentSrc || img.src, img.alt);
+      });
+    });
+
+    lb.addEventListener('click', function (e) {
+      if (e.target === lbImg) return;
+      close();
+    });
+    closeBtn.addEventListener('click', close);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && lb.classList.contains('open')) close();
+    });
+  })();
+</script>
+
+</body>
+</html>
