@@ -413,6 +413,18 @@ class ShieldSubsystem(PoweredSubsystem):
         """SDK-facing alias of SetCurrentShields (matches Appc method name)."""
         self.SetCurrentShields(face, value)
 
+    def GetSingleShieldPercentage(self, face: int) -> float:
+        """current/max for the face; 0.0 when max==0 (unshielded face).
+
+        SDK caller MissionLib.IsAnyShieldBreached treats anything <0.05 as
+        a breach, so the max==0 case must return 0.0, not raise.
+        """
+        f = int(face)
+        mx = self._max_shields[f]
+        if mx == 0.0:
+            return 0.0
+        return self._current_shields[f] / mx
+
     def GetShieldChargePerSecond(self, face: int) -> float:
         return self._charge_per_second[int(face)]
 

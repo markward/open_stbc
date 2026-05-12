@@ -62,3 +62,30 @@ def test_set_cur_shields_aliases_set_current_shields():
     s.SetMaxShields(ShieldProperty.FRONT_SHIELDS, 8000.0)
     s.SetCurShields(ShieldProperty.FRONT_SHIELDS, 3000.0)
     assert s.GetCurrentShields(ShieldProperty.FRONT_SHIELDS) == 3000.0
+
+
+def test_single_shield_percentage_full():
+    s = ShieldSubsystem("Shield Generator")
+    s.SetMaxShields(ShieldProperty.FRONT_SHIELDS, 100.0)
+    # SetMaxShields seeds current to max when current was 0
+    assert s.GetSingleShieldPercentage(ShieldProperty.FRONT_SHIELDS) == 1.0
+
+
+def test_single_shield_percentage_half():
+    s = ShieldSubsystem("Shield Generator")
+    s.SetMaxShields(ShieldProperty.FRONT_SHIELDS, 100.0)
+    s.SetCurShields(ShieldProperty.FRONT_SHIELDS, 50.0)
+    assert s.GetSingleShieldPercentage(ShieldProperty.FRONT_SHIELDS) == 0.5
+
+
+def test_single_shield_percentage_zero_max_returns_zero():
+    """A face with max=0 (unshielded ship) reports 0% without raising."""
+    s = ShieldSubsystem("Shield Generator")
+    assert s.GetSingleShieldPercentage(ShieldProperty.FRONT_SHIELDS) == 0.0
+
+
+def test_single_shield_percentage_zero_current():
+    s = ShieldSubsystem("Shield Generator")
+    s.SetMaxShields(ShieldProperty.FRONT_SHIELDS, 100.0)
+    s.SetCurShields(ShieldProperty.FRONT_SHIELDS, 0.0)
+    assert s.GetSingleShieldPercentage(ShieldProperty.FRONT_SHIELDS) == 0.0
