@@ -11,19 +11,37 @@ inline std::uint8_t to_u8(float f) {
     return static_cast<std::uint8_t>(f * 255.0f + 0.5f);
 }
 
+// Apply a NIF 3x3 rotation to a vector. Storage is row-major with
+// column-vector math (v' = M * v), so v'.x = m[0]*v.x + m[1]*v.y +
+// m[2]*v.z, etc.
+inline glm::vec3 apply_rotation(const nif::Mat3x3& r, const glm::vec3& v) noexcept {
+    return {
+        r.m[0] * v.x + r.m[1] * v.y + r.m[2] * v.z,
+        r.m[3] * v.x + r.m[4] * v.y + r.m[5] * v.z,
+        r.m[6] * v.x + r.m[7] * v.y + r.m[8] * v.z,
+    };
+}
+
 }  // namespace
 
-// NOTE: shape parameter is currently unused, but NiTriShape carries an
-// `av` block with a local translation/rotation/scale that, per the NIF
-// transform model, composes as parent_world * (T * R * S) on top of the
-// parent NiNode's world transform. For every BC ship NIF we've inspected
-// so far (Galaxy, Sovereign, etc.) the per-shape transform is identity,
-// so ignoring it produces correct results today. If a ship ever renders
-// displaced from its parent node, this is the first place to look — bake
-// the shape transform into the vertex positions or hand it through to
-// the renderer's per-mesh matrix.
+// NiTriShape carries an `av` block with a local translation/rotation/
+// scale that composes parent_world * (T * R * S) on top of the parent
+// NiNode's world transform. We bake (T, R, S) into the vertex positions
+// (and R into the normals) at build time, so the renderer only sees
+// node-local geometry and applies the node's world transform.
+//
+// This is equivalent to what the stock engine's geometry-data
+// ApplyTransform path does at export — BC's content authoring tools
+// often emit non-identity shape transforms (per a corpus scan: 366 of
+// 549 NiTriShapes had non-identity translations, 75 had non-identity
+// rotations, 0 had non-unit scale), and ignoring them would render
+// chunks like the Warbird's two halves (at +/-470 along X) collapsed
+// to the parent node's origin.
+//
+// Cost: O(vertex count) on load, zero at render time. Scale is uniform
+// per the NIF transform model, so normals only need the rotation.
 MeshCpu build_mesh_cpu(
-    const nif::NiTriShape& /*shape*/,
+    const nif::NiTriShape& shape,
     const nif::NiTriShapeData& data,
     int material_index,
     int node_index)
@@ -34,16 +52,22 @@ MeshCpu build_mesh_cpu(
 
     mesh.vertices.resize(data.num_vertices);
 
+    const auto& t = shape.av.translation;
+    const auto& r = shape.av.rotation;
+    const float s = shape.av.scale;
+    const glm::vec3 trans{t.x, t.y, t.z};
+
     if (data.has_vertices) {
         for (std::size_t i = 0; i < data.vertices.size(); ++i) {
             const auto& v = data.vertices[i];
-            mesh.vertices[i].position = {v.x, v.y, v.z};
+            glm::vec3 p{v.x * s, v.y * s, v.z * s};
+            mesh.vertices[i].position = apply_rotation(r, p) + trans;
         }
     }
     if (data.has_normals) {
         for (std::size_t i = 0; i < data.normals.size(); ++i) {
             const auto& n = data.normals[i];
-            mesh.vertices[i].normal = {n.x, n.y, n.z};
+            mesh.vertices[i].normal = apply_rotation(r, {n.x, n.y, n.z});
         }
     }
     if (data.has_uv && !data.uv_sets.empty()) {
