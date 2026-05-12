@@ -119,9 +119,10 @@ class ShipClass(DamageableObject):
         from engine.appc.properties import (
             ShipProperty, ImpulseEngineProperty, WarpEngineProperty,
             HullProperty, SensorProperty, ShieldProperty,
-            WeaponSystemProperty,
+            WeaponSystemProperty, TorpedoTubeProperty,
         )
         from engine.appc.subsystems import HullSubsystem
+        import App
 
         for prop in self.GetPropertySet().GetPropertyList():
             if isinstance(prop, ShipProperty):
@@ -206,6 +207,17 @@ class ShipClass(DamageableObject):
                         if sf is not None: receiver.SetSingleFire(sf)
                         aw = prop.GetAimedWeapon()
                         if aw is not None: receiver.SetAimedWeapon(aw)
+
+        # Pass 2 — seed torpedo tubes (idempotent).
+        ts = self._torpedo_system
+        if ts is not None and ts.GetNumAmmoTypes() == 0:
+            tube_count = sum(
+                1
+                for prop in self.GetPropertySet().GetPropertyList()
+                if isinstance(prop, TorpedoTubeProperty)
+            )
+            for _ in range(tube_count):
+                ts.AddAmmoType(App.AT_ONE)
 
     @staticmethod
     def _copy_powered_subsystem_fields(prop, subsystem) -> None:
