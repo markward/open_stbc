@@ -25,6 +25,7 @@ class ShipClass(DamageableObject):
         self._phaser_system = None
         self._pulse_weapon_system = None
         self._tractor_beam_system = None
+        self._shield_subsystem = None
         # Hull is created lazily by SetupProperties() when a HullProperty is
         # found in the property set (SDK App.py:5382-5383).  Stays None for
         # ships with no hardpoint applied.
@@ -39,6 +40,16 @@ class ShipClass(DamageableObject):
         self._docked = False
         self._dying = False
         self._dead = False
+        # Ship-level identity populated by SetupProperties from ShipProperty.
+        self._genus: int = 0
+        self._species: int = 0
+        self._affiliation: int = 0
+        self._ship_name: str = ""
+        self._ai_string: str = ""
+        self._damage_resolution: float = 0.0
+        self._model_filename: str = ""
+        self._stationary: int = 0
+        self._death_explosion_sound: str = ""
 
     def SetAI(self, ai) -> None:
         self._ai = ai
@@ -51,6 +62,26 @@ class ShipClass(DamageableObject):
 
     def GetNetType(self) -> int:
         return self._net_type
+
+    # ── Ship-level identity ──────────────────────────────────────────────────
+    def GetGenus(self) -> int:                          return self._genus
+    def SetGenus(self, v) -> None:                      self._genus = int(v)
+    def GetSpecies(self) -> int:                        return self._species
+    def SetSpecies(self, v) -> None:                    self._species = int(v)
+    def GetAffiliation(self) -> int:                    return self._affiliation
+    def SetAffiliation(self, v) -> None:                self._affiliation = int(v)
+    def GetShipName(self) -> str:                       return self._ship_name
+    def SetShipName(self, v) -> None:                   self._ship_name = str(v)
+    def GetAIString(self) -> str:                       return self._ai_string
+    def SetAIString(self, v) -> None:                   self._ai_string = str(v)
+    def GetDamageResolution(self) -> float:             return self._damage_resolution
+    def SetDamageResolution(self, v) -> None:           self._damage_resolution = float(v)
+    def GetModelFilename(self) -> str:                  return self._model_filename
+    def SetModelFilename(self, v) -> None:              self._model_filename = str(v)
+    def IsStationary(self) -> int:                      return self._stationary
+    def SetStationary(self, v) -> None:                 self._stationary = int(v)
+    def GetDeathExplosionSound(self) -> str:            return self._death_explosion_sound
+    def SetDeathExplosionSound(self, v) -> None:        self._death_explosion_sound = str(v)
 
     # ── Subsystem accessors ──────────────────────────────────────────────────
     # Mirror sdk/.../App.py:5394-5455.  Loaders that need to populate these
@@ -70,6 +101,8 @@ class ShipClass(DamageableObject):
     def SetPulseWeaponSystem(self, s) -> None:    self._pulse_weapon_system = s
     def GetTractorBeamSystem(self):               return self._tractor_beam_system
     def SetTractorBeamSystem(self, s) -> None:    self._tractor_beam_system = s
+    def GetShieldSubsystem(self):                 return self._shield_subsystem
+    def SetShieldSubsystem(self, s) -> None:      self._shield_subsystem = s
     def GetHull(self):                            return self._hull
     def SetHull(self, h) -> None:                 self._hull = h
 
@@ -85,16 +118,29 @@ class ShipClass(DamageableObject):
     def SetupProperties(self) -> None:
         from engine.appc.properties import (
             ShipProperty, ImpulseEngineProperty, WarpEngineProperty,
-            HullProperty,
+            HullProperty, SensorProperty, ShieldProperty,
+            WeaponSystemProperty, TorpedoTubeProperty,
         )
         from engine.appc.subsystems import HullSubsystem
+        import App
 
         for prop in self.GetPropertySet().GetPropertyList():
             if isinstance(prop, ShipProperty):
-                m = prop.GetMass()
-                if m is not None: self.SetMass(m)
-                ri = prop.GetRotationalInertia()
-                if ri is not None: self.SetRotationalInertia(ri)
+                for src, setter in (
+                    (prop.GetMass,                 self.SetMass),
+                    (prop.GetRotationalInertia,    self.SetRotationalInertia),
+                    (prop.GetGenus,                self.SetGenus),
+                    (prop.GetSpecies,              self.SetSpecies),
+                    (prop.GetAffiliation,          self.SetAffiliation),
+                    (prop.GetShipName,             self.SetShipName),
+                    (prop.GetAIString,             self.SetAIString),
+                    (prop.GetDamageResolution,     self.SetDamageResolution),
+                    (prop.GetModelFilename,        self.SetModelFilename),
+                    (prop.GetStationary,           self.SetStationary),
+                    (prop.GetDeathExplosionSound,  self.SetDeathExplosionSound),
+                ):
+                    v = src()
+                    if v is not None: setter(v)
             elif isinstance(prop, ImpulseEngineProperty):
                 self._copy_powered_subsystem_fields(prop, self._impulse_engine_subsystem)
                 ies = self._impulse_engine_subsystem
@@ -115,8 +161,63 @@ class ShipClass(DamageableObject):
                 # GetHull() must return the primary hull (SDK App.py:5382).
                 if self._hull is None:
                     self._hull = HullSubsystem(prop.GetName() or "Hull")
-                    mc = prop.GetMaxCondition()
-                    if mc is not None: self._hull.SetMaxCondition(mc)
+                    for src, setter in (
+                        (prop.GetMaxCondition,        self._hull.SetMaxCondition),
+                        (prop.GetCritical,            self._hull.SetCritical),
+                        (prop.GetTargetable,          self._hull.SetTargetable),
+                        (prop.GetPrimary,             self._hull.SetPrimary),
+                        (prop.GetRadius,              self._hull.SetRadius),
+                        (prop.GetDisabledPercentage,  self._hull.SetDisabledPercentage),
+                    ):
+                        v = src()
+                        if v is not None: setter(v)
+            elif isinstance(prop, SensorProperty):
+                self._copy_powered_subsystem_fields(prop, self._sensor_subsystem)
+                sens = self._sensor_subsystem
+                if sens is not None:
+                    for src, setter in (
+                        (prop.GetBaseSensorRange, sens.SetBaseSensorRange),
+                        (prop.GetMaxProbes,       sens.SetMaxProbes),
+                    ):
+                        v = src()
+                        if v is not None: setter(v)
+            elif isinstance(prop, ShieldProperty):
+                self._copy_powered_subsystem_fields(prop, self._shield_subsystem)
+                ss = self._shield_subsystem
+                if ss is not None:
+                    for face in range(ShieldProperty.NUM_SHIELDS):
+                        mx = prop.GetMaxShields(face)
+                        if mx is not None: ss.SetMaxShields(face, mx)
+                        cr = prop.GetShieldChargePerSecond(face)
+                        if cr is not None: ss.SetShieldChargePerSecond(face, cr)
+            elif isinstance(prop, WeaponSystemProperty):
+                wst = prop.GetWeaponSystemType()
+                receiver = {
+                    WeaponSystemProperty.WST_PHASER:  self._phaser_system,
+                    WeaponSystemProperty.WST_TORPEDO: self._torpedo_system,
+                    WeaponSystemProperty.WST_PULSE:   self._pulse_weapon_system,
+                    WeaponSystemProperty.WST_TRACTOR: self._tractor_beam_system,
+                }.get(wst)
+                if receiver is not None:
+                    self._copy_powered_subsystem_fields(prop, receiver)
+                    if wst is not None: receiver.SetWeaponSystemType(wst)
+                    # Phaser-only extras (no-op for other receivers).
+                    if wst == WeaponSystemProperty.WST_PHASER:
+                        sf = prop.GetSingleFire()
+                        if sf is not None: receiver.SetSingleFire(sf)
+                        aw = prop.GetAimedWeapon()
+                        if aw is not None: receiver.SetAimedWeapon(aw)
+
+        # Pass 2 — seed torpedo tubes (idempotent).
+        ts = self._torpedo_system
+        if ts is not None and ts.GetNumAmmoTypes() == 0:
+            tube_count = sum(
+                1
+                for prop in self.GetPropertySet().GetPropertyList()
+                if isinstance(prop, TorpedoTubeProperty)
+            )
+            for _ in range(tube_count):
+                ts.AddAmmoType(App.AT_ONE)
 
     @staticmethod
     def _copy_powered_subsystem_fields(prop, subsystem) -> None:
@@ -180,6 +281,7 @@ def ShipClass_Create(class_name: str = "") -> ShipClass:
     from engine.appc.subsystems import (
         TorpedoSystem, PhaserSystem, PulseWeaponSystem, TractorBeamSystem,
         SensorSubsystem, ImpulseEngineSubsystem, WarpEngineSubsystem,
+        ShieldSubsystem,
     )
     ship = ShipClass()
     ship.SetName(class_name)
@@ -190,6 +292,7 @@ def ShipClass_Create(class_name: str = "") -> ShipClass:
     ship.SetSensorSubsystem(SensorSubsystem("Sensor Subsystem"))
     ship.SetImpulseEngineSubsystem(ImpulseEngineSubsystem("Impulse Engines"))
     ship.SetWarpEngineSubsystem(WarpEngineSubsystem("Warp Engines"))
+    ship.SetShieldSubsystem(ShieldSubsystem("Shield Generator"))
     return ship
 
 

@@ -160,6 +160,19 @@ CT_WEAPON                        = WeaponProperty
 CT_ENERGY_WEAPON                 = EnergyWeaponProperty
 CT_SHIP                          = ShipProperty
 
+# ── App.AT_* ammo-type constants ─────────────────────────────────────────────
+# SDK code treats these as TorpedoAmmoType instances (objects with GetAmmoName)
+# rather than plain ints — MissionLib.SetTotalTorpsAtStarbase iterates the
+# torpedo system and compares ``pTorpType.GetAmmoName() == "Photon"``.
+# Standard BC ammo names: AT_ONE = "Photon", AT_TWO = "Quantum"; later
+# slots are placeholders used by other missions.
+from engine.appc.subsystems import TorpedoAmmoType as _TorpedoAmmoType
+AT_ONE   = _TorpedoAmmoType("Photon")
+AT_TWO   = _TorpedoAmmoType("Quantum")
+AT_THREE = _TorpedoAmmoType("TriCobalt")
+AT_FOUR  = _TorpedoAmmoType("Plasma")
+AT_FIVE  = _TorpedoAmmoType("Polaron")
+
 # ── Numeric constants ──────────────────────────────────────────────────────────
 NULL_ID = 0
 PI = math.pi

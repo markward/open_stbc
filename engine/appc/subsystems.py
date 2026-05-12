@@ -29,6 +29,11 @@ class ShipSubsystem(TGEventHandlerObject):
         self._max_condition = 1.0
         self._radius = 0.0
         self._position = TGPoint3(0.0, 0.0, 0.0)
+        # Shared identity fields populated by SetupProperties.
+        self._critical: int = 0
+        self._targetable: int = 0
+        self._primary: int = 0
+        self._disabled_percentage: float = 0.25
 
     def GetName(self) -> str:
         return self._name
@@ -87,6 +92,9 @@ class ShipSubsystem(TGEventHandlerObject):
     def GetRadius(self) -> float:
         return self._radius
 
+    def SetRadius(self, value: float) -> None:
+        self._radius = float(value)
+
     def GetPositionTG(self) -> TGPoint3:
         return TGPoint3(self._position.x, self._position.y, self._position.z)
 
@@ -126,11 +134,14 @@ class ShipSubsystem(TGEventHandlerObject):
     def GetChildSubsystem(self, index_or_name=None):
         return None
 
-    def GetDisabledPercentage(self) -> float:
-        # SDK SubsystemProperty.GetDisabledPercentage: fraction of max condition
-        # below which the subsystem is "disabled".  Default 0.25 matches the
-        # Appc default for systems where the property hasn't overridden it.
-        return 0.25
+    def GetCritical(self) -> int:                       return self._critical
+    def SetCritical(self, v) -> None:                   self._critical = int(v)
+    def GetTargetable(self) -> int:                     return self._targetable
+    def SetTargetable(self, v) -> None:                 self._targetable = int(v)
+    def GetPrimary(self) -> int:                        return self._primary
+    def SetPrimary(self, v) -> None:                    self._primary = int(v)
+    def GetDisabledPercentage(self) -> float:           return self._disabled_percentage
+    def SetDisabledPercentage(self, v) -> None:         self._disabled_percentage = float(v)
 
 
 class PoweredSubsystem(ShipSubsystem):
@@ -153,12 +164,18 @@ class PoweredSubsystem(ShipSubsystem):
         self._current_power = float(value)
 
 
-class WeaponSystem(ShipSubsystem):
-    """Weapon system — has firing state and an optional target."""
+class WeaponSystem(PoweredSubsystem):
+    """Weapon system — has firing state and an optional target.
+
+    Reparented under PoweredSubsystem because every weapon system in BC
+    has a power line.  See sdk/.../App.py:6361 (WeaponSystem inherits
+    PoweredSubsystem there).
+    """
     def __init__(self, name: str = ""):
         super().__init__(name)
         self._firing = False
         self._target = None
+        self._weapon_system_type: int = 0
 
     def IsFiring(self) -> int:
         return 1 if self._firing else 0
@@ -174,6 +191,27 @@ class WeaponSystem(ShipSubsystem):
 
     def SetTarget(self, target) -> None:
         self._target = target
+
+    def GetWeaponSystemType(self) -> int:           return self._weapon_system_type
+    def SetWeaponSystemType(self, v) -> None:       self._weapon_system_type = int(v)
+
+
+class TorpedoAmmoType:
+    """A loaded torpedo ammo type — exposes the SDK GetAmmoName surface.
+
+    Real BC Appc has a TorpedoAmmoType class with per-instance ammo properties
+    (damage, blast radius, etc.); Phase 1 only needs the name for the
+    MissionLib.SetTotalTorpsAtStarbase / LoadTorpedoes lookup pattern, which
+    compares ``pTorpType.GetAmmoName() == "Photon"``.
+    """
+    def __init__(self, name: str):
+        self._name = name
+
+    def GetAmmoName(self) -> str:
+        return self._name
+
+    def __repr__(self) -> str:
+        return f"<TorpedoAmmoType {self._name!r}>"
 
 
 class TorpedoSystem(WeaponSystem):
@@ -213,12 +251,19 @@ class PhaserSystem(WeaponSystem):
     def __init__(self, name: str = ""):
         super().__init__(name)
         self._power_level = self.PP_HIGH
+        self._single_fire: int = 0
+        self._aimed_weapon: int = 0
 
     def SetPowerLevel(self, level) -> None:
         self._power_level = int(level)
 
     def GetPowerLevel(self) -> int:
         return self._power_level
+
+    def GetSingleFire(self) -> int:                 return self._single_fire
+    def SetSingleFire(self, v) -> None:             self._single_fire = int(v)
+    def GetAimedWeapon(self) -> int:                return self._aimed_weapon
+    def SetAimedWeapon(self, v) -> None:            self._aimed_weapon = int(v)
 
 
 class PulseWeaponSystem(WeaponSystem):
@@ -256,7 +301,15 @@ class HullSubsystem(ShipSubsystem):
 
 
 class SensorSubsystem(PoweredSubsystem):
-    pass
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        self._base_sensor_range: float = 0.0
+        self._max_probes: int = 0
+
+    def GetBaseSensorRange(self) -> float:           return self._base_sensor_range
+    def SetBaseSensorRange(self, v) -> None:         self._base_sensor_range = float(v)
+    def GetMaxProbes(self) -> int:                   return self._max_probes
+    def SetMaxProbes(self, v) -> None:               self._max_probes = int(v)
 
 
 class ImpulseEngineSubsystem(PoweredSubsystem):
@@ -317,6 +370,44 @@ class WarpEngineSubsystem(PoweredSubsystem):
 
     def SetWarpState(self, state) -> None:
         self._warp_state = int(state)
+
+
+class ShieldSubsystem(PoweredSubsystem):
+    """Six-face shield generator.
+
+    Faces indexed by ShieldProperty.FRONT_SHIELDS..RIGHT_SHIELDS (0..5).
+    SetMaxShields seeds current to that max when current was 0 — mirrors
+    HullSubsystem.SetMaxCondition so freshly-loaded ships start fully shielded.
+    """
+    NUM_FACES = 6
+
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        self._max_shields:       list[float] = [0.0] * self.NUM_FACES
+        self._current_shields:   list[float] = [0.0] * self.NUM_FACES
+        self._charge_per_second: list[float] = [0.0] * self.NUM_FACES
+
+    def GetMaxShields(self, face: int) -> float:
+        return self._max_shields[int(face)]
+
+    def SetMaxShields(self, face: int, value: float) -> None:
+        f = int(face)
+        v = float(value)
+        if self._current_shields[f] == 0.0:
+            self._current_shields[f] = v
+        self._max_shields[f] = v
+
+    def GetCurrentShields(self, face: int) -> float:
+        return self._current_shields[int(face)]
+
+    def SetCurrentShields(self, face: int, value: float) -> None:
+        self._current_shields[int(face)] = float(value)
+
+    def GetShieldChargePerSecond(self, face: int) -> float:
+        return self._charge_per_second[int(face)]
+
+    def SetShieldChargePerSecond(self, face: int, value: float) -> None:
+        self._charge_per_second[int(face)] = float(value)
 
 
 # ── Module-level WarpEngineSubsystem helpers ─────────────────────────────────
