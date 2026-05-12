@@ -92,6 +92,9 @@ class ShipSubsystem(TGEventHandlerObject):
     def GetRadius(self) -> float:
         return self._radius
 
+    def SetRadius(self, value: float) -> None:
+        self._radius = float(value)
+
     def GetPositionTG(self) -> TGPoint3:
         return TGPoint3(self._position.x, self._position.y, self._position.z)
 
