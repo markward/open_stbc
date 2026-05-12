@@ -51,7 +51,6 @@ const char* block_type_name(const nif::Block& b) {
         else if constexpr (std::is_same_v<T, nif::NiMaterialProperty>)      return "NiMaterialProperty";
         else if constexpr (std::is_same_v<T, nif::NiKeyframeController>)    return "NiKeyframeController";
         else if constexpr (std::is_same_v<T, nif::NiTriShapeSkinController>) return "NiTriShapeSkinController";
-        else if constexpr (std::is_same_v<T, nif::NiTexturingProperty>)     return "NiTexturingProperty";
         else if constexpr (std::is_same_v<T, nif::NiMultiTextureProperty>)  return "NiMultiTextureProperty";
         else if constexpr (std::is_same_v<T, nif::NiKeyframeData>)          return "NiKeyframeData";
         else if constexpr (std::is_same_v<T, nif::NiStringExtraData>)       return "NiStringExtraData";
@@ -87,7 +86,7 @@ const char* kRegisteredTypes[] = {
     "NiKeyframeData", "NiLookAtController", "NiMaterialProperty",
     "NiMultiTextureProperty", "NiNode", "NiPointLight", "NiRawImageData",
     "NiRollController", "NiSpotLight", "NiStringExtraData",
-    "NiTextureModeProperty", "NiTextureProperty", "NiTexturingProperty",
+    "NiTextureModeProperty", "NiTextureProperty",
     "NiTriShape", "NiTriShapeData", "NiTriShapeSkinController",
     "NiVertexColorProperty", "NiVisController", "NiVisData",
     "NiZBufferProperty",

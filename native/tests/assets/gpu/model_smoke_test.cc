@@ -54,5 +54,5 @@ TEST_F(ModelSmokeTest, LoadsGalaxyEndToEnd) {
     }
     EXPECT_GT(materials_with_base_texture, 0)
         << "no material on the Galaxy resolves a Base-stage texture; "
-           "load_all_textures' map keys are likely out of sync with TexDesc::source_link";
+           "load_all_textures' map keys are likely out of sync with the NiImage link IDs";
 }

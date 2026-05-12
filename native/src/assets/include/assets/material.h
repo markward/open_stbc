@@ -17,9 +17,10 @@ struct Material {
     float glossiness = 0.0f;
     float alpha = 1.0f;
 
-    /// Texture stages. Most slots are populated by NiTexturingProperty
-    /// blocks. Two slots have runtime-attached conventions driven by
-    /// AddLOD filename suffixes on NiImages (see model_build.cc):
+    /// Texture stages. The Base slot is populated by NiTextureProperty
+    /// (singular) or NiMultiTextureProperty (5-stage table). Two slots
+    /// have runtime-attached conventions driven by AddLOD filename
+    /// suffixes on NiImages (see model_build.cc):
     ///
     ///   Glow  — populated when a NiImage filename ends in "_glow".
     ///           Dual-binds with Base; alpha is the emissive mask.

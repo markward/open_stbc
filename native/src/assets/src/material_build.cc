@@ -43,26 +43,6 @@ void apply_vertex_color_property(Material& m, const nif::NiVertexColorProperty& 
     m.vc_lighting_mode = src.lighting_mode;
 }
 
-void apply_stage(
-    Material::TextureStage& stage,
-    const nif::TexDesc& src,
-    std::uint32_t apply_mode,
-    const std::unordered_map<std::uint32_t, int>* image_to_texture)
-{
-    if (!src.has) return;
-    int tex_idx = -1;
-    if (image_to_texture) {
-        if (auto it = image_to_texture->find(src.source_link); it != image_to_texture->end()) {
-            tex_idx = it->second;
-        }
-    }
-    stage.texture_index = tex_idx;
-    stage.clamp_mode    = src.clamp_mode;
-    stage.filter_mode   = src.filter_mode;
-    stage.uv_set        = src.uv_set;
-    stage.apply_mode    = apply_mode;
-}
-
 void apply_texture_property(
     Material& m,
     const nif::NiTextureProperty& src,
@@ -122,26 +102,6 @@ void apply_texture_property(
     }
 }
 
-void apply_texturing_property(
-    Material& m,
-    const nif::NiTexturingProperty& src,
-    const std::unordered_map<std::uint32_t, int>* image_to_texture)
-{
-    using S = Material::StageSlot;
-    auto idx = [](S s) { return static_cast<std::size_t>(s); };
-    apply_stage(m.stages[idx(S::Base)],   src.base,     src.apply_mode, image_to_texture);
-    apply_stage(m.stages[idx(S::Dark)],   src.dark,     src.apply_mode, image_to_texture);
-    apply_stage(m.stages[idx(S::Detail)], src.detail,   src.apply_mode, image_to_texture);
-    apply_stage(m.stages[idx(S::Gloss)],  src.gloss,    src.apply_mode, image_to_texture);
-    apply_stage(m.stages[idx(S::Glow)],   src.glow,     src.apply_mode, image_to_texture);
-    apply_stage(m.stages[idx(S::Bump)],   src.bump_map, src.apply_mode, image_to_texture);
-    apply_stage(m.stages[idx(S::Decal0)], src.decal0,   src.apply_mode, image_to_texture);
-    if (src.texture_count >= 8)
-        apply_stage(m.stages[idx(S::Decal1)], src.decal1, src.apply_mode, image_to_texture);
-    if (src.texture_count >= 9)
-        apply_stage(m.stages[idx(S::Decal2)], src.decal2, src.apply_mode, image_to_texture);
-}
-
 void apply_multi_texture_property(
     Material& m,
     const nif::NiMultiTextureProperty& src,
@@ -180,7 +140,6 @@ Material build_material(const MaterialInputs& in) {
     if (in.texture) apply_texture_property(m, *in.texture,
         in.image_to_texture, in.glow_image_links, in.specular_image_links,
         in.sibling_specular_for_image);
-    if (in.texturing)     apply_texturing_property(m, *in.texturing, in.image_to_texture);
     if (in.multi_texture) apply_multi_texture_property(m, *in.multi_texture, in.image_to_texture);
     return m;
 }

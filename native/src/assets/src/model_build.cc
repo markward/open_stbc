@@ -278,7 +278,6 @@ MaterialInputs gather_material_inputs(
         const auto& b = f.blocks[idx];
         if (auto* p = std::get_if<nif::NiMaterialProperty>(&b))      in.material      = p;
         else if (auto* p = std::get_if<nif::NiTextureProperty>(&b))      in.texture       = p;
-        else if (auto* p = std::get_if<nif::NiTexturingProperty>(&b))    in.texturing     = p;
         else if (auto* p = std::get_if<nif::NiMultiTextureProperty>(&b)) in.multi_texture = p;
         else if (auto* p = std::get_if<nif::NiAlphaProperty>(&b))        in.alpha         = p;
         else if (auto* p = std::get_if<nif::NiZBufferProperty>(&b))      in.zbuffer       = p;

@@ -4,11 +4,12 @@
 //   - NiTextureModeProperty: NiObjectNET + flags(u16) + ps2_l(i16) + ps2_k(i16)
 //   - NiImage: use_external(u8) + (file_name | image_data_link) + unknown_int + unknown_float
 //   - NiTextureProperty: NiObjectNET + flags(u16) + image_link(u32)
+//   - NiMultiTextureProperty: legacy 5-stage table (custom body, NOT
+//     inherited from any other property despite the schema).
 //
-// NiMultiTextureProperty inherits from NiTexturingProperty which has a much
-// larger conditional body (texture descriptors per slot). Deferred until a
-// later task — Galaxy.nif uses NiTextureProperty/NiImage which suffice for
-// the walker's first pass through ship blocks.
+// NiTexturingProperty was previously registered here but never appears
+// in BC content (probe_block_inventory across 805 NIFs = 0 blocks), so
+// the parser and struct have been removed — see commit history.
 
 #include "../dispatch.h"
 #include "../reader.h"
@@ -64,67 +65,7 @@ NiTextureProperty parse_NiTextureProperty_body(Reader& r) {
     return p;
 }
 
-// Reads a single TexDesc body (no leading hasXxx bool — caller decides).
-// Per niflib's TexDesc Read for v3.1: source_link + clamp + filter + uv_set
-// + ps2_l + ps2_k + unknown1.
-TexDesc read_tex_desc_body(Reader& r) {
-    TexDesc t;
-    t.has = true;
-    t.source_link = r.read_uint32();
-    t.clamp_mode = r.read_uint32();
-    t.filter_mode = r.read_uint32();
-    t.uv_set = r.read_uint32();
-    t.ps2_l = static_cast<std::int16_t>(r.read_uint16());
-    t.ps2_k = static_cast<std::int16_t>(r.read_uint16());
-    t.unknown1 = r.read_uint16();
-    return t;
-}
-
 bool read_bool32(Reader& r) { return r.read_uint32() != 0; }
-
-void read_optional_tex_desc(Reader& r, TexDesc& out) {
-    if (read_bool32(r)) {
-        out = read_tex_desc_body(r);
-    }
-}
-
-// NiTexturingProperty body for v3.1, per niflib's NiTexturingProperty::Read.
-//   NiObjectNET base
-//   flags        (uint16)         // version <= 0x0A000102
-//   apply_mode   (uint32)         // version <= 0x14000005
-//   texture_count(uint32)
-//   base/dark/detail/gloss/glow texture descriptors (each: hasXxx bool + TexDesc)
-//   bump_map: hasBump bool + (TexDesc + lumaScale + lumaOffset + Matrix22)
-//   (normal/unknown2 textures are SKIPPED in v3.1 — version >= 14.2.0.7 only)
-//   decal0: hasDecal0 bool + TexDesc
-//   if texture_count >= 8: hasDecal1 bool + TexDesc
-//   if texture_count >= 9: hasDecal2 bool + TexDesc
-NiTexturingProperty parse_NiTexturingProperty_body(Reader& r) {
-    NiTexturingProperty p;
-    p.obj = parse_object_net_base(r);
-    p.flags = r.read_uint16();
-    p.apply_mode = r.read_uint32();
-    p.texture_count = r.read_uint32();
-
-    read_optional_tex_desc(r, p.base);
-    read_optional_tex_desc(r, p.dark);
-    read_optional_tex_desc(r, p.detail);
-    read_optional_tex_desc(r, p.gloss);
-    read_optional_tex_desc(r, p.glow);
-
-    if (read_bool32(r)) {
-        p.bump_map = read_tex_desc_body(r);
-        p.bump_map_luma_scale = r.read_float();
-        p.bump_map_luma_offset = r.read_float();
-        for (auto& f : p.bump_map_matrix) f = r.read_float();
-    }
-
-    read_optional_tex_desc(r, p.decal0);
-    if (p.texture_count >= 8) read_optional_tex_desc(r, p.decal1);
-    if (p.texture_count >= 9) read_optional_tex_desc(r, p.decal2);
-
-    return p;
-}
 
 }  // namespace
 
@@ -160,12 +101,8 @@ NIF_REGISTER_BLOCK(NiRawImageData, [](Reader& r) -> Block {
     return d;
 });
 
-NIF_REGISTER_BLOCK(NiTexturingProperty, [](Reader& r) -> Block {
-    return parse_NiTexturingProperty_body(r);
-});
-
-// NiMultiTextureProperty has its own body (NOT NiTexturingProperty's,
-// despite the schema). 5 MultiTextureElement entries; per niflib for v3.1:
+// NiMultiTextureProperty body: 5 MultiTextureElement entries; per niflib
+// for v3.1:
 //   NiObjectNET base
 //   flags (uint16), unknown_int (uint32)
 //   for i in 0..4:

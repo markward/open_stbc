@@ -15,7 +15,6 @@ namespace assets::detail {
 struct MaterialInputs {
     const nif::NiMaterialProperty*     material      = nullptr;
     const nif::NiTextureProperty*      texture       = nullptr;
-    const nif::NiTexturingProperty*    texturing     = nullptr;
     const nif::NiMultiTextureProperty* multi_texture = nullptr;
     const nif::NiAlphaProperty*        alpha         = nullptr;
     const nif::NiZBufferProperty*      zbuffer       = nullptr;

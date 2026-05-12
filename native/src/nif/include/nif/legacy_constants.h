@@ -31,7 +31,7 @@ inline constexpr float kGravityStrengthMultiplier = 1.6f;
 inline constexpr float kFlipControllerIndexFudge = 0.01f;
 
 // NiFlipController shader-map offset. Map indices < this value name
-// standard NiTexturingProperty slots; indices >= this offset select a
+// standard texturing-property slots; indices >= this offset select a
 // shader-map slot at (index - kFlipControllerShaderMapOffset).
 inline constexpr int kFlipControllerShaderMapOffset = 1024;
 

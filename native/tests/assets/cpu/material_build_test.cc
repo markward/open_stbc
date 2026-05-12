@@ -65,34 +65,6 @@ TEST(MaterialBuild, NiZBufferPropertyDecodesFlags) {
     EXPECT_TRUE(m.depth_write_enabled);
 }
 
-TEST(MaterialBuild, NiTexturingPropertyMapsStagesViaImageMap) {
-    nif::NiTexturingProperty tex;
-    tex.apply_mode = 2;
-    tex.texture_count = 7;
-    tex.base.has = true;
-    tex.base.source_link = 42;
-    tex.base.uv_set = 0;
-    tex.glow.has = true;
-    tex.glow.source_link = 17;
-
-    std::unordered_map<std::uint32_t, int> image_to_texture = {
-        {42, 3},
-        {17, 7},
-    };
-
-    auto in = basic_inputs();
-    in.texturing = &tex;
-    in.image_to_texture = &image_to_texture;
-    auto m = assets::detail::build_material(in);
-
-    using S = assets::Material::StageSlot;
-    auto i = [](S s) { return static_cast<std::size_t>(s); };
-    EXPECT_EQ(m.stages[i(S::Base)].texture_index, 3);
-    EXPECT_EQ(m.stages[i(S::Glow)].texture_index, 7);
-    EXPECT_EQ(m.stages[i(S::Dark)].texture_index, -1);
-    EXPECT_EQ(m.stages[i(S::Base)].apply_mode, 2u);
-}
-
 TEST(MaterialBuild, NiMultiTexturePropertyMaps5Slots) {
     nif::NiMultiTextureProperty nmt;
     nmt.elements[0].has_image  = true;

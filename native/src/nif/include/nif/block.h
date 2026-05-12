@@ -235,44 +235,8 @@ struct NiTextureProperty {
     std::uint32_t image_link = 0;
 };
 
-/// Per-slot texture descriptor used by NiTexturingProperty.
-/// Field set per niflib's TexDesc Read for v3.1.
-struct TexDesc {
-    bool has = false;
-    std::uint32_t source_link = 0;   // link to NiImage / NiSourceTexture
-    std::uint32_t clamp_mode = 0;
-    std::uint32_t filter_mode = 0;
-    std::uint32_t uv_set = 0;
-    std::int16_t  ps2_l = 0;
-    std::int16_t  ps2_k = -75;
-    std::uint16_t unknown1 = 0;
-};
-
-/// Standard NIF texture-stage descriptor used by NiTexturingProperty.
-struct NiTexturingProperty {
-    ObjectNetBase obj;
-    std::uint16_t flags = 0;
-    std::uint32_t apply_mode = 2;     // APPLY_MODULATE
-    std::uint32_t texture_count = 7;
-    TexDesc base;
-    TexDesc dark;
-    TexDesc detail;
-    TexDesc gloss;
-    TexDesc glow;
-    TexDesc bump_map;
-    float bump_map_luma_scale = 0.0f;
-    float bump_map_luma_offset = 0.0f;
-    /// Bump map matrix (Matrix22 = 4 floats).
-    std::array<float, 4> bump_map_matrix{};
-    TexDesc decal0;
-    TexDesc decal1;  // populated only if texture_count >= 8
-    TexDesc decal2;  // populated only if texture_count >= 9
-};
-
 /// Per-stage entry inside a legacy NiMultiTextureProperty body.
-/// Field set per niflib's NiMultiTextureProperty::Read for v3.1 — note
-/// that this is NOT TexDesc (different field set, smaller, no flags or
-/// transform).
+/// Field set per niflib's NiMultiTextureProperty::Read for v3.1.
 struct MultiTextureElement {
     bool has_image = false;
     std::uint32_t image_link = 0;
@@ -284,10 +248,8 @@ struct MultiTextureElement {
     std::uint16_t unknown_short3 = 0;
 };
 
-/// Legacy v3.x multi-texture property. Despite the schema's
-/// `inherit="NiTexturingProperty"` line, niflib's actual Read implements
-/// a custom body of 5 MultiTextureElement entries — much simpler than
-/// NiTexturingProperty's slot list.
+/// Legacy v3.x multi-texture property. Body is a custom 5-element list
+/// of MultiTextureElement entries.
 struct NiMultiTextureProperty {
     ObjectNetBase obj;
     std::uint16_t flags = 0;
@@ -480,7 +442,6 @@ using Block = std::variant<
     NiMaterialProperty,
     NiKeyframeController,
     NiTriShapeSkinController,
-    NiTexturingProperty,
     NiMultiTextureProperty,
     NiKeyframeData,
     NiStringExtraData,

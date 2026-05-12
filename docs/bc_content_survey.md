@@ -214,13 +214,16 @@ actual usage of every block type across the corpus. Across 805 files and
 
 ### Registered-but-unused (dead-code candidates)
 
-One of our 31 registered types never appears in BC content:
+The probe found one registered type that never appears in BC content:
+**`NiTexturingProperty`** — the newer multi-stage property class. **Removed
+in a follow-up commit**: registration, body parser, the `TexDesc` struct,
+the `NiTexturingProperty` struct, the variant alternative, the
+`apply_stage` and `apply_texturing_property` helpers in the asset
+builder, the `texturing` field on `MaterialInputs`, and the
+`NiTexturingPropertyMapsStagesViaImageMap` test. The probe now reports
+zero dead-code candidates.
 
-- **`NiTexturingProperty`** — see above. Safe to remove the registration,
-  the parser body, and the variant alternative; we will never see this
-  block in BC.
-
-The 31st registration — **`NiBone`** — is intentionally a class-name
+The 30th registration — **`NiBone`** — is intentionally a class-name
 alias that reuses the `NiNode` body parser, the same pattern round 2
 documented for `NiKeyframeController` → `NiTransformController`. Any
 `NiBone` block on disk deserializes to an `NiNode` variant value, so
