@@ -34,6 +34,7 @@ add_library(renderer STATIC
     aabb.cc
     shield_state.cc
     skin_shield.cc
+    shield_pass.cc
 )
 target_include_directories(renderer
     PUBLIC include
