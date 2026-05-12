@@ -25,6 +25,7 @@ class ShipClass(DamageableObject):
         self._phaser_system = None
         self._pulse_weapon_system = None
         self._tractor_beam_system = None
+        self._shield_subsystem = None
         # Hull is created lazily by SetupProperties() when a HullProperty is
         # found in the property set (SDK App.py:5382-5383).  Stays None for
         # ships with no hardpoint applied.
@@ -70,6 +71,8 @@ class ShipClass(DamageableObject):
     def SetPulseWeaponSystem(self, s) -> None:    self._pulse_weapon_system = s
     def GetTractorBeamSystem(self):               return self._tractor_beam_system
     def SetTractorBeamSystem(self, s) -> None:    self._tractor_beam_system = s
+    def GetShieldSubsystem(self):                 return self._shield_subsystem
+    def SetShieldSubsystem(self, s) -> None:      self._shield_subsystem = s
     def GetHull(self):                            return self._hull
     def SetHull(self, h) -> None:                 self._hull = h
 
@@ -180,6 +183,7 @@ def ShipClass_Create(class_name: str = "") -> ShipClass:
     from engine.appc.subsystems import (
         TorpedoSystem, PhaserSystem, PulseWeaponSystem, TractorBeamSystem,
         SensorSubsystem, ImpulseEngineSubsystem, WarpEngineSubsystem,
+        ShieldSubsystem,
     )
     ship = ShipClass()
     ship.SetName(class_name)
@@ -190,6 +194,7 @@ def ShipClass_Create(class_name: str = "") -> ShipClass:
     ship.SetSensorSubsystem(SensorSubsystem("Sensor Subsystem"))
     ship.SetImpulseEngineSubsystem(ImpulseEngineSubsystem("Impulse Engines"))
     ship.SetWarpEngineSubsystem(WarpEngineSubsystem("Warp Engines"))
+    ship.SetShieldSubsystem(ShieldSubsystem("Shield Generator"))
     return ship
 
 
