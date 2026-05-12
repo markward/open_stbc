@@ -448,6 +448,43 @@ def TGStringEvent_Create(): return _TGStringEvent()
 def TGFloatEvent_Create(): return _TGFloatEvent()
 
 
+# ── TGColorA — 4-float RGBA value (NetImmerse NiColorA) ───────────────────────
+# Hardpoint scripts and Tactical/Projectiles/* allocate these to hold shield-
+# glow / weapon / torpedo / UI panel tints, then hand them to engine setters
+# such as ShieldProperty.SetShieldGlowColor and pTorp.CreateTorpedoModel.
+# Both method (SetRGBA/GetR/...) and attribute (kColor.r = 0.0) forms are used
+# in the SDK; UITree.py:292 reads via attribute, StylizedWindow.py writes via
+# attribute, hardpoints write via SetRGBA.
+class TGColorA:
+    def __init__(self, r=0.0, g=0.0, b=0.0, a=0.0):
+        self.r = float(r)
+        self.g = float(g)
+        self.b = float(b)
+        self.a = float(a)
+
+    def SetRGBA(self, r, g, b, a):
+        self.r = float(r); self.g = float(g)
+        self.b = float(b); self.a = float(a)
+
+    def SetR(self, v): self.r = float(v)
+    def SetG(self, v): self.g = float(v)
+    def SetB(self, v): self.b = float(v)
+    def SetA(self, v): self.a = float(v)
+
+    def GetR(self): return self.r
+    def GetG(self): return self.g
+    def GetB(self): return self.b
+    def GetA(self): return self.a
+
+    def ScaleRGB(self, k):
+        k = float(k)
+        self.r *= k; self.g *= k; self.b *= k
+
+    def Copy(self, other):
+        self.r = other.r; self.g = other.g
+        self.b = other.b; self.a = other.a
+
+
 # ── Stub call tracker ─────────────────────────────────────────────────────────
 class _StubTracker:
     def __init__(self):
@@ -478,6 +515,44 @@ class _StubTracker:
         self._mission = None
 
 _stub_tracker = _StubTracker()
+
+
+# ── Color consumer tracker ────────────────────────────────────────────────────
+# Records (setter_name, mission, caller_file:line, rgba) for every stub call
+# whose arg list contains a TGColorA.  Off by default — enable only when
+# running the gameloop harness with --color-consumers so frame inspection
+# overhead stays out of the normal path.
+class _ColorConsumerTracker:
+    def __init__(self):
+        self._enabled = False
+        # key = (name, mission, caller, rgba) → count
+        self._data: dict = {}
+
+    def enable(self): self._enabled = True
+    def disable(self): self._enabled = False
+    def is_enabled(self): return self._enabled
+
+    def record(self, name, color, caller_file, caller_line):
+        if not self._enabled:
+            return
+        mission = _stub_tracker._mission
+        if mission is None:
+            return
+        rgba = (color.r, color.g, color.b, color.a)
+        key = (name, mission, "%s:%d" % (caller_file, caller_line), rgba)
+        self._data[key] = self._data.get(key, 0) + 1
+
+    def report(self):
+        # rows sorted: most-called first, then by name
+        rows = [(n, m, c, rgba, count) for (n, m, c, rgba), count in self._data.items()]
+        rows.sort(key=lambda r: (-r[4], r[0], r[1], r[2]))
+        return rows
+
+    def clear(self):
+        self._data.clear()
+
+
+_color_consumer_tracker = _ColorConsumerTracker()
 
 
 # ── Fallback stub ──────────────────────────────────────────────────────────────
@@ -563,6 +638,15 @@ class _NamedStub(_Stub):
 
     def __call__(self, *args, **kwargs):
         _stub_tracker.record(self._name)
+        if _color_consumer_tracker.is_enabled():
+            for a in args:
+                if isinstance(a, TGColorA):
+                    import sys as _sys
+                    frame = _sys._getframe(1)
+                    _color_consumer_tracker.record(
+                        self._name, a, frame.f_code.co_filename, frame.f_lineno
+                    )
+                    break
         return _NamedStub(f"{self._name}()")
 
 

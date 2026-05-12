@@ -25,8 +25,22 @@ class TGModelProperty:
         if attr.startswith("Set"):
             field = attr[3:]
             data = self._data
+            cls_name = type(self).__name__
             def setter(*args):
                 data[(field, _hashable_key(args[:-1]))] = args[-1]
+                # Empirical consumer tracking: if any arg is a TGColorA, log
+                # which shim setter received it (off unless harness enables).
+                import App as _App
+                if _App._color_consumer_tracker.is_enabled():
+                    for a in args:
+                        if isinstance(a, _App.TGColorA):
+                            import sys as _sys
+                            frame = _sys._getframe(1)
+                            _App._color_consumer_tracker.record(
+                                f"{cls_name}.{attr}", a,
+                                frame.f_code.co_filename, frame.f_lineno,
+                            )
+                            break
             return setter
         if attr.startswith("Get"):
             field = attr[3:]

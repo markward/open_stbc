@@ -122,9 +122,45 @@ def _print_profile_report(n_ticks: int, n_missions: int) -> None:
         print(f"  ... {len(rows) - _PROFILE_ROWS} more rows omitted")
 
 
-def main(n_ticks: int = _DEFAULT_TICKS, profile: bool = False) -> None:
+def _print_color_consumer_report() -> None:
+    rows = _App._color_consumer_tracker.report()
+    print(f"\nColor consumer report  ({len(rows)} unique (setter, mission, caller, rgba) tuples)")
+    print("─" * 110)
+    if not rows:
+        print("  (no TGColorA-bearing stub calls recorded — enable producers first)")
+        return
+    # Per-setter rollup: which engine surfaces matter most, and across how many missions.
+    from collections import defaultdict
+    by_setter: dict = defaultdict(lambda: {"missions": set(), "calls": 0, "callers": set()})
+    for name, mission, caller, _rgba, count in rows:
+        by_setter[name]["missions"].add(mission)
+        by_setter[name]["calls"] += count
+        by_setter[name]["callers"].add(caller)
+    print(f"  {'Rank':>4}  {'Setter':<48}  {'Missions':>8}  {'Calls':>6}  {'Callers':>7}")
+    summary = sorted(
+        by_setter.items(), key=lambda kv: (-len(kv[1]["missions"]), -kv[1]["calls"], kv[0])
+    )
+    for rank, (name, agg) in enumerate(summary, 1):
+        print(
+            f"  {rank:>4}  {name:<48}  {len(agg['missions']):>8}  {agg['calls']:>6}  {len(agg['callers']):>7}"
+        )
+
+    # Detail dump grouped by setter — first 5 distinct callers each.
+    print("\nDetail (first 5 callers per setter):")
+    for name, agg in summary:
+        print(f"\n  {name}  [{agg['calls']} calls, {len(agg['missions'])} missions]")
+        callers = sorted(agg["callers"])[:5]
+        for c in callers:
+            print(f"      {c}")
+
+
+def main(n_ticks: int = _DEFAULT_TICKS, profile: bool = False, color_consumers: bool = False) -> None:
     _mh.setup_sdk()
     missions = _mh.discover_missions()
+    if color_consumers:
+        _App._color_consumer_tracker.enable()
+        # color recording needs the per-mission tag the stub tracker maintains
+        profile = True
 
     print("open_stbc game-loop harness")
     print("=" * 50)
@@ -167,6 +203,8 @@ def main(n_ticks: int = _DEFAULT_TICKS, profile: bool = False) -> None:
 
     if profile:
         _print_profile_report(n_ticks, len(missions))
+    if color_consumers:
+        _print_color_consumer_report()
 
 
 if __name__ == "__main__":
@@ -179,5 +217,9 @@ if __name__ == "__main__":
         "--profile", action="store_true",
         help="print ranked stub call profile after the run"
     )
+    parser.add_argument(
+        "--color-consumers", action="store_true",
+        help="record every stub call that receives a TGColorA and dump a per-setter consumer report"
+    )
     args = parser.parse_args()
-    main(args.ticks, profile=args.profile)
+    main(args.ticks, profile=args.profile, color_consumers=args.color_consumers)
