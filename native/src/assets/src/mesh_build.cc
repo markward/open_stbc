@@ -13,6 +13,15 @@ inline std::uint8_t to_u8(float f) {
 
 }  // namespace
 
+// NOTE: shape parameter is currently unused, but NiTriShape carries an
+// `av` block with a local translation/rotation/scale that, per the NIF
+// transform model, composes as parent_world * (T * R * S) on top of the
+// parent NiNode's world transform. For every BC ship NIF we've inspected
+// so far (Galaxy, Sovereign, etc.) the per-shape transform is identity,
+// so ignoring it produces correct results today. If a ship ever renders
+// displaced from its parent node, this is the first place to look — bake
+// the shape transform into the vertex positions or hand it through to
+// the renderer's per-mesh matrix.
 MeshCpu build_mesh_cpu(
     const nif::NiTriShape& /*shape*/,
     const nif::NiTriShapeData& data,
