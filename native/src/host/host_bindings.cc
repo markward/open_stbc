@@ -432,6 +432,63 @@ PYBIND11_MODULE(_open_stbc_host, m) {
           "Reseed the dust particle buffer with `count` particles "
           "(clamped to [0, 50000]).");
 
+    m.def("shield_register",
+          [](scenegraph::InstanceId id,
+             int mode,
+             float decay_seconds,
+             std::tuple<float, float, float, float> default_color,
+             std::tuple<float, float, float> aabb_center,
+             std::tuple<float, float, float> aabb_half_extents) {
+              if (!g_shield_pass) return;
+              const glm::vec4 dc(std::get<0>(default_color),
+                                  std::get<1>(default_color),
+                                  std::get<2>(default_color),
+                                  std::get<3>(default_color));
+              const glm::vec3 ac(std::get<0>(aabb_center),
+                                  std::get<1>(aabb_center),
+                                  std::get<2>(aabb_center));
+              const glm::vec3 ah(std::get<0>(aabb_half_extents),
+                                  std::get<1>(aabb_half_extents),
+                                  std::get<2>(aabb_half_extents));
+              g_shield_pass->register_ship(
+                  id, static_cast<renderer::ShieldMode>(mode),
+                  decay_seconds, dc, ac, ah);
+          },
+          py::arg("instance_id"), py::arg("mode"),
+          py::arg("decay_seconds"), py::arg("default_color"),
+          py::arg("aabb_center"), py::arg("aabb_half_extents"),
+          "Register a ship's shield state with the renderer. mode=0 ellipsoid, "
+          "mode=1 skin. default_color is the ShieldGlowColor RGBA the renderer "
+          "substitutes when shield_hit is called with rgba=(0,0,0,0).");
+
+    m.def("shield_unregister",
+          [](scenegraph::InstanceId id) {
+              if (g_shield_pass) g_shield_pass->unregister_ship(id);
+          },
+          py::arg("instance_id"),
+          "Remove a ship's shield state. No-op if unregistered.");
+
+    m.def("shield_hit",
+          [](scenegraph::InstanceId id,
+             std::tuple<float, float, float> point,
+             std::tuple<float, float, float, float> rgba,
+             float intensity) {
+              if (!g_shield_pass) return;
+              const glm::vec3 p(std::get<0>(point),
+                                 std::get<1>(point),
+                                 std::get<2>(point));
+              const glm::vec4 c(std::get<0>(rgba),
+                                 std::get<1>(rgba),
+                                 std::get<2>(rgba),
+                                 std::get<3>(rgba));
+              g_shield_pass->shield_hit(id, p, c, intensity, glfwGetTime());
+          },
+          py::arg("instance_id"), py::arg("point"),
+          py::arg("rgba") = std::make_tuple(0.0f, 0.0f, 0.0f, 0.0f),
+          py::arg("intensity") = 1.0f,
+          "Push a shield-hit flash for the given ship at a world-space point. "
+          "rgba=(0,0,0,0) substitutes the ship's default ShieldGlowColor.");
+
     m.def("set_hud_state",
           [](const py::dict& d) {
               if (!g_ui_system) return;
