@@ -40,6 +40,16 @@ class ShipClass(DamageableObject):
         self._docked = False
         self._dying = False
         self._dead = False
+        # Ship-level identity populated by SetupProperties from ShipProperty.
+        self._genus: int = 0
+        self._species: int = 0
+        self._affiliation: int = 0
+        self._ship_name: str = ""
+        self._ai_string: str = ""
+        self._damage_resolution: float = 0.0
+        self._model_filename: str = ""
+        self._stationary: int = 0
+        self._death_explosion_sound: str = ""
 
     def SetAI(self, ai) -> None:
         self._ai = ai
@@ -52,6 +62,26 @@ class ShipClass(DamageableObject):
 
     def GetNetType(self) -> int:
         return self._net_type
+
+    # ── Ship-level identity ──────────────────────────────────────────────────
+    def GetGenus(self) -> int:                          return self._genus
+    def SetGenus(self, v) -> None:                      self._genus = int(v)
+    def GetSpecies(self) -> int:                        return self._species
+    def SetSpecies(self, v) -> None:                    self._species = int(v)
+    def GetAffiliation(self) -> int:                    return self._affiliation
+    def SetAffiliation(self, v) -> None:                self._affiliation = int(v)
+    def GetShipName(self) -> str:                       return self._ship_name
+    def SetShipName(self, v) -> None:                   self._ship_name = str(v)
+    def GetAIString(self) -> str:                       return self._ai_string
+    def SetAIString(self, v) -> None:                   self._ai_string = str(v)
+    def GetDamageResolution(self) -> float:             return self._damage_resolution
+    def SetDamageResolution(self, v) -> None:           self._damage_resolution = float(v)
+    def GetModelFilename(self) -> str:                  return self._model_filename
+    def SetModelFilename(self, v) -> None:              self._model_filename = str(v)
+    def IsStationary(self) -> int:                      return self._stationary
+    def SetStationary(self, v) -> None:                 self._stationary = int(v)
+    def GetDeathExplosionSound(self) -> str:            return self._death_explosion_sound
+    def SetDeathExplosionSound(self, v) -> None:        self._death_explosion_sound = str(v)
 
     # ── Subsystem accessors ──────────────────────────────────────────────────
     # Mirror sdk/.../App.py:5394-5455.  Loaders that need to populate these
