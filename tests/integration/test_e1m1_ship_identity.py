@@ -266,6 +266,7 @@ def test_e1m1_ship_identity(sdk_setup, clean_state, expected):
         for i in range(expected["torpedo_tube_count"]):
             assert ts.GetAmmoType(i) == App.AT_ONE
     else:
-        # Even ships without torpedoes have a TorpedoSystem (default-installed
-        # by ShipClass_Create); it should have no ammo loaded.
-        assert ship.GetTorpedoSystem().GetNumAmmoTypes() == 0
+        # Ships without a WeaponSystemProperty(WST_TORPEDO) in their
+        # hardpoint don't carry a TorpedoSystem at all — SetupProperties
+        # scrubs slots the hardpoint never claimed.
+        assert ship.GetTorpedoSystem() is None

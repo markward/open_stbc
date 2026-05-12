@@ -163,13 +163,21 @@ def test_setup_properties_creates_hull_subsystem_from_property():
 
 
 def test_setup_properties_no_op_when_property_set_empty():
-    """SetupProperties on a ship with no templates leaves defaults intact —
-    no exceptions raised."""
+    """SetupProperties on a ship with no templates must not raise.  With
+    no hardpoint-registered properties, every pre-allocated subsystem
+    slot is scrubbed (Pass 3) and Hull stays None as it never auto-creates."""
     ship = ShipClass_Create("blank")
     ship.SetupProperties()  # must not raise
     assert ship.GetMass() == 0.0
-    assert ship.GetImpulseEngineSubsystem().GetMaxSpeed() == 0.0
     assert ship.GetHull() is None
+    assert ship.GetImpulseEngineSubsystem() is None
+    assert ship.GetWarpEngineSubsystem() is None
+    assert ship.GetSensorSubsystem() is None
+    assert ship.GetShieldSubsystem() is None
+    assert ship.GetPhaserSystem() is None
+    assert ship.GetTorpedoSystem() is None
+    assert ship.GetPulseWeaponSystem() is None
+    assert ship.GetTractorBeamSystem() is None
 
 
 # ── Cycle D: SDK reload() must re-execute module top-level ────────────────────

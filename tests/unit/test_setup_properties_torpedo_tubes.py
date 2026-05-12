@@ -29,13 +29,26 @@ def test_six_tubes_seed_six_ammo_slots():
 
 
 def test_no_tubes_no_seeding():
+    """A ship whose hardpoint registers no TorpedoTubeProperty and no
+    WeaponSystemProperty(WST_TORPEDO) has no torpedo subsystem at all."""
     ship = ShipClass_Create("FedStarbase")
     ship.SetupProperties()
-    assert ship.GetTorpedoSystem().GetNumAmmoTypes() == 0
+    assert ship.GetTorpedoSystem() is None
+
+
+def _torpedo_system_property():
+    """Real hardpoints register the WeaponSystemProperty(WST_TORPEDO)
+    alongside the tube properties (see galaxy.py:1003).  Without it the
+    Pass 3 scrub removes the torpedo subsystem, since the tubes alone
+    don't back-reference the slot."""
+    sys_prop = WeaponSystemProperty("Torpedoes")
+    sys_prop.SetWeaponSystemType(WeaponSystemProperty.WST_TORPEDO)
+    return sys_prop
 
 
 def test_idempotent_against_re_run():
     ship = ShipClass_Create("Galaxy")
+    ship.GetPropertySet().AddToSet("Scene Root", _torpedo_system_property())
     for i in range(2):
         ship.GetPropertySet().AddToSet("Scene Root", _make_tube(f"Torpedo {i}"))
 

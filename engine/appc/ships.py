@@ -251,6 +251,24 @@ class ShipClass(DamageableObject):
             for _ in range(tube_count):
                 ts.AddAmmoType(App.AT_ONE)
 
+        # Pass 3 — drop slots the hardpoint never claimed.  ShipClass_Create
+        # pre-allocates every subsystem so SDK callers can chain
+        # `pShip.GetTorpedoSystem().SetAmmoType(...)` without null-guarding;
+        # SetProperty above wired up the slots whose template was actually in
+        # the property set.  A None back-reference here means the hardpoint
+        # never registered the matching SubsystemProperty — that slot is a
+        # default-construction leak and should not appear in target panels,
+        # difficulty scaling, or any "what does this ship have" query.
+        for attr in (
+            "_sensor_subsystem", "_impulse_engine_subsystem",
+            "_warp_engine_subsystem", "_torpedo_system",
+            "_phaser_system", "_pulse_weapon_system",
+            "_tractor_beam_system", "_shield_subsystem",
+        ):
+            sub = getattr(self, attr)
+            if sub is not None and sub.GetProperty() is None:
+                setattr(self, attr, None)
+
     @staticmethod
     def _copy_powered_subsystem_fields(prop, subsystem) -> None:
         if subsystem is None:
