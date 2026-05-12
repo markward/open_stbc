@@ -124,10 +124,21 @@ class ShipClass(DamageableObject):
 
         for prop in self.GetPropertySet().GetPropertyList():
             if isinstance(prop, ShipProperty):
-                m = prop.GetMass()
-                if m is not None: self.SetMass(m)
-                ri = prop.GetRotationalInertia()
-                if ri is not None: self.SetRotationalInertia(ri)
+                for src, setter in (
+                    (prop.GetMass,                 self.SetMass),
+                    (prop.GetRotationalInertia,    self.SetRotationalInertia),
+                    (prop.GetGenus,                self.SetGenus),
+                    (prop.GetSpecies,              self.SetSpecies),
+                    (prop.GetAffiliation,          self.SetAffiliation),
+                    (prop.GetShipName,             self.SetShipName),
+                    (prop.GetAIString,             self.SetAIString),
+                    (prop.GetDamageResolution,     self.SetDamageResolution),
+                    (prop.GetModelFilename,        self.SetModelFilename),
+                    (prop.GetStationary,           self.SetStationary),
+                    (prop.GetDeathExplosionSound,  self.SetDeathExplosionSound),
+                ):
+                    v = src()
+                    if v is not None: setter(v)
             elif isinstance(prop, ImpulseEngineProperty):
                 self._copy_powered_subsystem_fields(prop, self._impulse_engine_subsystem)
                 ies = self._impulse_engine_subsystem
