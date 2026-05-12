@@ -170,6 +170,7 @@ class ShipClass(DamageableObject):
                 self._copy_powered_subsystem_fields(prop, self._impulse_engine_subsystem)
                 ies = self._impulse_engine_subsystem
                 if ies is not None:
+                    ies.SetProperty(prop)
                     for src, setter in (
                         (prop.GetMaxSpeed,           ies.SetMaxSpeed),
                         (prop.GetMaxAccel,           ies.SetMaxAccel),
@@ -180,6 +181,8 @@ class ShipClass(DamageableObject):
                         if v is not None: setter(v)
             elif isinstance(prop, WarpEngineProperty):
                 self._copy_powered_subsystem_fields(prop, self._warp_engine_subsystem)
+                if self._warp_engine_subsystem is not None:
+                    self._warp_engine_subsystem.SetProperty(prop)
             elif isinstance(prop, HullProperty):
                 # Only the FIRST HullProperty is the main hull — galaxy.py
                 # registers "Hull" first then "Bridge" as a child component.
@@ -201,6 +204,7 @@ class ShipClass(DamageableObject):
                 self._copy_powered_subsystem_fields(prop, self._sensor_subsystem)
                 sens = self._sensor_subsystem
                 if sens is not None:
+                    sens.SetProperty(prop)
                     for src, setter in (
                         (prop.GetBaseSensorRange, sens.SetBaseSensorRange),
                         (prop.GetMaxProbes,       sens.SetMaxProbes),
@@ -227,6 +231,7 @@ class ShipClass(DamageableObject):
                 }.get(wst)
                 if receiver is not None:
                     self._copy_powered_subsystem_fields(prop, receiver)
+                    receiver.SetProperty(prop)
                     if wst is not None: receiver.SetWeaponSystemType(wst)
                     # Phaser-only extras (no-op for other receivers).
                     if wst == WeaponSystemProperty.WST_PHASER:
