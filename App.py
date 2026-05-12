@@ -106,6 +106,7 @@ from engine.appc.properties import (
     TGModelProperty,
     TGModelPropertyManager, TGModelPropertySet,
     PositionOrientationProperty,
+    ObjectEmitterProperty,
     EngineGlowProperty,
     SubsystemProperty,
     HullProperty, PowerProperty,
@@ -131,18 +132,36 @@ from engine.appc.properties import (
 )
 
 # ── App.CT_* class-type constants ─────────────────────────────────────────────
-# SDK code calls pSet.GetPropertiesByType(App.CT_X) which feeds X into
-# isinstance(prop, X).  isinstance requires a real class — _NamedStub crashes
-# the moment a populated property set is filtered.  Bind the names to the
-# matching Python classes so isinstance() works.
+# In the original BC engine these are integer enum tags. In the SDK they reach
+# three call sites:
+#   1. pPropSet.GetPropertiesByType(CT_X)   — isinstance() over property templates
+#   2. pSet.GetClassObjectList(CT_X)        — set queries by object class
+#   3. pObject.IsTypeOf(CT_X)               — runtime type check
+# isinstance() requires a real type, so every CT_X must be a class. The
+# property-set call site is the one that crashes today; the others are
+# currently stubbed but kept correct here so future implementations of
+# GetClassObjectList / IsTypeOf get real classes for free.
 #
-# Property-type constants map to the corresponding *Property class because
-# property sets hold properties, not live subsystems.  Subsystem-type
-# constants in property-set filtering contexts (CT_HULL_SUBSYSTEM, etc.)
-# also map to the matching Property — the constant name matches the
-# subsystem domain but the filter runs over property templates.
+# Property-type and subsystem-type CT_* map to the matching *Property class —
+# property sets hold templates, not live subsystems. Object-type CT_* map to
+# their ObjectClass subclass. For object types not yet implemented in the
+# engine, a minimal placeholder class is defined inline; when a real
+# implementation lands the binding here updates to point at it.
+
+class Nebula(ObjectClass): pass
+class Torpedo(ObjectClass): pass
+class Debris(ObjectClass): pass
+class AsteroidField(ObjectClass): pass
+class AsteroidTile(ObjectClass): pass
+class Grid(ObjectClass): pass
+class Placement(ObjectClass): pass
+class MultiplayerGame: pass
+class SortedRegionMenu(STMenu): pass
+
+# Property / subsystem templates
 CT_SUBSYSTEM_PROPERTY            = SubsystemProperty
 CT_POSITION_ORIENTATION_PROPERTY = PositionOrientationProperty
+CT_OBJECT_EMITTER_PROPERTY       = ObjectEmitterProperty
 CT_HULL_SUBSYSTEM                = HullProperty
 CT_POWER_SUBSYSTEM               = PowerProperty
 CT_SHIELD_SUBSYSTEM              = ShieldProperty
@@ -159,6 +178,26 @@ CT_WEAPON_SYSTEM                 = WeaponSystemProperty
 CT_WEAPON                        = WeaponProperty
 CT_ENERGY_WEAPON                 = EnergyWeaponProperty
 CT_SHIP                          = ShipProperty
+CT_SHIP_SUBSYSTEM                = ShipSubsystem
+
+# Object classes (set / runtime type tags)
+CT_OBJECT            = ObjectClass
+CT_DAMAGEABLE_OBJECT = DamageableObject
+CT_CHARACTER         = CharacterClass
+CT_BACKDROP          = Backdrop
+CT_PROXIMITY_CHECK   = ProximityCheck
+CT_PLANET            = Planet
+CT_SUN               = Sun
+CT_NEBULA            = Nebula
+CT_TORPEDO           = Torpedo
+CT_DEBRIS            = Debris
+CT_ASTEROID_FIELD    = AsteroidField
+CT_ASTEROID_TILE     = AsteroidTile
+CT_GRID              = Grid
+CT_PLACEMENT         = Placement
+CT_MULTIPLAYER_GAME  = MultiplayerGame
+CT_ST_MENU           = STMenu
+CT_SORTED_REGION_MENU = SortedRegionMenu
 
 # ── App.AT_* ammo-type constants ─────────────────────────────────────────────
 # SDK code treats these as TorpedoAmmoType instances (objects with GetAmmoName)

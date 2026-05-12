@@ -8,22 +8,22 @@ The original engine is a compiled C++ binary exposed to Python via a SWIG-genera
 
 ## Current stage
 
-**Discovery complete. Ready to begin Phase 1 implementation.** All open questions blocking Phase 1 are resolved. See `docs/gap_analysis.md` for the full record. The repo is set up on a Windows machine; the instrumentation tooling in `tools/` remains available for Phase 2 questions.
+**Phase 2 in progress.** Phase 1 (headless Python `App` shim, event system, timers, PyBullet physics, harness running SDK missions) is complete. Active work is the C++ engine + renderer: `native/` builds `build/open_stbc`, with NIF asset loading, the renderer (sun, dust, glow via AddLOD), and the Python host loop driving SDK scripts. The instrumentation tooling in `tools/` remains available for the open Phase 2 questions.
 
 ## Implementation phases
 
-**Phase 1 — Headless logic engine** (3–6 months)
-- Replace `Appc` with a Python shim
+**Phase 1 — Headless logic engine** ✅ complete
+- Python shim for `Appc`
 - Physics via PyBullet
-- Event system from scratch
+- Event system, timers, sets, missions
 - No renderer
-- Goal: run the SDK tutorial missions and validate all game logic
+- Runs SDK missions through the gameloop harness
 
-**Phase 2 — Full C++ engine** (18 months+)
-- OpenMW NIF renderer extended with BC-specific block types (NifSkope has BC support)
+**Phase 2 — Full C++ engine** (active)
+- NIF renderer in `native/` (BC-specific block types; NifSkope has BC support)
 - OpenAL audio
 - Character animation
-- CPython embedding layer
+- CPython embedding via the host loop in `engine/host_loop.py` + `native/src/host/`
 
 ## Key reference material
 

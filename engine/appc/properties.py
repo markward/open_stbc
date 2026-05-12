@@ -71,6 +71,16 @@ class PositionOrientationProperty(TGModelProperty):
     pass
 
 
+class ObjectEmitterProperty(PositionOrientationProperty):
+    """Emitter point on a station hull (shuttle / probe / decoy launch).
+
+    SDK hierarchy: ObjectEmitterProperty extends PositionOrientationProperty.
+    No instances are produced by Phase 1 setup-properties passes yet — the
+    class exists so ``GetPropertiesByType(App.CT_OBJECT_EMITTER_PROPERTY)``
+    has a real type to feed isinstance() and returns an empty list cleanly.
+    """
+
+
 class EngineGlowProperty(TGModelProperty):
     pass
 
