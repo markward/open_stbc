@@ -119,6 +119,7 @@ class ShipClass(DamageableObject):
         from engine.appc.properties import (
             ShipProperty, ImpulseEngineProperty, WarpEngineProperty,
             HullProperty, SensorProperty, ShieldProperty,
+            WeaponSystemProperty,
         )
         from engine.appc.subsystems import HullSubsystem
 
@@ -188,6 +189,23 @@ class ShipClass(DamageableObject):
                         if mx is not None: ss.SetMaxShields(face, mx)
                         cr = prop.GetShieldChargePerSecond(face)
                         if cr is not None: ss.SetShieldChargePerSecond(face, cr)
+            elif isinstance(prop, WeaponSystemProperty):
+                wst = prop.GetWeaponSystemType()
+                receiver = {
+                    WeaponSystemProperty.WST_PHASER:  self._phaser_system,
+                    WeaponSystemProperty.WST_TORPEDO: self._torpedo_system,
+                    WeaponSystemProperty.WST_PULSE:   self._pulse_weapon_system,
+                    WeaponSystemProperty.WST_TRACTOR: self._tractor_beam_system,
+                }.get(wst)
+                if receiver is not None:
+                    self._copy_powered_subsystem_fields(prop, receiver)
+                    if wst is not None: receiver.SetWeaponSystemType(wst)
+                    # Phaser-only extras (no-op for other receivers).
+                    if wst == WeaponSystemProperty.WST_PHASER:
+                        sf = prop.GetSingleFire()
+                        if sf is not None: receiver.SetSingleFire(sf)
+                        aw = prop.GetAimedWeapon()
+                        if aw is not None: receiver.SetAimedWeapon(aw)
 
     @staticmethod
     def _copy_powered_subsystem_fields(prop, subsystem) -> None:

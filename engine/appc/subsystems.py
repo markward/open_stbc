@@ -175,6 +175,7 @@ class WeaponSystem(PoweredSubsystem):
         super().__init__(name)
         self._firing = False
         self._target = None
+        self._weapon_system_type: int = 0
 
     def IsFiring(self) -> int:
         return 1 if self._firing else 0
@@ -190,6 +191,9 @@ class WeaponSystem(PoweredSubsystem):
 
     def SetTarget(self, target) -> None:
         self._target = target
+
+    def GetWeaponSystemType(self) -> int:           return self._weapon_system_type
+    def SetWeaponSystemType(self, v) -> None:       self._weapon_system_type = int(v)
 
 
 class TorpedoSystem(WeaponSystem):
@@ -229,7 +233,6 @@ class PhaserSystem(WeaponSystem):
     def __init__(self, name: str = ""):
         super().__init__(name)
         self._power_level = self.PP_HIGH
-        self._weapon_system_type: int = 0
         self._single_fire: int = 0
         self._aimed_weapon: int = 0
 
@@ -239,8 +242,6 @@ class PhaserSystem(WeaponSystem):
     def GetPowerLevel(self) -> int:
         return self._power_level
 
-    def GetWeaponSystemType(self) -> int:           return self._weapon_system_type
-    def SetWeaponSystemType(self, v) -> None:       self._weapon_system_type = int(v)
     def GetSingleFire(self) -> int:                 return self._single_fire
     def SetSingleFire(self, v) -> None:             self._single_fire = int(v)
     def GetAimedWeapon(self) -> int:                return self._aimed_weapon
