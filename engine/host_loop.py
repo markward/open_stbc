@@ -13,6 +13,7 @@ from typing import Any, Callable, Iterable, Optional
 
 from engine import renderer as r
 from engine.scale import SHIP_SCALE, ASTRO_SCALE, PLANET_NIF_NATIVE_RADIUS
+from engine.appc.ship_iter import iter_set_objects as _iter_set_objects, iter_ships as _iter_ships
 
 import math as _math
 
@@ -622,37 +623,6 @@ def _init_mission(mission_module_name: str):
     App.g_kEventManager.AddEvent(start_evt)
 
     return mission, episode, game, mod
-
-
-def _iter_set_objects(pSet) -> Iterable:
-    """Walk every object in a set exactly once.
-
-    Iterates `pSet._objects.values()` directly rather than using BC's
-    GetFirstObject + GetNextObject API, because the latter is unreliable
-    in the presence of stub objects: any object whose `GetObjID()` returns
-    an `App._NamedStub` causes `SetClass.GetNextObject(stub).int(stub) → 0`
-    to find no match and return None, terminating iteration prematurely.
-    The `_objects` private attribute is already inspected elsewhere in this
-    module (set-membership checks, verbose logging), so the implementation
-    coupling is consistent.
-    """
-    for obj in getattr(pSet, "_objects", {}).values():
-        yield obj
-
-
-def _iter_ships(*, verbose: bool = False) -> Iterable:
-    """Walk every ShipClass-like object in every active set."""
-    import App
-    for set_name, pSet in App.g_kSetManager._sets.items():
-        if verbose:
-            count = len(getattr(pSet, "_objects", {}))
-            obj_keys = list(getattr(pSet, "_objects", {}).keys())
-            print(f"[host_loop] set {set_name!r}: {count} object(s), keys={obj_keys}", flush=True)
-        for obj in _iter_set_objects(pSet):
-            # ShipClass exposes GetScript; non-ship objects (waypoints,
-            # characters) typically don't have a non-empty script string.
-            if hasattr(obj, "GetScript"):
-                yield obj
 
 
 def _iter_planets(*, verbose: bool = False) -> Iterable:
