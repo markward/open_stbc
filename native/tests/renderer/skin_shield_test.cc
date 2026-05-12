@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include "renderer/skin_shield.h"
 
 using namespace renderer;
@@ -92,6 +93,44 @@ TEST(SkinShieldMeshCpu, InflatesPositionsAlongNormals) {
     EXPECT_FLOAT_EQ(cpu.vertices[0].position.z, 0.5f);
     // Mesh 1: normal (1,0,0) → x += 0.5, origin x=10 → x=10.5.
     EXPECT_FLOAT_EQ(cpu.vertices[3].position.x, 10.5f);
+}
+
+TEST(SkinShieldMeshCpu, AppliesNodeHierarchyTransformsToPositionAndNormal) {
+    // Mirror the opaque-pass behaviour (frame.cc draw_model): each mesh is
+    // drawn at world_per_node[i] = chained local_transform from root. Skin
+    // shield must match — otherwise the shell drifts off the hull on any
+    // ship whose submeshes live under translated/rotated child nodes.
+    assets::Model model;
+    model.nodes.push_back(assets::Node{
+        .name = "root", .parent_index = -1,
+        .local_transform = glm::mat4(1.0f),
+        .children = {1}, .meshes = {},
+    });
+    glm::mat4 child_xform = glm::translate(glm::mat4(1.0f), glm::vec3(10, 0, 0));
+    model.nodes.push_back(assets::Node{
+        .name = "child", .parent_index = 0,
+        .local_transform = child_xform,
+        .children = {}, .meshes = {0},
+    });
+
+    assets::MeshCpu cpu;
+    // Single vertex at local origin with normal +X. After the child node's
+    // translation it should sit at (10, 0, 0); with inflate 0.5 along the
+    // (still +X) normal it should land at (10.5, 0, 0).
+    cpu.vertices.push_back({.position = {0, 0, 0}, .normal = {1, 0, 0}});
+    cpu.indices = {0, 0, 0};
+    assets::Mesh m;
+    m.set_cpu_data(std::move(cpu));
+    model.meshes.push_back(std::move(m));
+
+    auto out = renderer::build_skin_shield_meshcpu(model, /*inflate=*/0.5f);
+    ASSERT_EQ(out.vertices.size(), 1u);
+    EXPECT_FLOAT_EQ(out.vertices[0].position.x, 10.5f);
+    EXPECT_FLOAT_EQ(out.vertices[0].position.y, 0.0f);
+    EXPECT_FLOAT_EQ(out.vertices[0].position.z, 0.0f);
+    EXPECT_FLOAT_EQ(out.vertices[0].normal.x, 1.0f);
+    EXPECT_FLOAT_EQ(out.vertices[0].normal.y, 0.0f);
+    EXPECT_FLOAT_EQ(out.vertices[0].normal.z, 0.0f);
 }
 
 TEST(SkinShieldMeshCpu, SkipsMeshesWithoutCpuData) {
