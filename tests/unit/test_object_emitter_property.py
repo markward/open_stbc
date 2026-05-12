@@ -93,3 +93,38 @@ def test_cast_rejects_unrelated_property():
 
 def test_cast_passes_none_through():
     assert ObjectEmitterProperty_Cast(None) is None
+
+
+def test_register_local_template_findable_by_name():
+    App.g_kModelPropertyManager.ClearLocalTemplates()
+    emitter = App.ObjectEmitterProperty_Create("Probe Launcher")
+    emitter.SetEmittedObjectType(ObjectEmitterProperty.OEP_PROBE)
+    App.g_kModelPropertyManager.RegisterLocalTemplate(emitter)
+    found = App.g_kModelPropertyManager.FindByName(
+        "Probe Launcher", App.TGModelPropertyManager.LOCAL_TEMPLATES
+    )
+    assert found is emitter
+    assert found.GetEmittedObjectType() == ObjectEmitterProperty.OEP_PROBE
+    App.g_kModelPropertyManager.ClearLocalTemplates()
+
+
+def test_sovereign_hardpoint_load_no_stub_tracker_rows():
+    """Loading the sovereign hardpoint should not produce any
+    ObjectEmitterProperty_Create* entries in the stub tracker."""
+    import importlib
+    import sys
+    import tools.mission_harness as mh
+
+    App._stub_tracker.clear()
+    App._stub_tracker.set_mission("test")
+    try:
+        mh.setup_sdk()
+        # Force fresh import so the hardpoint module body runs
+        sys.modules.pop("ships.Hardpoints.sovereign", None)
+        importlib.import_module("ships.Hardpoints.sovereign")
+    finally:
+        App._stub_tracker.reset_mission()
+
+    names = {row[0] for row in App._stub_tracker.report()}
+    leaks = {n for n in names if n.startswith("ObjectEmitterProperty_Create")}
+    assert leaks == set(), f"unexpected stub-tracker rows: {sorted(leaks)}"
