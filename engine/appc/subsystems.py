@@ -29,6 +29,11 @@ class ShipSubsystem(TGEventHandlerObject):
         self._max_condition = 1.0
         self._radius = 0.0
         self._position = TGPoint3(0.0, 0.0, 0.0)
+        # Shared identity fields populated by SetupProperties.
+        self._critical: int = 0
+        self._targetable: int = 0
+        self._primary: int = 0
+        self._disabled_percentage: float = 0.25
 
     def GetName(self) -> str:
         return self._name
@@ -126,11 +131,14 @@ class ShipSubsystem(TGEventHandlerObject):
     def GetChildSubsystem(self, index_or_name=None):
         return None
 
-    def GetDisabledPercentage(self) -> float:
-        # SDK SubsystemProperty.GetDisabledPercentage: fraction of max condition
-        # below which the subsystem is "disabled".  Default 0.25 matches the
-        # Appc default for systems where the property hasn't overridden it.
-        return 0.25
+    def GetCritical(self) -> int:                       return self._critical
+    def SetCritical(self, v) -> None:                   self._critical = int(v)
+    def GetTargetable(self) -> int:                     return self._targetable
+    def SetTargetable(self, v) -> None:                 self._targetable = int(v)
+    def GetPrimary(self) -> int:                        return self._primary
+    def SetPrimary(self, v) -> None:                    self._primary = int(v)
+    def GetDisabledPercentage(self) -> float:           return self._disabled_percentage
+    def SetDisabledPercentage(self, v) -> None:         self._disabled_percentage = float(v)
 
 
 class PoweredSubsystem(ShipSubsystem):
