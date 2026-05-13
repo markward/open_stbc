@@ -7,7 +7,13 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from engine.appc import ship_lifecycle
+from engine.ui import bindings
 from engine.ui.panel import UiPanel
+
+
+# Pixels-per-notch (dp) for wheel-driven scroll.  ~one collapsed row
+# height = header padding (6+6) + line height (~16) + margin (3) ≈ 31dp.
+_ROW_HEIGHT_DP = 30.0
 
 
 _SUBSYSTEM_GETTERS = (
@@ -77,7 +83,11 @@ class TargetListController:
         self._panel = panel
         self._get_player = player_provider
         self._show_subsystems = show_subsystems
-        self._scroll_offset: int = 0
+        # Pixel-precise scroll offset in dp.  Applied as a negative
+        # margin-top on the panel body so .bc-panel's overflow:hidden
+        # clips the rows above the visible area.  Smooth row-by-row
+        # scroll regardless of how many ships are expanded.
+        self._scroll_pixels: float = 0.0
         # Expansion state survives rebuild_from_snapshot so scroll +
         # ship-lifecycle events don't collapse the user's open rows.
         # Ship rows are keyed by ship name; nested subsystem rows are
@@ -88,30 +98,39 @@ class TargetListController:
         self.rebuild_from_snapshot()
 
     def scroll(self, delta: int) -> None:
-        """Bump scroll offset by ``delta`` (positive = scroll down through
-        the list, showing later ships). Clamped so at least one ship row is
-        always visible. Triggers a rebuild."""
+        """Bump pixel scroll offset by ``delta`` rows (positive = scroll
+        down).  Clamped to >= 0; the bottom is unconstrained (over-scroll
+        is harmless — body wrapper just slides off-screen)."""
         if delta == 0:
             return
-        self._scroll_offset = max(0, self._scroll_offset + int(delta))
-        self.rebuild_from_snapshot()
+        self._scroll_pixels = max(0.0, self._scroll_pixels + delta * _ROW_HEIGHT_DP)
+        self._apply_scroll_offset()
+
+    def _apply_scroll_offset(self) -> None:
+        """Push the current scroll offset as a negative margin-top on the
+        panel body element.  No-op if the renderer backend doesn't expose
+        set_element_property (older builds)."""
+        try:
+            bindings.set_element_property(
+                self._panel.root, "margin-top",
+                f"-{self._scroll_pixels:.1f}dp")
+        except AttributeError:
+            pass  # older backend without set_element_property
 
     def rebuild_from_snapshot(self) -> None:
         self._panel.clear()
-        # Filter out the player BEFORE slicing so the offset semantics are
-        # "skip N non-player ships from the top". Sort by name for a stable,
-        # user-meaningful order across rebuilds (snapshot() returns a set).
+        # Filter out the player.  Sort by name for a stable, user-meaningful
+        # order across rebuilds (snapshot() returns a set).
         player = self._get_player()
         non_player = sorted(
             (s for s in ship_lifecycle.snapshot() if s is not player),
             key=lambda s: s.GetName(),
         )
-        # Clamp offset so at least one ship row is shown when ships exist.
-        max_offset = max(0, len(non_player) - 1)
-        if self._scroll_offset > max_offset:
-            self._scroll_offset = max_offset
-        for ship in non_player[self._scroll_offset:]:
+        for ship in non_player:
             self._add_row_for_target(ship)
+        # Re-apply scroll offset after re-creating the body — the new body
+        # element has its own SetProperty state, starting at 0.
+        self._apply_scroll_offset()
 
     def destroy(self) -> None:
         self._unsub()

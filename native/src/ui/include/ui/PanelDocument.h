@@ -45,6 +45,12 @@ public:
     void set_class(int element_id, const std::string& class_names);
     void set_text(int element_id, const std::string& text);
     void set_visible(int element_id, bool visible);
+    /// Set an arbitrary RCSS property on the element (e.g. "margin-top",
+    /// "-20dp").  Used by the targets-panel scroll to shift the body via
+    /// a negative top margin.
+    void set_property(int element_id,
+                      const std::string& name,
+                      const std::string& value);
 
     /// Register a click callback for an element. Pass nullptr to clear.
     /// The callback is invoked synchronously when the element receives a

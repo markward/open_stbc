@@ -58,6 +58,9 @@ def set_text(element_id: int, text: str) -> None:
 def set_visible(element_id: int, visible: bool) -> None:
     dom().set_visible(element_id, visible)
 
+def set_element_property(element_id: int, name: str, value: str) -> None:
+    dom().set_element_property(element_id, name, value)
+
 def on_click(element_id: int, callback: Callable[[], None]) -> None:
     dom().on_click(element_id, callback)
 
@@ -103,4 +106,6 @@ class _RealDom:
     def set_class(self, eid, cls):          self._m.set_class(eid, cls)
     def set_text(self, eid, text):          self._m.set_text(eid, text)
     def set_visible(self, eid, vis):        self._m.set_visible(eid, vis)
+    def set_element_property(self, eid, name, value):
+        self._m.set_element_property(eid, name, value)
     def on_click(self, eid, cb):            self._m.on_click(eid, cb)

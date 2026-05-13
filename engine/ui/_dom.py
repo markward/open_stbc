@@ -99,6 +99,12 @@ class FakeDom:
     def set_visible(self, element_id: int, visible: bool) -> None:
         self._elements[element_id].visible = visible
 
+    def set_element_property(self, element_id: int, name: str, value: str) -> None:
+        el = self._elements[element_id]
+        if not hasattr(el, "_props"):
+            el._props = {}
+        el._props[name] = value
+
     def on_click(self, element_id: int, callback: Callable[[], None]) -> None:
         self._elements[element_id].on_click = callback
 

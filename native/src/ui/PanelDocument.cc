@@ -201,6 +201,14 @@ void PanelDocument::set_visible(int element_id, bool visible) {
     it->second->SetProperty("display", visible ? "block" : "none");
 }
 
+void PanelDocument::set_property(int element_id,
+                                 const std::string& name,
+                                 const std::string& value) {
+    auto it = elements_.find(element_id);
+    if (it == elements_.end()) return;
+    it->second->SetProperty(name.c_str(), value.c_str());
+}
+
 void PanelDocument::on_click(int element_id, std::function<void()> callback) {
     auto it = elements_.find(element_id);
     if (it == elements_.end()) return;

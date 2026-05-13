@@ -791,6 +791,18 @@ PYBIND11_MODULE(_open_stbc_host, m) {
               }
           });
 
+    m.def("set_element_property",
+          [](int element_id, const std::string& name, const std::string& value) {
+              if (!g_ui_system) return;
+              for (auto& kv : g_ui_system->panels_for_bindings()) {
+                  if (kv.second->has_element(element_id)) {
+                      kv.second->set_property(element_id, name, value); return;
+                  }
+              }
+          },
+          "Set an arbitrary RCSS property on a UI element (e.g. "
+          "set_element_property(body_id, 'margin-top', '-30dp')).");
+
     m.def("on_click",
           [](int element_id, py::object callback) {
               if (!g_ui_system) return;
