@@ -56,4 +56,4 @@ bool decode_wav(const uint8_t* p, size_t len, WavData& out) {
     return false;
 }
 
-}
+}  // namespace open_stbc::audio

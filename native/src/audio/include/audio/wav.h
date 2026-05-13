@@ -15,4 +15,4 @@ struct WavData {
 // 1 or 2 channels. Other formats return false (caller treats as missing).
 bool decode_wav(const uint8_t* bytes, size_t len, WavData& out);
 
-}
+}  // namespace open_stbc::audio

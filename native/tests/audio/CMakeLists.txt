@@ -1,0 +1,9 @@
+add_executable(audio_tests
+    wav_test.cc
+)
+target_link_libraries(audio_tests
+    PRIVATE
+        open_stbc_audio
+        GTest::gtest_main
+)
+gtest_discover_tests(audio_tests)
