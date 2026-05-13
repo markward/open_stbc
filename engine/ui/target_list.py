@@ -94,6 +94,15 @@ class TargetListController:
         # keyed by (ship_name, subsystem_label).
         self._expanded_ships: set[str] = set()
         self._expanded_subs: set[tuple[str, str]] = set()
+        # Panel-wide single selection.  May be a ship, a subsystem, or a
+        # child subsystem (emitter).  Only one row in the entire panel
+        # is rendered as selected at a time, regardless of which ship or
+        # weapon-system parent owns it.
+        self._selected_target: object | None = None
+        # Map target object -> widget (UiButton or UiCollapsibleList) for
+        # the current rebuild.  Used to flip set_selected on the previous
+        # and new widgets without a full rebuild on every click.
+        self._widget_by_target: dict[int, object] = {}
         self._unsub = ship_lifecycle.subscribe(self._on_event)
         self.rebuild_from_snapshot()
 
@@ -119,6 +128,7 @@ class TargetListController:
 
     def rebuild_from_snapshot(self) -> None:
         self._panel.clear()
+        self._widget_by_target.clear()
         # Filter out the player.  Sort by name for a stable, user-meaningful
         # order across rebuilds (snapshot() returns a set).
         player = self._get_player()
@@ -146,9 +156,11 @@ class TargetListController:
             label=ship_name,
             affiliation=affiliation,
             expanded=ship_name in self._expanded_ships,
+            selected=ship is self._selected_target,
             on_click=lambda s=ship: self._select(s),
             on_toggle=lambda exp, n=ship_name: self._track_ship_expanded(n, exp),
         )
+        self._widget_by_target[id(ship)] = row
         if not self._show_subsystems:
             return
         for label, sub in populated_subsystems(ship):
@@ -156,24 +168,33 @@ class TargetListController:
             if hasattr(sub, "GetNumChildSubsystems"):
                 num_children = sub.GetNumChildSubsystems()
             if num_children == 0:
-                row.button(label, on_click=lambda s=sub: self._select_subsystem(s))
+                btn = row.button(
+                    label,
+                    selected=sub is self._selected_target,
+                    on_click=lambda s=sub: self._select_subsystem(s),
+                )
+                self._widget_by_target[id(sub)] = btn
             else:
                 key = (ship_name, label)
                 child_collapsible = row.collapsible(
                     label=label,
                     expanded=key in self._expanded_subs,
+                    selected=sub is self._selected_target,
                     on_click=lambda s=sub: self._select_subsystem(s),
                     on_toggle=lambda exp, k=key: self._track_sub_expanded(k, exp),
                 )
+                self._widget_by_target[id(sub)] = child_collapsible
                 for i in range(num_children):
                     child = sub.GetChildSubsystem(i)
                     if child is None:
                         continue
                     cl = child.GetName() if hasattr(child, "GetName") else label
-                    child_collapsible.button(
+                    cbtn = child_collapsible.button(
                         cl,
+                        selected=child is self._selected_target,
                         on_click=lambda s=child: self._select_subsystem(s),
                     )
+                    self._widget_by_target[id(child)] = cbtn
 
     def _track_ship_expanded(self, ship_name: str, expanded: bool) -> None:
         if expanded:
@@ -187,12 +208,28 @@ class TargetListController:
         else:
             self._expanded_subs.discard(key)
 
+    def _set_selected(self, new_target) -> None:
+        """Update panel-wide selection: flip the previous widget's
+        selected-class off, the new widget's selected-class on, and
+        remember the target so rebuilds re-apply the visual."""
+        if self._selected_target is new_target:
+            return
+        old = self._widget_by_target.get(id(self._selected_target))
+        if old is not None and hasattr(old, "set_selected"):
+            old.set_selected(False)
+        self._selected_target = new_target
+        new = self._widget_by_target.get(id(new_target))
+        if new is not None and hasattr(new, "set_selected"):
+            new.set_selected(True)
+
     def _select(self, ship) -> None:
+        self._set_selected(ship)
         player = self._get_player()
         if player is not None:
             player.SetTarget(ship)
 
     def _select_subsystem(self, sub) -> None:
+        self._set_selected(sub)
         player = self._get_player()
         if player is not None:
             player.SetTargetSubsystem(sub)

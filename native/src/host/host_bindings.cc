@@ -820,4 +820,22 @@ PYBIND11_MODULE(_open_stbc_host, m) {
                   }
               }
           });
+
+    m.def("on_dblclick",
+          [](int element_id, py::object callback) {
+              if (!g_ui_system) return;
+              for (auto& kv : g_ui_system->panels_for_bindings()) {
+                  if (kv.second->has_element(element_id)) {
+                      if (callback.is_none()) {
+                          kv.second->on_dblclick(element_id, nullptr);
+                      } else {
+                          kv.second->on_dblclick(element_id, [callback]() {
+                              py::gil_scoped_acquire gil;
+                              callback();
+                          });
+                      }
+                      return;
+                  }
+              }
+          });
 }

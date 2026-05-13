@@ -47,11 +47,14 @@ body {
 
 /* ── Panel header (optional: title text + optional collapse toggle) ─────── */
 
-/* Header has NO background of its own — the surrounding .bc-panel provides
-   the wrapping container look. */
+/* Header has its own background (matching the panel) and sits above the
+   body in z-order so the body's scroll offset (negative margin-top) can't
+   leak rows into the header area. */
 .bc-panel-header {
     display: block;
     position: relative;
+    z-index: 1;
+    background-color: #1e1e1e;
     padding-top: 6dp;
     padding-bottom: 6dp;
     padding-left: 12dp;
@@ -141,6 +144,13 @@ body {
 .bc-collapsible-header.menu-2 { background-color: #9367ff33; border-left-color: #9367ff; }
 .bc-collapsible-header.menu-3 { background-color: #cf609f33; border-left-color: #cf609f; }
 .bc-collapsible-header.menu-4 { background-color: #90679033; border-left-color: #906790; }
+
+/* Selected ship / weapon-system row — brighter text + thicker left stripe. */
+.bc-collapsible-header.selected {
+    color: #ffffff;
+    border-left-width: 6dp;
+    padding-left: 9dp;
+}
 
 .bc-arrow {
     display: inline-block;

@@ -64,6 +64,9 @@ def set_element_property(element_id: int, name: str, value: str) -> None:
 def on_click(element_id: int, callback: Callable[[], None]) -> None:
     dom().on_click(element_id, callback)
 
+def on_dblclick(element_id: int, callback: Callable[[], None]) -> None:
+    dom().on_dblclick(element_id, callback)
+
 
 # ── Production initialization ───────────────────────────────────────────────
 
@@ -109,3 +112,4 @@ class _RealDom:
     def set_element_property(self, eid, name, value):
         self._m.set_element_property(eid, name, value)
     def on_click(self, eid, cb):            self._m.on_click(eid, cb)
+    def on_dblclick(self, eid, cb):         self._m.on_dblclick(eid, cb)

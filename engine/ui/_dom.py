@@ -108,6 +108,12 @@ class FakeDom:
     def on_click(self, element_id: int, callback: Callable[[], None]) -> None:
         self._elements[element_id].on_click = callback
 
+    def on_dblclick(self, element_id: int, callback: Callable[[], None]) -> None:
+        el = self._elements[element_id]
+        if not hasattr(el, "on_dblclick"):
+            el.on_dblclick = None  # add dynamically so existing tests keep dataclass shape
+        el.on_dblclick = callback
+
     # ── Test introspection ───────────────────────────────────────────────────
 
     def element(self, element_id: int) -> _Element:
@@ -118,6 +124,11 @@ class FakeDom:
 
     def fire_click(self, element_id: int) -> None:
         cb = self._elements[element_id].on_click
+        if cb is not None:
+            cb()
+
+    def fire_dblclick(self, element_id: int) -> None:
+        cb = getattr(self._elements[element_id], "on_dblclick", None)
         if cb is not None:
             cb()
 

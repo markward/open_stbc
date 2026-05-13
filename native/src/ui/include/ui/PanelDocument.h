@@ -57,6 +57,11 @@ public:
     /// "click" event (RmlUi raises this on left-mouse-button-up).
     void on_click(int element_id, std::function<void()> callback);
 
+    /// Register a double-click callback.  Pass nullptr to clear.  RmlUi
+    /// raises "dblclick" on two left-mouse-button-ups within the system
+    /// double-click interval.
+    void on_dblclick(int element_id, std::function<void()> callback);
+
     /// Set a CSS custom property on the document root (applies to all
     /// descendants via `var()` references in components.rcss).
     void set_css_var(const std::string& name, const std::string& value);
@@ -93,9 +98,12 @@ private:
     static int            s_next_id_;
     std::unordered_map<int, Rml::Element*>            elements_;
     std::unordered_map<int, std::function<void()>>    click_cbs_;
+    std::unordered_map<int, std::function<void()>>    dblclick_cbs_;
 
-    class ClickListener;  // forward decl; defined in .cc
-    std::unique_ptr<ClickListener> click_listener_;
+    class ClickListener;     // forward decl; defined in .cc
+    class DblClickListener;  // forward decl; defined in .cc
+    std::unique_ptr<ClickListener>    click_listener_;
+    std::unique_ptr<DblClickListener> dblclick_listener_;
 
     /// Apply the inline anchor properties (left/right/top/bottom and any
     /// transform) for ``anchor_`` to the document. Used by the constructor

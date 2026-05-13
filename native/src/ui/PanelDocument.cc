@@ -35,12 +35,32 @@ private:
     PanelDocument* owner_;
 };
 
+class PanelDocument::DblClickListener : public Rml::EventListener {
+public:
+    explicit DblClickListener(PanelDocument* owner) : owner_(owner) {}
+    void ProcessEvent(Rml::Event& event) override {
+        Rml::Element* target = event.GetCurrentElement();
+        if (!target) return;
+        Rml::String eid_str = target->GetAttribute<Rml::String>(
+            "data-eid", Rml::String());
+        if (eid_str.empty()) return;
+        int eid = std::atoi(eid_str.c_str());
+        auto it = owner_->dblclick_cbs_.find(eid);
+        if (it != owner_->dblclick_cbs_.end()) {
+            it->second();
+        }
+    }
+private:
+    PanelDocument* owner_;
+};
+
 PanelDocument::PanelDocument(Rml::Context* context,
                              const std::filesystem::path& rml_path,
                              const std::string& anchor,
                              float width_vw, float height_vh)
     : anchor_(anchor)
     , click_listener_(std::make_unique<ClickListener>(this))
+    , dblclick_listener_(std::make_unique<DblClickListener>(this))
 {
     doc_ = context->LoadDocument(rml_path.string());
     if (!doc_) {
@@ -78,8 +98,12 @@ PanelDocument::~PanelDocument() {
         if (el && click_cbs_.count(eid)) {
             el->RemoveEventListener("click", click_listener_.get());
         }
+        if (el && dblclick_cbs_.count(eid)) {
+            el->RemoveEventListener("dblclick", dblclick_listener_.get());
+        }
     }
     click_cbs_.clear();
+    dblclick_cbs_.clear();
     if (doc_) {
         doc_->Close();
     }
@@ -167,6 +191,7 @@ void PanelDocument::recursive_drop_subtree(int element_id) {
         recursive_drop_subtree(child_eid);
         elements_.erase(child_eid);
         click_cbs_.erase(child_eid);
+        dblclick_cbs_.erase(child_eid);
     }
 }
 
@@ -181,6 +206,7 @@ void PanelDocument::remove_element(int element_id) {
     }
     elements_.erase(it);
     click_cbs_.erase(element_id);
+    dblclick_cbs_.erase(element_id);
 }
 
 void PanelDocument::set_class(int element_id, const std::string& class_names) {
@@ -222,6 +248,19 @@ void PanelDocument::on_click(int element_id, std::function<void()> callback) {
     }
 }
 
+void PanelDocument::on_dblclick(int element_id, std::function<void()> callback) {
+    auto it = elements_.find(element_id);
+    if (it == elements_.end()) return;
+    Rml::Element* el = it->second;
+    if (callback) {
+        dblclick_cbs_[element_id] = std::move(callback);
+        el->AddEventListener("dblclick", dblclick_listener_.get());
+    } else {
+        dblclick_cbs_.erase(element_id);
+        el->RemoveEventListener("dblclick", dblclick_listener_.get());
+    }
+}
+
 void PanelDocument::set_css_var(const std::string& name, const std::string& value) {
     if (!doc_) return;
     doc_->SetProperty(name.c_str(), value.c_str());
@@ -256,6 +295,7 @@ void PanelDocument::clear() {
             recursive_drop_subtree(child_eid);
             elements_.erase(child_eid);
             click_cbs_.erase(child_eid);
+            dblclick_cbs_.erase(child_eid);
         }
         root_->RemoveChild(child);
     }

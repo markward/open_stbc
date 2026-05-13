@@ -86,19 +86,29 @@ def test_header_class_reflects_expanded_state(fake_dom):
     assert "expanded" not in fake_dom.element(coll.header_element_id).classes
 
 
-def test_title_click_toggles_expansion(fake_dom):
-    """Title-click toggles AND fires on_click — common collapsible UX
-    where the whole header row is a click target.  The arrow remains
-    available for users who want to toggle without changing selection."""
+def test_title_click_does_not_toggle_expansion(fake_dom):
+    """Title single-click selects the row but does NOT toggle expansion.
+    The arrow click and title double-click are the two ways to expand."""
     pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
     coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
                              label="x", affiliation="enemy")
     assert coll.expanded  # default
     title_id = fake_dom.children(coll.header_element_id)[1]
     fake_dom.fire_click(title_id)
-    assert not coll.expanded  # collapsed
-    fake_dom.fire_click(title_id)
-    assert coll.expanded  # round-trips
+    assert coll.expanded  # unchanged
+
+
+def test_title_dblclick_toggles_expansion(fake_dom):
+    """Double-clicking the title is the modern complement to the arrow."""
+    pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
+    coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
+                             label="x", affiliation="enemy")
+    assert coll.expanded
+    title_id = fake_dom.children(coll.header_element_id)[1]
+    fake_dom.fire_dblclick(title_id)
+    assert not coll.expanded
+    fake_dom.fire_dblclick(title_id)
+    assert coll.expanded
 
 
 def test_title_click_fires_on_click_callback(fake_dom):

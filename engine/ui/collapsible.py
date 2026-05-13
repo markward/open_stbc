@@ -54,6 +54,14 @@ class UiCollapsibleList:
 
         bindings.on_click(self._arrow_id, self._toggle_expanded)
         bindings.on_click(self._title_id, self._handle_title_click)
+        # Double-click the title to toggle expand/collapse — single-click
+        # selects without expanding (the original BC UX).  Falls back
+        # silently when the backend doesn't expose on_dblclick (FakeDom
+        # adds it dynamically; older native .so may not have the binding).
+        try:
+            bindings.on_dblclick(self._title_id, self._toggle_expanded)
+        except AttributeError:
+            pass
 
     # ── Public state ─────────────────────────────────────────────────────────
 
@@ -122,12 +130,14 @@ class UiCollapsibleList:
                     affiliation: Optional[str] = None,
                     menu_level: int = 3,
                     expanded: bool = True,
+                    selected: bool = False,
                     on_click: Optional[Callable[[], None]] = None,
                     on_toggle: Optional[Callable[[bool], None]] = None,
     ) -> "UiCollapsibleList":
         child = UiCollapsibleList(parent_element=self._children_container_id,
                                   label=label, affiliation=affiliation,
                                   menu_level=menu_level, expanded=expanded,
+                                  selected=selected,
                                   on_click=on_click, on_toggle=on_toggle)
         self._children.append(child)
         return child
@@ -163,13 +173,8 @@ class UiCollapsibleList:
             self._on_toggle(self._expanded)
 
     def _handle_title_click(self) -> None:
-        # Title click toggles expansion AND fires on_click (selection).
-        # Matches common modern collapsible UX where clicking the row
-        # header collapses/expands.  The arrow toggle remains so users
-        # who explicitly want to collapse without changing the target
-        # selection still have that option.
-        self.set_expanded(not self._expanded)
-        if self._on_toggle is not None:
-            self._on_toggle(self._expanded)
+        # Title single-click SELECTS only — does NOT toggle expansion.
+        # Toggle is the arrow (always) and the title double-click (modern
+        # nicety added on top of the original BC UX).
         if self._on_click is not None:
             self._on_click()
