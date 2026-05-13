@@ -102,9 +102,29 @@ class TargetListController:
             expanded=False,
             on_click=lambda s=ship: self._select(s),
         )
-        if self._show_subsystems:
-            for label, sub in populated_subsystems(ship):
+        if not self._show_subsystems:
+            return
+        for label, sub in populated_subsystems(ship):
+            num_children = 0
+            if hasattr(sub, "GetNumChildSubsystems"):
+                num_children = sub.GetNumChildSubsystems()
+            if num_children == 0:
                 row.button(label, on_click=lambda s=sub: self._select_subsystem(s))
+            else:
+                child_collapsible = row.collapsible(
+                    label=label,
+                    expanded=False,
+                    on_click=lambda s=sub: self._select_subsystem(s),
+                )
+                for i in range(num_children):
+                    child = sub.GetChildSubsystem(i)
+                    if child is None:
+                        continue
+                    cl = child.GetName() if hasattr(child, "GetName") else label
+                    child_collapsible.button(
+                        cl,
+                        on_click=lambda s=child: self._select_subsystem(s),
+                    )
 
     def _select(self, ship) -> None:
         player = self._get_player()

@@ -44,13 +44,24 @@ def test_subsystem_buttons_render_for_each_ship(fake_dom):
 
     for wrapper in wrappers:
         children_container = fake_dom.children(wrapper)[1]
-        button_ids = fake_dom.children(children_container)
+        slot_ids = fake_dom.children(children_container)
         # Galaxy hardpoint registers 10 subsystem-bearing templates: hull,
         # shield, sensors, power, repair, impulse, warp, phaser, torpedo,
         # tractor (no pulse). Pass 3 of SetupProperties scrubs slots the
-        # hardpoint never claimed, so the button count equals the hardpoint
-        # contribution exactly.
-        assert len(button_ids) == 10
+        # hardpoint never claimed, so the slot count equals the hardpoint
+        # contribution exactly. Of those 10, the three weapon parents
+        # (Phasers, Torpedoes, Tractors) render as nested collapsibles
+        # containing per-emitter child buttons; the other 7 are flat
+        # buttons.
+        assert len(slot_ids) == 10
+        # The last three wrappers are nested collapsibles — each contains
+        # a header + a children container with at least one child button.
+        nested = slot_ids[-3:]
+        for nested_id in nested:
+            inner_kids = fake_dom.children(nested_id)
+            assert len(inner_kids) == 2  # header + children container
+            inner_container = inner_kids[1]
+            assert len(fake_dom.children(inner_container)) >= 1
 
 
 def test_subsystem_click_routes_to_set_target_subsystem(fake_dom):
