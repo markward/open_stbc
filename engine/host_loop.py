@@ -996,6 +996,21 @@ class _NoInputReader:
 _NO_INPUT = _NoInputReader()
 
 
+def _cursor_over_panel(h, panel_id: int) -> bool:
+    """True when the cursor's framebuffer-pixel position falls inside
+    the panel's screen rect.  Returns False when bindings are missing
+    or the panel hasn't been laid out yet."""
+    cursor_pos = getattr(h, "cursor_pos", None)
+    panel_bounds = getattr(h, "panel_bounds", None)
+    if cursor_pos is None or panel_bounds is None:
+        return False
+    cx, cy = cursor_pos()
+    px, py, pw, ph = panel_bounds(panel_id)
+    if pw <= 0.0 or ph <= 0.0:
+        return False
+    return (px <= cx < px + pw) and (py <= cy < py + ph)
+
+
 def _apply_input(view_mode, player_control, cam_control,
                  *, player, dt, h, scroll_y) -> None:
     """Per-tick input dispatch.
@@ -1233,6 +1248,14 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             # orbit camera. Scroll delta is consumed once per tick; old
             # bindings without the binding return 0.0 via the fallback.
             scroll_y = _consume_scroll() if _consume_scroll is not None else 0.0
+
+            # Route scroll: cursor over the targets panel -> list scroll.
+            # Otherwise camera zoom (the existing path).
+            if scroll_y != 0.0 and _h is not None:
+                if _cursor_over_panel(_h, target_panel.panel_id):
+                    target_list.scroll(-int(round(scroll_y)))
+                    scroll_y = 0.0  # consumed by panel; camera gets nothing
+
             if player is not None and _h is not None:
                 _apply_input(view_mode, player_control, cam_control,
                              player=player, dt=TICK_DT, h=_h,
