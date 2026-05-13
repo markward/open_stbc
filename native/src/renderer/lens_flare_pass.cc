@@ -8,7 +8,6 @@
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -16,6 +15,8 @@
 #include <fstream>
 
 namespace renderer {
+
+constexpr float kTwoPi = 6.28318530717958647692f;
 
 NgonMeshData build_ngon_mesh(int wedges) {
     if (wedges < 3)  wedges = 3;
@@ -25,7 +26,6 @@ NgonMeshData build_ngon_mesh(int wedges) {
     m.vertices.reserve(static_cast<std::size_t>(wedges) * 3);
     m.indices.reserve(static_cast<std::size_t>(wedges) * 3);
 
-    const float kTwoPi = 6.28318530717958647692f;
     for (int k = 0; k < wedges; ++k) {
         const float a0 = (kTwoPi * static_cast<float>(k))       / static_cast<float>(wedges);
         const float a1 = (kTwoPi * static_cast<float>(k + 1))   / static_cast<float>(wedges);
@@ -101,6 +101,7 @@ void LensFlarePass::render(const std::vector<LensFlareDescriptor>& flares,
         activate_gl_state();
         shader.set_float("u_aspect", aspect);
         shader.set_int("u_texture", 0);
+        shader.set_float("u_brightness", 1.0f);
         glActiveTexture(GL_TEXTURE0);
 
         for (const auto& e : f.elements) {
@@ -112,7 +113,6 @@ void LensFlarePass::render(const std::vector<LensFlareDescriptor>& flares,
             const glm::vec2 src_ndc(ndc.x, ndc.y);
             const glm::vec2 center =
                 glm::mix(src_ndc, glm::vec2(0.0f, 0.0f), e.position);
-            const float kTwoPi = 6.28318530717958647692f;
             const float wobble = (e.amp != 0.0f && e.freq != 0.0f)
                 ? e.amp * std::sin(kTwoPi * e.freq * static_cast<float>(now_seconds))
                 : 0.0f;
@@ -120,7 +120,6 @@ void LensFlarePass::render(const std::vector<LensFlareDescriptor>& flares,
 
             shader.set_vec2("u_screen_center", center);
             shader.set_float("u_scale", scale);
-            shader.set_float("u_brightness", 1.0f);
             glBindTexture(GL_TEXTURE_2D, tex->id());
             glBindVertexArray(mesh.vao);
             glDrawElements(GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_INT, nullptr);
