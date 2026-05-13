@@ -34,6 +34,50 @@ def _extract_ypr(R) -> tuple:
     return yaw_deg, pitch_deg, roll_deg
 
 
+_ALERT_LEVEL_NAMES = {0: "Green", 1: "Yellow", 2: "Red"}
+
+
+def _format_alert_level(level: int) -> str:
+    """Map ShipClass.{GREEN,YELLOW,RED}_ALERT to a display string."""
+    return _ALERT_LEVEL_NAMES.get(int(level), "---")
+
+
+def _shift_held(h) -> bool:
+    """True if either shift key is held. Tolerates older bindings that
+    didn't expose the shift keys — returns False there so the alert
+    handler is a no-op until the C++ host is rebuilt."""
+    ks = getattr(h, "keys", None)
+    if ks is None:
+        return False
+    l = getattr(ks, "KEY_LEFT_SHIFT", None)
+    r = getattr(ks, "KEY_RIGHT_SHIFT", None)
+    if l is not None and h.key_state(l):
+        return True
+    if r is not None and h.key_state(r):
+        return True
+    return False
+
+
+def _apply_alert_keys(h, player) -> None:
+    """Shift+1/2/3 → SetAlertLevel(GREEN/YELLOW/RED) on the player ship.
+
+    Mirrors BC's DefaultKeyboardBinding: !/@/# → ET_SET_ALERT_LEVEL with
+    EST_ALERT_{GREEN,YELLOW,RED}. Called once per tick before the throttle
+    handler — the same digit keys are reused by _PlayerControl for impulse
+    level, so the throttle handler ignores digits while shift is held.
+    """
+    if player is None or not _shift_held(h):
+        return
+    from engine.appc.ships import ShipClass
+    keys = h.keys
+    if h.key_pressed(keys.KEY_1):
+        player.SetAlertLevel(ShipClass.GREEN_ALERT)
+    elif h.key_pressed(keys.KEY_2):
+        player.SetAlertLevel(ShipClass.YELLOW_ALERT)
+    elif h.key_pressed(keys.KEY_3):
+        player.SetAlertLevel(ShipClass.RED_ALERT)
+
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # v1 ship-gate selections — Task 25 pins these from the pick_*.py scan results.
@@ -170,11 +214,14 @@ class _PlayerControl:
         key_state, key_pressed, and `keys.KEY_*` attributes).
         """
         # 1. Throttle (one-shot edges).  R is checked before digits.
+        # Shift+digit is reserved for alert-level binding (Shift+1/2/3 →
+        # SetAlertLevel); suppress digit throttle while shift is held so
+        # the two bindings don't fire together.
         if h.key_pressed(h.keys.KEY_R):
             self.impulse_level = self.REVERSE_LEVEL
         elif h.key_pressed(h.keys.KEY_0):
             self.impulse_level = 0
-        else:
+        elif not _shift_held(h):
             digit_codes = [
                 h.keys.KEY_1, h.keys.KEY_2, h.keys.KEY_3, h.keys.KEY_4,
                 h.keys.KEY_5, h.keys.KEY_6, h.keys.KEY_7, h.keys.KEY_8,
@@ -1222,16 +1269,17 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         )
 
         # Debug stat panel, top-right. Replaces the old hud.rml document.
-        # Height accommodates the title + 4 stat rows + the "Load Mission"
+        # Height accommodates the title + 5 stat rows + the "Load Mission"
         # button at the bottom without clipping (the panel has overflow:
         # hidden so under-tall heights silently cut the button off).
         debug_panel = ui.UiPanel(id="debug", anchor="top-right",
-                                 width_vw=18.0, height_vh=25.0,
+                                 width_vw=18.0, height_vh=28.0,
                                  title="Debug", collapsible=True)
         stat_ship   = debug_panel.stat("Ship",   "---")
         stat_system = debug_panel.stat("System", "---")
         stat_pos    = debug_panel.stat("Pos",    "0 0 0")
         stat_rot    = debug_panel.stat("Rot",    "Y0\xb0 P0\xb0 R0\xb0")
+        stat_alert  = debug_panel.stat("Alert",  "---")
 
         # Bridge view marker — visible only when KEY_SPACE has toggled
         # _ViewModeController into bridge mode. PoC: text-only, no
@@ -1394,6 +1442,10 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                     scroll_y = 0.0  # consumed by panel; camera gets nothing
 
             if player is not None and _h is not None:
+                # Alert keys (Shift+1/2/3) run before the throttle handler;
+                # _PlayerControl.apply checks _shift_held() to skip digit
+                # throttling on the same press.
+                _apply_alert_keys(_h, player)
                 _apply_input(view_mode, player_control, cam_control,
                              player=player, dt=TICK_DT, h=_h,
                              scroll_y=scroll_y)
@@ -1458,6 +1510,7 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                 stat_pos.set_value("%.1f %.1f %.1f" % (_p.x, _p.y, _p.z))
                 stat_rot.set_value(
                     "Y%.0f\xb0 P%.0f\xb0 R%.0f\xb0" % (_yaw, _pitch, _roll))
+                stat_alert.set_value(_format_alert_level(player.GetAlertLevel()))
 
             ambient, directionals = _aggregate_lights(active_set)
             r.set_lighting(ambient, directionals)

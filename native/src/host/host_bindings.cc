@@ -601,6 +601,8 @@ PYBIND11_MODULE(_open_stbc_host, m) {
     keys.attr("KEY_F10")   = GLFW_KEY_F10;
     keys.attr("KEY_SPACE") = GLFW_KEY_SPACE;
     keys.attr("KEY_ESCAPE") = GLFW_KEY_ESCAPE;
+    keys.attr("KEY_LEFT_SHIFT")  = GLFW_KEY_LEFT_SHIFT;
+    keys.attr("KEY_RIGHT_SHIFT") = GLFW_KEY_RIGHT_SHIFT;
 
     m.def("key_state",
           [](int key) {

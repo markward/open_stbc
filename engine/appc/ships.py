@@ -52,6 +52,12 @@ class ShipClass(DamageableObject):
         self._model_filename: str = ""
         self._stationary: int = 0
         self._death_explosion_sound: str = ""
+        # Alert level — GREEN at spawn matches MissionLib.py:605, which
+        # explicitly resets the player to GREEN_ALERT on mission start.
+        # BC's BridgeHandlers.SetAlertLevel forwards the event to the
+        # XO menu (see sdk/.../BridgeHandlers.py:194); shield/weapon
+        # side-effects happen downstream of XO, not here.
+        self._alert_level: int = ShipClass.GREEN_ALERT
 
     def SetAI(self, ai) -> None:
         self._ai = ai
@@ -84,6 +90,12 @@ class ShipClass(DamageableObject):
     def SetStationary(self, v) -> None:                 self._stationary = int(v)
     def GetDeathExplosionSound(self) -> str:            return self._death_explosion_sound
     def SetDeathExplosionSound(self, v) -> None:        self._death_explosion_sound = str(v)
+
+    # ── Alert level ──────────────────────────────────────────────────────────
+    # SDK callers: MissionLib.py:605 (reset to GREEN at mission start),
+    # BridgeHandlers.py:1442 (bridge crew behavior keys off this).
+    def GetAlertLevel(self) -> int:                     return self._alert_level
+    def SetAlertLevel(self, v) -> None:                 self._alert_level = int(v)
 
     # ── Subsystem accessors ──────────────────────────────────────────────────
     # Mirror sdk/.../App.py:5394-5455.  Loaders that need to populate these
