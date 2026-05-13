@@ -51,6 +51,7 @@ FetchContent_MakeAvailable(RmlUi)
 # Public libraries.
 add_subdirectory(src/nif)
 add_subdirectory(src/assets)
+add_subdirectory(src/audio)
 
 # enable_testing() must precede any add_subdirectory whose CMakeLists registers
 # add_test (scan_nifs registers its corpus-coverage test conditionally).
