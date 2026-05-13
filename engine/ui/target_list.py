@@ -77,13 +77,35 @@ class TargetListController:
         self._panel = panel
         self._get_player = player_provider
         self._show_subsystems = show_subsystems
+        self._scroll_offset: int = 0
         self._unsub = ship_lifecycle.subscribe(self._on_event)
+        self.rebuild_from_snapshot()
+
+    def scroll(self, delta: int) -> None:
+        """Bump scroll offset by ``delta`` (positive = scroll down through
+        the list, showing later ships). Clamped so at least one ship row is
+        always visible. Triggers a rebuild."""
+        if delta == 0:
+            return
+        self._scroll_offset = max(0, self._scroll_offset + int(delta))
         self.rebuild_from_snapshot()
 
     def rebuild_from_snapshot(self) -> None:
         self._panel.clear()
-        for ship in ship_lifecycle.snapshot():
-            self._add_row(ship)
+        # Filter out the player BEFORE slicing so the offset semantics are
+        # "skip N non-player ships from the top". Sort by name for a stable,
+        # user-meaningful order across rebuilds (snapshot() returns a set).
+        player = self._get_player()
+        non_player = sorted(
+            (s for s in ship_lifecycle.snapshot() if s is not player),
+            key=lambda s: s.GetName(),
+        )
+        # Clamp offset so at least one ship row is shown when ships exist.
+        max_offset = max(0, len(non_player) - 1)
+        if self._scroll_offset > max_offset:
+            self._scroll_offset = max_offset
+        for ship in non_player[self._scroll_offset:]:
+            self._add_row_for_target(ship)
 
     def destroy(self) -> None:
         self._unsub()
@@ -92,9 +114,7 @@ class TargetListController:
     def _on_event(self, event: str, ship) -> None:
         self.rebuild_from_snapshot()
 
-    def _add_row(self, ship) -> None:
-        if ship is self._get_player():
-            return
+    def _add_row_for_target(self, ship) -> None:
         affiliation = _ship_affiliation(ship)
         row = self._panel.collapsible(
             label=ship.GetName(),
