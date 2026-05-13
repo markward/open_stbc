@@ -274,10 +274,17 @@ class _CameraControl:
     SPRING_TAU_S           = 0.50                               # ~95% catch-up in 1.5s
 
     def __init__(self):
-        self.orbit_yaw_rad   = self.DEFAULT_YAW_RAD
-        self.orbit_pitch_rad = self.DEFAULT_PITCH_RAD
-        self._smoothed_rot   = None  # seeded on first compute_camera(..., dt=...)
-        self.look_up_offset  = 0.0
+        self.orbit_yaw_rad      = self.DEFAULT_YAW_RAD
+        self.orbit_pitch_rad    = self.DEFAULT_PITCH_RAD
+        self._smoothed_rot      = None  # seeded on first compute_camera(..., dt=...)
+        self.look_up_offset     = 0.0
+        self.target_lock_enabled = True
+        # Vertical shift of the look-at below the target as a fraction of
+        # the eye→target distance — pushes the target up in the frame so
+        # the player ship and target sit on opposite sides of screen
+        # centre. ~sin(angular offset): 0.15 ≈ 9° ≈ 30% above centre at
+        # 60° vertical FOV. 0 = target dead centre.
+        self.target_lock_bias    = 0.15
         self.set_ship_radius(1.0)
 
     def set_ship_radius(self, radius: float) -> None:
@@ -293,10 +300,19 @@ class _CameraControl:
         if prev_default is None or getattr(self, "distance", prev_default) == prev_default:
             self.distance = self.default_distance
 
-    def _reset(self) -> None:
+    def reset_orbit(self) -> None:
+        """Snap orbit angles and distance back to defaults. Does not change
+        target_lock_enabled or the rotation-smoothing state."""
         self.orbit_yaw_rad   = self.DEFAULT_YAW_RAD
         self.orbit_pitch_rad = self.DEFAULT_PITCH_RAD
         self.distance        = self.default_distance
+
+    def lock_to_target(self) -> None:
+        """Snap orbit to defaults and enable target lock. Use on fresh
+        target selection to give a clean 'over-the-shoulder, look at
+        target' framing regardless of any manual orbit the user had set."""
+        self.reset_orbit()
+        self.target_lock_enabled = True
 
     def snap(self) -> None:
         """Drop smoothed rotation so the next compute_camera(..., dt=...) call
@@ -312,7 +328,8 @@ class _CameraControl:
         `scroll_y` is the total wheel delta accumulated since the last call.
         """
         if h.key_pressed(h.keys.KEY_C):
-            self._reset()
+            self.reset_orbit()
+            self.target_lock_enabled = False
             return
 
         if h.key_state(h.keys.KEY_RIGHT): self.orbit_yaw_rad   += self.TURN_RATE_RAD_PER_S * dt
@@ -1122,6 +1139,15 @@ def _compute_camera(view_mode, cam_control, *, player, dt) -> tuple:
     ship-Y forward (row 1 of the rotation matrix) with ship-Z as up
     (row 2). Returns (eye, target, up) as 3-tuples in world space, the
     same shape r.set_camera consumes.
+
+    Target lock: in exterior mode, if cam_control.target_lock_enabled is
+    True and the player has a non-self target via GetTarget(), set the
+    look-at to the target's world location shifted DOWN along image-up
+    by cam_control.target_lock_bias × |eye→target|. The shift moves the
+    optical centre below the target, so the target itself projects into
+    the upper portion of the frame (away from the player, which sits
+    low). bias ≈ sin(angular offset), so 0.15 ≈ 9° (~30% above centre
+    in a 60° vertical FOV). C toggles the lock flag.
     """
     loc = player.GetWorldLocation()
     rot = player.GetWorldRotation()
@@ -1132,7 +1158,26 @@ def _compute_camera(view_mode, cam_control, *, player, dt) -> tuple:
         target = (loc.x + fwd.x, loc.y + fwd.y, loc.z + fwd.z)
         up_vec = (up.x, up.y, up.z)
         return eye, target, up_vec
-    return cam_control.compute_camera(loc, rot, dt=dt)
+    eye, target, up_vec = cam_control.compute_camera(loc, rot, dt=dt)
+    if getattr(cam_control, "target_lock_enabled", False):
+        tgt = player.GetTarget() if hasattr(player, "GetTarget") else None
+        if tgt is not None and tgt is not player:
+            try:
+                tloc = tgt.GetWorldLocation()
+                bias = getattr(cam_control, "target_lock_bias", 0.15)
+                dx = tloc.x - eye[0]
+                dy = tloc.y - eye[1]
+                dz = tloc.z - eye[2]
+                dist = _math.sqrt(dx*dx + dy*dy + dz*dz)
+                s = bias * dist
+                target = (
+                    tloc.x - s * up_vec[0],
+                    tloc.y - s * up_vec[1],
+                    tloc.z - s * up_vec[2],
+                )
+            except AttributeError:
+                pass
+    return eye, target, up_vec
 
 
 def run(mission_name: str = SHIP_GATE_MISSION,
@@ -1254,6 +1299,10 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             cam_control.set_ship_radius(controller.session.player.GetRadius())
         view_mode      = _ViewModeController()
         bridge_camera  = _BridgeCamera()
+        # Selecting a ship in the target panel snaps the chase orbit back
+        # to defaults and engages target lock — overrides any manual
+        # orbit the player had set. C key reverses (resets + unlocks).
+        target_list.on_target_change = lambda _ship: cam_control.lock_to_target()
         try:
             import _open_stbc_host as _h
         except ImportError:

@@ -133,6 +133,30 @@ def test_controller_routes_row_click_to_set_target(fake_dom, install_game):
     assert player.GetTarget() is enemy
 
 
+def test_controller_fires_on_target_change_callback_on_ship_click(
+        fake_dom, install_game):
+    """Selecting a ship row invokes on_target_change(ship). Host loop uses
+    this hook to reset the chase orbit and engage target lock."""
+    install_game(_FakeMission(enemy=["E"]))
+    panel = UiPanel(id="targets", title="Targets")
+    player = _make_ship("player")
+    seen: list = []
+    ctrl = TargetListController(
+        panel,
+        player_provider=lambda: player,
+        on_target_change=lambda ship: seen.append(ship),
+    )
+    enemy = _make_ship("E")
+    ship_lifecycle.publish_added(enemy)
+    root = fake_dom.panel_root(panel.panel_id)
+    body_id = fake_dom.children(root)[-1]
+    wrapper = fake_dom.children(fake_dom.children(body_id)[0])[0]
+    header = fake_dom.children(wrapper)[0]
+    title_id = fake_dom.children(header)[1]
+    fake_dom.fire_click(title_id)
+    assert seen == [enemy]
+
+
 def test_controller_does_not_render_subsystems_in_stage_1(fake_dom, install_game):
     """show_subsystems=False (default) must not add child buttons even when
     every Get*Subsystem() returns a real instance (which ShipClass_Create

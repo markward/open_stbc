@@ -39,14 +39,13 @@ def _make_ship_pose(x=0.0, y=0.0, z=0.0):
     return loc, rot
 
 
-def test_default_state_matches_legacy_offset():
-    """Defaults reproduce the pre-orbit (-forward*600 + up*200) framing."""
-    from engine.host_loop import _CameraControl
-    from engine.scale import SHIP_SCALE
+def test_default_state_matches_radius_framing():
+    """Defaults frame a unit-radius ship at -CAM_BACK_RADII forward + CAM_UP_RADII up."""
+    from engine.host_loop import _CameraControl, CAM_BACK_RADII, CAM_UP_RADII
 
     cc = _CameraControl()
-    expected_dist  = math.sqrt(600.0**2 + 200.0**2) * SHIP_SCALE
-    expected_pitch = math.atan2(200.0, 600.0)
+    expected_dist  = math.sqrt(CAM_BACK_RADII**2 + CAM_UP_RADII**2)
+    expected_pitch = math.atan2(CAM_UP_RADII, CAM_BACK_RADII)
 
     assert cc.distance        == pytest.approx(expected_dist)
     assert cc.orbit_pitch_rad == pytest.approx(expected_pitch)
@@ -144,7 +143,7 @@ def test_distance_clamps_at_min():
     cc = _CameraControl()
     reader = _FakeKeyReader()
     cc.apply(dt=1.0/60, h=reader, scroll_y=1000.0)  # absurd zoom in
-    assert cc.distance == pytest.approx(_CameraControl.DISTANCE_MIN)
+    assert cc.distance == pytest.approx(cc.distance_min)
 
 
 def test_distance_clamps_at_max():
@@ -152,15 +151,23 @@ def test_distance_clamps_at_max():
     cc = _CameraControl()
     reader = _FakeKeyReader()
     cc.apply(dt=1.0/60, h=reader, scroll_y=-1000.0)
-    assert cc.distance == pytest.approx(_CameraControl.DISTANCE_MAX)
+    assert cc.distance == pytest.approx(cc.distance_max)
 
 
-def test_C_resets_to_defaults():
+def test_target_lock_enabled_by_default():
+    from engine.host_loop import _CameraControl
+    assert _CameraControl().target_lock_enabled is True
+
+
+def test_C_resets_orbit_and_disables_target_lock():
+    """C is the 'default chase' reset: snap orbit angles and distance
+    back to defaults AND drop target lock so gaze returns to own ship."""
     from engine.host_loop import _CameraControl
     cc = _CameraControl()
     cc.orbit_yaw_rad   = 1.2
     cc.orbit_pitch_rad = -0.4
     cc.distance        = 12345.0
+    cc.target_lock_enabled = True
     reader = _FakeKeyReader()
     reader.pressed_once.add(reader.keys.KEY_C)
     cc.apply(dt=1.0/60, h=reader, scroll_y=0.0)
@@ -168,31 +175,48 @@ def test_C_resets_to_defaults():
     assert cc.orbit_yaw_rad   == pytest.approx(fresh.orbit_yaw_rad)
     assert cc.orbit_pitch_rad == pytest.approx(fresh.orbit_pitch_rad)
     assert cc.distance        == pytest.approx(fresh.distance)
+    assert cc.target_lock_enabled is False
+
+
+def test_lock_to_target_resets_orbit_and_enables_lock():
+    """Selecting a new target should snap orbit back to defaults so the
+    chase eye returns behind the ship, and enable target lock so gaze
+    redirects to the target. Overrides any manual orbit the user had."""
+    from engine.host_loop import _CameraControl
+    cc = _CameraControl()
+    cc.orbit_yaw_rad   = 1.2
+    cc.orbit_pitch_rad = -0.4
+    cc.distance        = 12345.0
+    cc.target_lock_enabled = False
+    cc.lock_to_target()
+    fresh = _CameraControl()
+    assert cc.orbit_yaw_rad   == pytest.approx(fresh.orbit_yaw_rad)
+    assert cc.orbit_pitch_rad == pytest.approx(fresh.orbit_pitch_rad)
+    assert cc.distance        == pytest.approx(fresh.distance)
+    assert cc.target_lock_enabled is True
 
 
 def test_compute_camera_at_defaults_at_origin_identity_rotation():
-    """Default orbit + identity ship rotation reproduces the legacy
-    (0, -600*SHIP_SCALE, 200*SHIP_SCALE) eye position relative to ship."""
-    from engine.host_loop import _CameraControl
-    from engine.scale import SHIP_SCALE
+    """Default orbit + identity ship rotation places the eye at
+    (0, -CAM_BACK_RADII*r, CAM_UP_RADII*r) relative to a unit-radius ship.
+    The target is panned up by look_up_offset along ship-Z."""
+    from engine.host_loop import _CameraControl, CAM_BACK_RADII, CAM_UP_RADII
 
     cc = _CameraControl()
     loc, rot = _make_ship_pose(0.0, 0.0, 0.0)
     eye, target, up = cc.compute_camera(loc, rot)
 
-    assert eye[0] == pytest.approx(0.0,                    abs=1e-3)
-    assert eye[1] == pytest.approx(-600.0 * SHIP_SCALE,    abs=1e-3)
-    assert eye[2] == pytest.approx( 200.0 * SHIP_SCALE,    abs=1e-3)
-    assert target == pytest.approx((0.0, 0.0, 0.0))
+    assert eye[0] == pytest.approx(0.0,             abs=1e-3)
+    assert eye[1] == pytest.approx(-CAM_BACK_RADII, abs=1e-3)
+    assert eye[2] == pytest.approx( CAM_UP_RADII + cc.look_up_offset, abs=1e-3)
+    assert target == pytest.approx((0.0, 0.0, cc.look_up_offset))
     assert up     == pytest.approx((0.0, 0.0, 1.0))
 
 
 def test_compute_camera_offset_is_in_ship_body_frame():
     """Yaw the ship 90° around world Z. The camera-to-ship vector should
     rotate with the ship so the camera stays 'behind' the new heading."""
-    from engine.host_loop import _CameraControl
-    from engine.scale import SHIP_SCALE
-    from engine.appc.math import TGMatrix3
+    from engine.host_loop import _CameraControl, CAM_BACK_RADII, CAM_UP_RADII
 
     cc = _CameraControl()
     loc, rot = _make_ship_pose(0.0, 0.0, 0.0)
@@ -200,10 +224,11 @@ def test_compute_camera_offset_is_in_ship_body_frame():
     eye, target, _ = cc.compute_camera(loc, rot)
 
     # Ship's body-Y after a +90° yaw points along R.GetRow(1) = (1, 0, 0).
-    # The camera should sit at -600*body_Y + 200*body_Z from the ship.
-    expected_eye_x = -600.0 * SHIP_SCALE
-    expected_eye_y =    0.0
-    expected_eye_z =  200.0 * SHIP_SCALE
+    # Body-Z is unchanged (0, 0, 1). The camera sits at
+    #   -CAM_BACK_RADII*body_Y + CAM_UP_RADII*body_Z + look_up_offset*body_Z.
+    expected_eye_x = -CAM_BACK_RADII
+    expected_eye_y =  0.0
+    expected_eye_z =  CAM_UP_RADII + cc.look_up_offset
     assert eye[0] == pytest.approx(expected_eye_x, abs=1e-3)
     assert eye[1] == pytest.approx(expected_eye_y, abs=1e-3)
     assert eye[2] == pytest.approx(expected_eye_z, abs=1e-3)
@@ -337,18 +362,17 @@ def test_compute_camera_dt_none_does_not_mutate_smoothed_state():
 
 
 def test_orbit_yaw_90_puts_camera_on_ship_right():
-    """orbit_yaw=+90° at default pitch ≈ 18.4°: camera should sit to the
-    ship's right (body +X) and slightly above. Identity ship rotation."""
-    from engine.host_loop import _CameraControl
-    from engine.scale import SHIP_SCALE
+    """orbit_yaw=+90° at default pitch: camera should sit to the ship's right
+    (body +X) and slightly above. Identity ship rotation."""
+    from engine.host_loop import _CameraControl, CAM_BACK_RADII, CAM_UP_RADII
     cc = _CameraControl()
     cc.orbit_yaw_rad = math.radians(90)
     loc, rot = _make_ship_pose(0.0, 0.0, 0.0)
     eye, _, _ = cc.compute_camera(loc, rot)
 
-    expected_x =  600.0 * SHIP_SCALE   # cos(default_pitch)*dist along +X
+    expected_x =  CAM_BACK_RADII                       # cos(default_pitch)*dist along +X
     expected_y =  0.0
-    expected_z =  200.0 * SHIP_SCALE
+    expected_z =  CAM_UP_RADII + cc.look_up_offset
     assert eye[0] == pytest.approx(expected_x, abs=1e-3)
     assert eye[1] == pytest.approx(expected_y, abs=1e-3)
     assert eye[2] == pytest.approx(expected_z, abs=1e-3)

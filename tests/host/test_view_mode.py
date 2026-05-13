@@ -1,6 +1,7 @@
 """Unit tests for _ViewModeController — space-bar toggled bridge/exterior
 view modality. Mirrors the fake-bindings pattern from
 tests/host/test_camera_control.py."""
+import pytest
 
 
 class _FakeKeys:
@@ -294,4 +295,111 @@ def test_exterior_camera_delegates_to_cam_control():
         _ViewModeController(), cam_control=cam,
         player=_FakePlayer(), dt=1.0/60)
     assert len(cam.calls) == 1
+    assert (eye, target, up_vec) == ((1, 2, 3), (4, 5, 6), (0, 0, 1))
+
+
+def test_exterior_camera_lock_bias_zero_aims_at_target():
+    """target_lock_bias=0.0 puts the look-at directly on the target,
+    centring it in the frame (the previous behaviour)."""
+    from engine.host_loop import _ViewModeController, _compute_camera
+    from engine.appc.math import TGPoint3, TGMatrix3
+
+    class _Target:
+        def GetWorldLocation(self): return TGPoint3(50.0, 60.0, 70.0)
+
+    class _FakePlayer:
+        def __init__(self, target): self._target = target
+        def GetWorldLocation(self): return TGPoint3(0.0, 0.0, 0.0)
+        def GetWorldRotation(self): return TGMatrix3()
+        def GetTarget(self): return self._target
+
+    class _StubCam:
+        target_lock_enabled = True
+        target_lock_bias    = 0.0
+        def compute_camera(self, loc, rot, dt):
+            return ((1, 2, 3), (4, 5, 6), (0, 0, 1))
+
+    tgt = _Target()
+    eye, target, up_vec = _compute_camera(
+        _ViewModeController(), cam_control=_StubCam(),
+        player=_FakePlayer(tgt), dt=1.0/60)
+    assert eye == (1, 2, 3)
+    assert target == (50.0, 60.0, 70.0)
+    assert up_vec == (0, 0, 1)
+
+
+def test_exterior_camera_lock_shifts_look_at_down_along_image_up():
+    """Non-zero bias shifts the look-at along -up by bias × eye→target
+    distance, so the target projects above image centre."""
+    import math
+    from engine.host_loop import _ViewModeController, _compute_camera
+    from engine.appc.math import TGPoint3, TGMatrix3
+
+    class _Target:
+        def GetWorldLocation(self): return TGPoint3(0.0, 1000.0, 0.0)
+
+    class _FakePlayer:
+        def GetWorldLocation(self): return TGPoint3(0.0, 0.0, 0.0)
+        def GetWorldRotation(self): return TGMatrix3()
+        def GetTarget(self): return _Target()
+
+    class _StubCam:
+        target_lock_enabled = True
+        target_lock_bias    = 0.15
+        def compute_camera(self, loc, rot, dt):
+            return ((0.0, -150.0, 50.0), (0.0, 0.0, 20.0), (0.0, 0.0, 1.0))
+
+    _, target, _ = _compute_camera(
+        _ViewModeController(), cam_control=_StubCam(),
+        player=_FakePlayer(), dt=1.0/60)
+    # eye→target = (0, 1150, -50), distance ≈ 1151.1.
+    dist = math.sqrt(1150.0**2 + 50.0**2)
+    expected_z = 0.0 - 0.15 * dist * 1.0
+    assert target[0] == 0.0
+    assert target[1] == 1000.0
+    assert target[2] == pytest.approx(expected_z, rel=1e-6)
+
+
+def test_exterior_camera_lock_disabled_keeps_chase_target():
+    """When cam_control.target_lock_enabled is False, the chase look-at
+    point is preserved even if the player has a target."""
+    from engine.host_loop import _ViewModeController, _compute_camera
+    from engine.appc.math import TGPoint3, TGMatrix3
+
+    class _Target:
+        def GetWorldLocation(self): return TGPoint3(50.0, 60.0, 70.0)
+
+    class _FakePlayer:
+        def GetWorldLocation(self): return TGPoint3(0.0, 0.0, 0.0)
+        def GetWorldRotation(self): return TGMatrix3()
+        def GetTarget(self): return _Target()
+
+    class _StubCam:
+        target_lock_enabled = False
+        def compute_camera(self, loc, rot, dt):
+            return ((1, 2, 3), (4, 5, 6), (0, 0, 1))
+
+    eye, target, up_vec = _compute_camera(
+        _ViewModeController(), cam_control=_StubCam(),
+        player=_FakePlayer(), dt=1.0/60)
+    assert (eye, target, up_vec) == ((1, 2, 3), (4, 5, 6), (0, 0, 1))
+
+
+def test_exterior_camera_unchanged_when_no_target():
+    """GetTarget() returning None should leave the chase cam output alone."""
+    from engine.host_loop import _ViewModeController, _compute_camera
+    from engine.appc.math import TGPoint3, TGMatrix3
+
+    class _FakePlayer:
+        def GetWorldLocation(self): return TGPoint3(0.0, 0.0, 0.0)
+        def GetWorldRotation(self): return TGMatrix3()
+        def GetTarget(self): return None
+
+    class _StubCam:
+        def compute_camera(self, loc, rot, dt):
+            return ((1, 2, 3), (4, 5, 6), (0, 0, 1))
+
+    eye, target, up_vec = _compute_camera(
+        _ViewModeController(), cam_control=_StubCam(),
+        player=_FakePlayer(), dt=1.0/60)
     assert (eye, target, up_vec) == ((1, 2, 3), (4, 5, 6), (0, 0, 1))

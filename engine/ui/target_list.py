@@ -80,10 +80,17 @@ class TargetListController:
     """
     def __init__(self, panel: UiPanel, *,
                  player_provider: Callable[[], Optional[object]],
-                 show_subsystems: bool = False):
+                 show_subsystems: bool = False,
+                 on_target_change: Optional[Callable[[object], None]] = None):
         self._panel = panel
         self._get_player = player_provider
         self._show_subsystems = show_subsystems
+        # Fires on every ship-row click (not subsystem clicks). Receives
+        # the newly-selected ship. Host loop wires this to the camera so
+        # selection snaps the chase orbit back to defaults and engages
+        # target lock. Public attribute so it can be set after construction
+        # — the camera is built later than the panel in host_loop.run.
+        self.on_target_change = on_target_change
         # Pixel-precise scroll offset in dp.  Applied as a negative
         # margin-top on the panel body so .bc-panel's overflow:hidden
         # clips the rows above the visible area.  Smooth row-by-row
@@ -250,6 +257,8 @@ class TargetListController:
         player = self._get_player()
         if player is not None:
             player.SetTarget(ship)
+        if self.on_target_change is not None:
+            self.on_target_change(ship)
 
     def _select_subsystem(self, sub) -> None:
         self._set_selected(sub)
