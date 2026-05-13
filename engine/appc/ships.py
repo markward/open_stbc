@@ -153,6 +153,7 @@ class ShipClass(DamageableObject):
             ShipProperty, ImpulseEngineProperty, WarpEngineProperty,
             HullProperty, SensorProperty, ShieldProperty,
             WeaponSystemProperty, TorpedoTubeProperty,
+            PowerProperty, RepairSubsystemProperty,
         )
         from engine.appc.subsystems import HullSubsystem
         import App
@@ -247,6 +248,17 @@ class ShipClass(DamageableObject):
                         if sf is not None: receiver.SetSingleFire(sf)
                         aw = prop.GetAimedWeapon()
                         if aw is not None: receiver.SetAimedWeapon(aw)
+            elif isinstance(prop, PowerProperty):
+                ps = self._power_subsystem
+                if ps is not None:
+                    ps.SetProperty(prop)
+                    mc = prop.GetMaxCondition()
+                    if mc is not None: ps.SetMaxCondition(mc)
+            elif isinstance(prop, RepairSubsystemProperty):
+                rs = self._repair_subsystem
+                if rs is not None:
+                    self._copy_powered_subsystem_fields(prop, rs)
+                    rs.SetProperty(prop)
 
         # Pass 2 — seed torpedo tubes (idempotent).
         ts = self._torpedo_system
