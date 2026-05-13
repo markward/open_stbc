@@ -59,9 +59,18 @@ DEFAULT_DIRECTIONALS: list = [
     ((0.3, 1.0, 0.2), (1.0, 1.0, 1.0)),
 ]
 
-# Camera-follow constants scaled to match SHIP_SCALE (original BC values: 600, 200).
-CAM_BACK_DIST = 600.0 * SHIP_SCALE
-CAM_UP_DIST   = 200.0 * SHIP_SCALE
+# Camera-follow distances as multiples of the player ship's GetRadius().
+# BC's stock framing ratio is ~1.2× the ship's mesh diameter, which in our
+# convention is ~2.4 × GetRadius (GetRadius corresponds to the AABB outer-
+# corner sphere, larger than any single half-extent).
+CAM_BACK_RADII =  1.5
+CAM_UP_RADII   =  0.25
+CAM_MIN_RADII  =  0.6
+CAM_MAX_RADII  = 30.0
+# Look-at offset along ship's body-up. Positive values move the ship
+# downward on screen (because target shifts upward in world). Expressed
+# as multiples of ship radius so framing is scale-invariant across ships.
+CAM_LOOK_UP_RADII = 0.20
 
 
 class _PlayerControl:
@@ -262,22 +271,33 @@ class _CameraControl:
     ZOOM_FACTOR_PER_NOTCH  = 0.9                                # one scroll click ≈ 10%
     PITCH_LIMIT_RAD        = _math.radians(85)                  # avoid pole flip
     DEFAULT_YAW_RAD        = 0.0
-    DEFAULT_PITCH_RAD      = _math.atan2(200.0, 600.0)          # ≈ 18.43°
-    DEFAULT_DISTANCE       = _math.sqrt(600.0**2 + 200.0**2) * SHIP_SCALE
-    DISTANCE_MIN           =  100.0 * SHIP_SCALE
-    DISTANCE_MAX           = 5000.0 * SHIP_SCALE
+    DEFAULT_PITCH_RAD      = _math.atan2(CAM_UP_RADII, CAM_BACK_RADII)
     SPRING_TAU_S           = 0.50                               # ~95% catch-up in 1.5s
 
     def __init__(self):
         self.orbit_yaw_rad   = self.DEFAULT_YAW_RAD
         self.orbit_pitch_rad = self.DEFAULT_PITCH_RAD
-        self.distance        = self.DEFAULT_DISTANCE
         self._smoothed_rot   = None  # seeded on first compute_camera(..., dt=...)
+        self.look_up_offset  = 0.0
+        self.set_ship_radius(1.0)
+
+    def set_ship_radius(self, radius: float) -> None:
+        """Bind chase distances to the player ship's GetRadius(). Re-seeds
+        self.distance if it was sitting at the prior default; preserves any
+        user zoom that has occurred since the last reset."""
+        radius = max(radius, 1e-6)
+        prev_default = getattr(self, "default_distance", None)
+        self.default_distance = _math.sqrt(CAM_BACK_RADII**2 + CAM_UP_RADII**2) * radius
+        self.distance_min     = CAM_MIN_RADII * radius
+        self.distance_max     = CAM_MAX_RADII * radius
+        self.look_up_offset   = CAM_LOOK_UP_RADII * radius
+        if prev_default is None or getattr(self, "distance", prev_default) == prev_default:
+            self.distance = self.default_distance
 
     def _reset(self) -> None:
         self.orbit_yaw_rad   = self.DEFAULT_YAW_RAD
         self.orbit_pitch_rad = self.DEFAULT_PITCH_RAD
-        self.distance        = self.DEFAULT_DISTANCE
+        self.distance        = self.default_distance
 
     def snap(self) -> None:
         """Drop smoothed rotation so the next compute_camera(..., dt=...) call
@@ -306,8 +326,8 @@ class _CameraControl:
 
         if scroll_y != 0.0:
             self.distance *= self.ZOOM_FACTOR_PER_NOTCH ** scroll_y
-            if self.distance < self.DISTANCE_MIN: self.distance = self.DISTANCE_MIN
-            if self.distance > self.DISTANCE_MAX: self.distance = self.DISTANCE_MAX
+            if self.distance < self.distance_min: self.distance = self.distance_min
+            if self.distance > self.distance_max: self.distance = self.distance_max
 
     def compute_camera(self, ship_loc, ship_rot, dt=None) -> tuple:
         """Return (eye, target, up) as 3-tuples in world space.
@@ -341,12 +361,20 @@ class _CameraControl:
         fwd = basis.GetRow(1)
         up  = basis.GetRow(2)
 
+        # Shift look-target up along ship body-Z so the ship sits below
+        # screen center. Eye is also shifted by the same amount so the
+        # pitch angle (eye→target) stays unchanged — pure pan.
+        lu = self.look_up_offset
         eye = (
-            ship_loc.x + ox * rgt.x + oy * fwd.x + oz * up.x,
-            ship_loc.y + ox * rgt.y + oy * fwd.y + oz * up.y,
-            ship_loc.z + ox * rgt.z + oy * fwd.z + oz * up.z,
+            ship_loc.x + ox * rgt.x + oy * fwd.x + oz * up.x + lu * up.x,
+            ship_loc.y + ox * rgt.y + oy * fwd.y + oz * up.y + lu * up.y,
+            ship_loc.z + ox * rgt.z + oy * fwd.z + oz * up.z + lu * up.z,
         )
-        target = (ship_loc.x, ship_loc.y, ship_loc.z)
+        target = (
+            ship_loc.x + lu * up.x,
+            ship_loc.y + lu * up.y,
+            ship_loc.z + lu * up.z,
+        )
         up_vec = (up.x, up.y, up.z)
         return eye, target, up_vec
 
@@ -794,17 +822,42 @@ def _aggregate_backdrops(pSet):
     return aggregate_for_renderer(pSet, PROJECT_ROOT)
 
 
-def _ship_world_matrix(ship) -> list:
-    """Row-major TRS mat4 for a ship: mesh scaled by SHIP_SCALE, position unchanged.
+# Universal NIF→world conversion. Calibrated from BC's Galaxy reading
+# (GetRadius=4.3665, model_aabb outer extent=403.258). Used to derive a
+# meaningful GetRadius() for Phase-1 shim ships that don't have one set,
+# so downstream code (camera-follow, shield bubble) reads sensible numbers.
+NIF_TO_WORLD = 4.3665 / 403.258  # ≈ 0.01083
+
+
+def _model_extent_from_aabb(center: tuple, half_extents: tuple) -> float:
+    """Outer model-space radius for a NIF: |center| + |half_extents|.
+    Conservative upper bound on the maximum vertex distance from origin.
+    Used as the divisor in the per-ship natural scale (load-time)."""
+    cx, cy, cz = center
+    hx, hy, hz = half_extents
+    return _math.sqrt(cx*cx + cy*cy + cz*cz) + _math.sqrt(hx*hx + hy*hy + hz*hz)
+
+
+def _ship_world_matrix(ship, natural_scale: float) -> list:
+    """Row-major TRS mat4 for a ship.
+
+    Two-layer scaling:
+      natural_scale  — load-time GetRadius() / NIF_extent, makes the rendered
+                       outer radius match BC's GetRadius() reading by default.
+      ship.GetScale()— per-frame multiplier applied by SDK scripts
+                       (DockWithStarbase, asteroid systems, etc.).
 
     BC's TGMatrix3 is row-vector (rows = body axes in world). The OpenGL shader
     consumes u_model column-vector (columns = body axes), so the rotation is
-    transposed on the way out. Camera and physics-motion code keep reading
-    rows and stay correct under BC convention.
+    transposed on the way out.
     """
     loc = ship.GetWorldLocation()
     rot = ship.GetWorldRotation()
-    s = SHIP_SCALE
+    try:
+        py_scale = float(ship.GetScale())
+    except Exception:
+        py_scale = 1.0
+    s = natural_scale * py_scale
     return [
         rot._m[0][0]*s, rot._m[1][0]*s, rot._m[2][0]*s, loc.x,
         rot._m[0][1]*s, rot._m[1][1]*s, rot._m[2][1]*s, loc.y,
@@ -813,20 +866,22 @@ def _ship_world_matrix(ship) -> list:
     ]
 
 
-def _astro_world_matrix(obj) -> list:
-    """Row-major TRS mat4 for a planet/moon: position * ASTRO_SCALE, mesh scale
-    derived from GetRadius() so the visual radius equals python_radius * ASTRO_SCALE.
-
-    Rotation is transposed for the same row/column convention reason as
-    _ship_world_matrix.
+def _astro_world_matrix(obj, natural_scale: float) -> list:
+    """Row-major TRS mat4 for a planet/moon. Same two-layer formula as ships:
+    natural_scale (load-time GetRadius/NIF_extent) × GetScale() (per-frame).
+    Position is BC world-native (no global multiplier).
     """
     loc = obj.GetWorldLocation()
     rot = obj.GetWorldRotation()
-    s = obj.GetRadius() * ASTRO_SCALE / PLANET_NIF_NATIVE_RADIUS
+    try:
+        py_scale = float(obj.GetScale())
+    except Exception:
+        py_scale = 1.0
+    s = natural_scale * py_scale
     return [
-        rot._m[0][0]*s, rot._m[1][0]*s, rot._m[2][0]*s, loc.x * ASTRO_SCALE,
-        rot._m[0][1]*s, rot._m[1][1]*s, rot._m[2][1]*s, loc.y * ASTRO_SCALE,
-        rot._m[0][2]*s, rot._m[1][2]*s, rot._m[2][2]*s, loc.z * ASTRO_SCALE,
+        rot._m[0][0]*s, rot._m[1][0]*s, rot._m[2][0]*s, loc.x,
+        rot._m[0][1]*s, rot._m[1][1]*s, rot._m[2][1]*s, loc.y,
+        rot._m[0][2]*s, rot._m[1][2]*s, rot._m[2][2]*s, loc.z,
         0.0,            0.0,            0.0,            1.0,
     ]
 
@@ -842,6 +897,11 @@ class MissionSession:
     mission_name: str
     ship_instances:   dict[Any, int] = field(default_factory=dict)
     planet_instances: dict[Any, int] = field(default_factory=dict)
+    # Per-object natural_scale = GetRadius() / NIF_extent, cached at load.
+    # Read by _ship_world_matrix / _astro_world_matrix; multiplied by
+    # GetScale() at draw time.
+    ship_natural_scale:   dict[Any, float] = field(default_factory=dict)
+    planet_natural_scale: dict[Any, float] = field(default_factory=dict)
     player: Optional[Any] = None
 
     def teardown(self, renderer) -> None:
@@ -851,6 +911,8 @@ class MissionSession:
             renderer.destroy_instance(iid)
         self.ship_instances.clear()
         self.planet_instances.clear()
+        self.ship_natural_scale.clear()
+        self.planet_natural_scale.clear()
         self.player = None
 
 
@@ -864,6 +926,9 @@ class HostController:
         self.renderer: Any = None
         self.loader: Any = None
         self.nif_to_handle: dict[str, int] = {}
+        # Outer model-space extent per NIF path; survives mission swaps so
+        # repeated loads of the same ship don't re-query model_aabb.
+        self.nif_to_extent: dict[str, float] = {}
         self.session: Optional[MissionSession] = None
         self.pending_swap: Optional[str] = None
         self.bridge_instance: Optional[Any] = None  # InstanceId from create_bridge_instance
@@ -941,9 +1006,21 @@ class _MissionLoader:
                               f"{type(e).__name__}: {e}", flush=True)
                     continue
                 self._c.nif_to_handle[nif_path] = handle
+                center, half_extents = r_.model_aabb(handle)
+                self._c.nif_to_extent[nif_path] = _model_extent_from_aabb(center, half_extents)
+            extent = self._c.nif_to_extent.get(nif_path, 1.0)
+            # BC's compiled engine populates GetRadius() from the loaded NIF.
+            # Phase-1's shim skips that, so derive it here when missing.
+            if ship.GetRadius() <= 0.0:
+                try:
+                    ship.SetRadius(extent * NIF_TO_WORLD)
+                except Exception:
+                    pass
+            natural_scale = (ship.GetRadius() / extent) if extent > 0.0 else 1.0
             iid = r_.create_instance(handle)
-            r_.set_world_transform(iid, _ship_world_matrix(ship))
+            r_.set_world_transform(iid, _ship_world_matrix(ship, natural_scale))
             sess.ship_instances[ship] = iid
+            sess.ship_natural_scale[ship] = natural_scale
 
             # Register shield render state. Reads ShieldProperty data-bag
             # for glow color, decay, and skin-mode flag. No-op for ships
@@ -975,9 +1052,20 @@ class _MissionLoader:
                               f"{type(e).__name__}: {e}", flush=True)
                     continue
                 self._c.nif_to_handle[nif_path] = handle
+                center, half_extents = r_.model_aabb(handle)
+                self._c.nif_to_extent[nif_path] = _model_extent_from_aabb(center, half_extents)
+            extent = self._c.nif_to_extent.get(nif_path, 1.0)
+            if planet.GetRadius() <= 0.0:
+                try:
+                    planet.SetRadius(extent * NIF_TO_WORLD)
+                except Exception:
+                    pass
+            radius = planet.GetRadius()
+            natural_scale = (radius / extent) if extent > 0.0 else 1.0
             iid = r_.create_instance(handle)
-            r_.set_world_transform(iid, _astro_world_matrix(planet))
+            r_.set_world_transform(iid, _astro_world_matrix(planet, natural_scale))
             sess.planet_instances[planet] = iid
+            sess.planet_natural_scale[planet] = natural_scale
 
         player = None
         for pSet in App.g_kSetManager._sets.values():
@@ -1187,6 +1275,8 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         # Per-tick player input → ship-transform integrator.
         player_control = _PlayerControl()
         cam_control    = _CameraControl()
+        if controller.session is not None and controller.session.player is not None:
+            cam_control.set_ship_radius(controller.session.player.GetRadius())
         view_mode      = _ViewModeController()
         bridge_camera  = _BridgeCamera()
         try:
@@ -1216,6 +1306,8 @@ def run(mission_name: str = SHIP_GATE_MISSION,
                 cam_control.snap()
             session = controller.session
             player = session.player if session is not None else None
+            if had_pending_swap and player is not None:
+                cam_control.set_ship_radius(player.GetRadius())
 
             # SPACE toggles bridge/exterior view modality. Polled before
             # the F-key handlers so the modality switch happens first in
@@ -1286,9 +1378,11 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             # Sync transforms for known instances.
             if session is not None:
                 for ship, iid in session.ship_instances.items():
-                    r.set_world_transform(iid, _ship_world_matrix(ship))
+                    ns = session.ship_natural_scale.get(ship, 1.0)
+                    r.set_world_transform(iid, _ship_world_matrix(ship, ns))
                 for planet, iid in session.planet_instances.items():
-                    r.set_world_transform(iid, _astro_world_matrix(planet))
+                    ns = session.planet_natural_scale.get(planet, 1.0)
+                    r.set_world_transform(iid, _astro_world_matrix(planet, ns))
 
             # Camera: orbit + zoom around the player ship (or origin fallback).
             if fixed_camera:

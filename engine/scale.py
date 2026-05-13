@@ -1,3 +1,3 @@
-SHIP_SCALE               = 0.1
-ASTRO_SCALE              = 10.0
+SHIP_SCALE               = 1.0
+ASTRO_SCALE              = 1.0
 PLANET_NIF_NATIVE_RADIUS = 45.0
