@@ -230,10 +230,8 @@ void frame() {
     if (g_dust_pass) g_dust_pass->render(g_camera, dt, *g_pipeline);
 
     if (g_lens_flare_pass) {
-        int fw2 = 0, fh2 = 0;
-        g_window->framebuffer_size(&fw2, &fh2);
         g_lens_flare_pass->render(g_lens_flares, g_camera, *g_pipeline,
-                                  fw2, fh2, now);
+                                  fw, fh, now);
     }
 
     // ── Bridge pass ──────────────────────────────────────────────────────
