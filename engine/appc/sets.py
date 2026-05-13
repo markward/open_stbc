@@ -42,6 +42,9 @@ class SetClass(TGEventHandlerObject):
         # scripts only ever pass them positionally to AddBackdropToSet,
         # never look them up later.
         self._backdrops: 'list["Backdrop"]' = []
+        # Lens flares — populated by App.LensFlare_Create(pSet). Stored in
+        # insertion order; the renderer aggregator walks this list.
+        self._lens_flares: 'list["LensFlare"]' = []
 
     def __getattr__(self, name: str):
         """Return a chainable stub for renderer-specific methods not needed in Phase 1
