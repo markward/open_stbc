@@ -142,6 +142,35 @@ def test_database_is_truthy():
     assert bool(db) is True
 
 
+def test_app_tgstring_factory_round_trips_value():
+    """SDK hardpoint pattern: kS = App.TGString(); kS.SetString("x;y"); pProp.SetFiringChainString(kS).
+
+    App.TGString must be a real factory (not _NamedStub) so the firing-chain
+    CSV survives to GetFiringChainString().GetString() consumers.
+    """
+    import App
+    kS = App.TGString()
+    kS.SetString("0;Single;123;Dual;53;Quad")
+    assert kS.GetString() == "0;Single;123;Dual;53;Quad"
+    assert kS.GetCString() == "0;Single;123;Dual;53;Quad"
+
+
+def test_app_tgstring_initial_value():
+    import App
+    kS = App.TGString("hello")
+    assert kS.GetString() == "hello"
+
+
+def test_app_tgstring_factory_round_trips_through_property():
+    """End-to-end: SDK hands the TGString to WeaponSystemProperty; getter returns the CSV."""
+    import App
+    phasers = App.WeaponSystemProperty_Create("Phasers")
+    kS = App.TGString()
+    kS.SetString("0;Single;123;Dual")
+    phasers.SetFiringChainString(kS)
+    assert phasers.GetFiringChainString().GetString() == "0;Single;123;Dual"
+
+
 def test_app_exposes_localization_manager():
     import App
     assert isinstance(App.g_kLocalizationManager, TGLocalizationManager)

@@ -58,7 +58,7 @@ from engine.core.game import (
     Game_GetOffensiveDifficultyMultiplier, Game_GetDefensiveDifficultyMultiplier,
     Game_GetCurrentPlayer, Game_SetCurrentPlayer,
 )
-from engine.appc.localization import TGLocalizationManager, TGLocalizationDatabase, _TGString
+from engine.appc.localization import TGLocalizationManager, TGLocalizationDatabase, TGString, _TGString
 from engine.appc.var_manager import TGVarManager
 from engine.appc.save_load import SaveLoadManager
 from engine.appc.config_mapping import TGConfigMapping

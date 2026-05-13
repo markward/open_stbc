@@ -21,6 +21,38 @@ etc.) without crashing.  HasString reflects the actual cache contents.
 """
 
 
+class TGString:
+    """Mutable TGString factory matching the SDK constructor idiom.
+
+    SDK hardpoints do ``kS = App.TGString(); kS.SetString("0;Single;123;Dual")``
+    then hand kS to a property setter. Distinct from _TGString (an immutable
+    str subclass returned by localization lookups) because the SDK relies on
+    SetString mutating an existing handle.
+    """
+    __slots__ = ("_value",)
+
+    def __init__(self, value: str = ""):
+        self._value = str(value)
+
+    def SetString(self, value) -> None:
+        self._value = str(value)
+
+    def GetString(self) -> "_TGString":
+        return _TGString(self._value)
+
+    def GetCString(self) -> "_TGString":
+        return _TGString(self._value)
+
+    def GetLength(self) -> int:
+        return len(self._value)
+
+    def __bool__(self) -> bool:
+        return True
+
+    def __repr__(self) -> str:
+        return f"<TGString {self._value!r}>"
+
+
 class _TGString(str):
     """Python str that also satisfies the SDK TGString API.
 
