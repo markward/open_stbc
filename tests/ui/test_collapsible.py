@@ -86,13 +86,19 @@ def test_header_class_reflects_expanded_state(fake_dom):
     assert "expanded" not in fake_dom.element(coll.header_element_id).classes
 
 
-def test_title_click_does_not_toggle_expansion(fake_dom):
+def test_title_click_toggles_expansion(fake_dom):
+    """Title-click toggles AND fires on_click — common collapsible UX
+    where the whole header row is a click target.  The arrow remains
+    available for users who want to toggle without changing selection."""
     pid = bindings.create_panel("p", "top-right", 20.0, 60.0)
     coll = UiCollapsibleList(parent_element=bindings.panel_root(pid),
                              label="x", affiliation="enemy")
+    assert coll.expanded  # default
     title_id = fake_dom.children(coll.header_element_id)[1]
     fake_dom.fire_click(title_id)
-    assert coll.expanded  # unchanged
+    assert not coll.expanded  # collapsed
+    fake_dom.fire_click(title_id)
+    assert coll.expanded  # round-trips
 
 
 def test_title_click_fires_on_click_callback(fake_dom):

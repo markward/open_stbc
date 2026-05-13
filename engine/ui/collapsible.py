@@ -154,5 +154,11 @@ class UiCollapsibleList:
         self.set_expanded(not self._expanded)
 
     def _handle_title_click(self) -> None:
+        # Title click toggles expansion AND fires on_click (selection).
+        # Matches common modern collapsible UX where clicking the row
+        # header collapses/expands.  The arrow toggle remains so users
+        # who explicitly want to collapse without changing the target
+        # selection still have that option.
+        self.set_expanded(not self._expanded)
         if self._on_click is not None:
             self._on_click()
