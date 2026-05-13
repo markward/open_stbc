@@ -24,18 +24,19 @@ def _make_pose(x, y, z, radius=0.0):
 
 
 def test_ship_world_matrix_scales_mesh_not_position():
-    """Identity rotation: upper-left 3x3 scaled by SHIP_SCALE, translation unchanged."""
+    """Identity rotation: upper-left 3x3 = natural_scale (× GetScale, here 1.0);
+    translation is the world location unchanged."""
     from engine import host_loop
-    from engine.scale import SHIP_SCALE
 
     pose = _make_pose(100.0, 200.0, 300.0)
-    m = host_loop._ship_world_matrix(pose)
+    natural_scale = 0.5
+    m = host_loop._ship_world_matrix(pose, natural_scale)
 
     assert len(m) == 16
-    # Upper-left 3x3: identity * SHIP_SCALE
-    assert m[0]  == pytest.approx(SHIP_SCALE)   # row0 col0
-    assert m[5]  == pytest.approx(SHIP_SCALE)   # row1 col1
-    assert m[10] == pytest.approx(SHIP_SCALE)   # row2 col2
+    # Upper-left 3x3: identity * natural_scale
+    assert m[0]  == pytest.approx(natural_scale)   # row0 col0
+    assert m[5]  == pytest.approx(natural_scale)   # row1 col1
+    assert m[10] == pytest.approx(natural_scale)   # row2 col2
     # Off-diagonal rotation elements -> 0
     assert m[1]  == pytest.approx(0.0)
     assert m[4]  == pytest.approx(0.0)
@@ -50,16 +51,6 @@ def test_ship_world_matrix_scales_mesh_not_position():
     assert m[15] == pytest.approx(1.0)
 
 
-def test_camera_constants_match_ship_scale():
-    """CAM_BACK_DIST and CAM_UP_DIST must be scaled by SHIP_SCALE relative to
-    their original BC values (600 and 200 respectively)."""
-    from engine import host_loop
-    from engine.scale import SHIP_SCALE
-
-    assert host_loop.CAM_BACK_DIST == pytest.approx(600.0 * SHIP_SCALE)
-    assert host_loop.CAM_UP_DIST   == pytest.approx(200.0 * SHIP_SCALE)
-
-
 def test_ship_world_matrix_columns_are_body_axes_in_world():
     """BC's TGMatrix3 is row-vector (rows = body axes in world). The OpenGL
     shader expects column-vector u_model (columns = body axes in world). The
@@ -71,19 +62,19 @@ def test_ship_world_matrix_columns_are_body_axes_in_world():
     off the rendered ship's actual rear because of this row/column mismatch."""
     import math
     from engine import host_loop
-    from engine.scale import SHIP_SCALE
 
     pose = _make_pose(0.0, 0.0, 0.0)
     pose._rot.MakeZRotation(math.radians(45))  # non-symmetric rotation
 
-    m = host_loop._ship_world_matrix(pose)
+    natural_scale = 0.5
+    m = host_loop._ship_world_matrix(pose, natural_scale)
 
     # Column j of the row-major mat4 lives at positions j, 4+j, 8+j.
-    # It must equal R.GetRow(j) * SHIP_SCALE (BC-convention body axis j in world).
+    # It must equal R.GetRow(j) * natural_scale (BC body axis j in world).
     rgt = pose._rot.GetRow(0)
     fwd = pose._rot.GetRow(1)
     up  = pose._rot.GetRow(2)
-    s = SHIP_SCALE
+    s = natural_scale
 
     assert m[0]  == pytest.approx(rgt.x * s)
     assert m[4]  == pytest.approx(rgt.y * s)
@@ -102,17 +93,19 @@ def test_astro_world_matrix_columns_are_body_axes_in_world():
     matching the camera/physics view."""
     import math
     from engine import host_loop
-    from engine.scale import ASTRO_SCALE, PLANET_NIF_NATIVE_RADIUS
+    from engine.scale import PLANET_NIF_NATIVE_RADIUS
 
     pose = _make_pose(0.0, 0.0, 0.0, radius=170.0)
     pose._rot.MakeZRotation(math.radians(45))
 
-    m = host_loop._astro_world_matrix(pose)
+    # Caller computes natural_scale = GetRadius() / NIF_extent at load.
+    natural_scale = 170.0 / PLANET_NIF_NATIVE_RADIUS
+    m = host_loop._astro_world_matrix(pose, natural_scale)
 
     rgt = pose._rot.GetRow(0)
     fwd = pose._rot.GetRow(1)
     up  = pose._rot.GetRow(2)
-    s = 170.0 * ASTRO_SCALE / PLANET_NIF_NATIVE_RADIUS
+    s = natural_scale
 
     assert m[0]  == pytest.approx(rgt.x * s)
     assert m[4]  == pytest.approx(rgt.y * s)
@@ -126,26 +119,26 @@ def test_astro_world_matrix_columns_are_body_axes_in_world():
 
 
 def test_astro_world_matrix_scales_mesh_and_position():
-    """Identity rotation, radius=170: position * ASTRO_SCALE, mesh scale from radius."""
+    """Identity rotation, natural_scale = radius/native: position is BC
+    world-native (unchanged), mesh scaled by natural_scale."""
     from engine import host_loop
-    from engine.scale import ASTRO_SCALE, PLANET_NIF_NATIVE_RADIUS
+    from engine.scale import PLANET_NIF_NATIVE_RADIUS
 
     pose = _make_pose(100.0, 200.0, 300.0, radius=170.0)
-    m = host_loop._astro_world_matrix(pose)
-
-    expected_mesh_scale = 170.0 * ASTRO_SCALE / PLANET_NIF_NATIVE_RADIUS  # ~37.78
+    natural_scale = 170.0 / PLANET_NIF_NATIVE_RADIUS  # ~3.78
+    m = host_loop._astro_world_matrix(pose, natural_scale)
 
     assert len(m) == 16
-    # Upper-left 3x3: identity * expected_mesh_scale
-    assert m[0]  == pytest.approx(expected_mesh_scale)
-    assert m[5]  == pytest.approx(expected_mesh_scale)
-    assert m[10] == pytest.approx(expected_mesh_scale)
+    # Upper-left 3x3: identity * natural_scale
+    assert m[0]  == pytest.approx(natural_scale)
+    assert m[5]  == pytest.approx(natural_scale)
+    assert m[10] == pytest.approx(natural_scale)
     # Off-diagonal rotation elements -> 0
     assert m[1]  == pytest.approx(0.0)
     assert m[4]  == pytest.approx(0.0)
-    # Translation column: position * ASTRO_SCALE
-    assert m[3]  == pytest.approx(100.0 * ASTRO_SCALE)
-    assert m[7]  == pytest.approx(200.0 * ASTRO_SCALE)
-    assert m[11] == pytest.approx(300.0 * ASTRO_SCALE)
+    # Translation column: BC world-native position, no global multiplier
+    assert m[3]  == pytest.approx(100.0)
+    assert m[7]  == pytest.approx(200.0)
+    assert m[11] == pytest.approx(300.0)
     # Homogeneous row
     assert m[15] == pytest.approx(1.0)
