@@ -21,6 +21,8 @@ embed_shader(SHADER_DUST_VS shaders/dust.vert dust_vs)
 embed_shader(SHADER_DUST_FS shaders/dust.frag dust_fs)
 embed_shader(SHADER_SHIELD_VS shaders/shield.vert shield_vs)
 embed_shader(SHADER_SHIELD_FS shaders/shield.frag shield_fs)
+embed_shader(SHADER_LENS_FLARE_VS shaders/lens_flare.vert lens_flare_vs)
+embed_shader(SHADER_LENS_FLARE_FS shaders/lens_flare.frag lens_flare_fs)
 
 add_library(renderer STATIC
     window.cc
