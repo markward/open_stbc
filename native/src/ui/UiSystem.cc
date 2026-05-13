@@ -2,6 +2,7 @@
 #include "ui/UiSystem.h"
 #include "ui/HudDocument.h"
 #include "ui/PanelDocument.h"
+#include <renderer/window.h>
 
 // glad must be included before any GL headers.
 #include <glad/glad.h>
@@ -45,6 +46,20 @@ void key_cb(GLFWwindow*, int key, int /*scancode*/, int action, int mods) {
 void char_cb(GLFWwindow*, unsigned int codepoint) {
     if (g_input_ctx) {
         RmlGLFW::ProcessCharCallback(g_input_ctx, codepoint);
+    }
+}
+
+void scroll_cb(GLFWwindow* w, double /*xoffset*/, double yoffset) {
+    bool consumed = false;
+    if (g_input_ctx) {
+        consumed = RmlGLFW::ProcessScrollCallback(
+            g_input_ctx, yoffset, /*key_modifier_state=*/0);
+    }
+    if (!consumed) {
+        if (auto* win = static_cast<renderer::Window*>(
+                glfwGetWindowUserPointer(w))) {
+            win->add_scroll_y(yoffset);
+        }
     }
 }
 }  // namespace
@@ -106,15 +121,16 @@ UiSystem::UiSystem(GLFWwindow* window,
     // host_loop). Initialise unconditionally; SetVisible toggles display.
     Rml::Debugger::Initialise(context_);
 
-    // Wire GLFW input → RmlUi context. The scroll callback is owned by
-    // renderer::Window (orbit camera zoom) and is intentionally not touched
-    // here. Mouse-wheel forwarding into RmlUi can be added later when a
-    // scrollable panel needs it.
+    // Wire GLFW input → RmlUi context.  Scroll is filtered: RmlUi
+    // attempts to consume the event first (cursor over a scrollable
+    // element), and if it declines the delta is forwarded to
+    // renderer::Window's accumulator for camera-zoom.
     g_input_ctx = context_;
     glfwSetCursorPosCallback(window, cursor_pos_cb);
     glfwSetMouseButtonCallback(window, mouse_button_cb);
     glfwSetKeyCallback(window, key_cb);
     glfwSetCharCallback(window, char_cb);
+    glfwSetScrollCallback(window, scroll_cb);
 }
 
 UiSystem::~UiSystem() {
