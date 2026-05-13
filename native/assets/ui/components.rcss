@@ -210,25 +210,10 @@ body {
 }
 
 /* ── Scrollbar styling ─────────────────────────────────────────────────
-   Used by .bc-panel-body when its content overflows max-height.  RmlUi
-   styles scrollbars via the special scrollbar-vertical / slidertrack /
-   sliderbar element selectors.  We use flat hex literals — this file's
-   header notes RCSS doesn't support var() or rgba(). */
-
-scrollbar-vertical {
-    width: 12dp;
-}
-
-slidertrack {
-    background-color: #14141ea0;
-}
-
-sliderbar {
-    background-color: #66c2ff;
-    min-height: 24dp;
-    border-radius: 4dp;
-}
-
-sliderbar:hover {
-    background-color: #99e0ff;
-}
+   RmlUi's default scrollbar look (no styling rules) is fine for now.  A
+   prior attempt at custom slidertrack/sliderbar rules rendered as a
+   giant blue block — RmlUi appears to render the scrollbar chrome
+   unconstrained when only the bar/track are styled without their
+   parent scrollbarvertical container.  Revisit when we want a themed
+   scrollbar; the correct selector name is `scrollbarvertical` (no
+   hyphen) per RmlUi RCSS spec. */
