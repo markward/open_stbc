@@ -28,9 +28,11 @@ public:
         context_ = alcCreateContext(device_, nullptr);
         if (!context_ || !alcMakeContextCurrent(context_)) {
             std::fprintf(stderr, "[audio] alcCreateContext failed\n");
+            if (context_) { alcDestroyContext(context_); context_ = nullptr; }
+            alcCloseDevice(device_);
+            device_ = nullptr;
             return false;
         }
-        for (int i = 0; i < 3; i++) category_gain_[i] = 1.0f;
         return true;
     }
 
