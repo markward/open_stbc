@@ -180,6 +180,7 @@ class EnergyWeaponProperty(WeaponProperty):
         self._min_firing_charge: float = 0.0
         self._normal_discharge_rate: float = 0.0
         self._recharge_rate: float = 0.0
+        self._fire_sound: str = ""
 
     def GetMaxCharge(self) -> float:
         return self._max_charge
@@ -204,6 +205,12 @@ class EnergyWeaponProperty(WeaponProperty):
 
     def SetRechargeRate(self, v) -> None:
         self._recharge_rate = float(v)
+
+    def GetFireSound(self) -> str:
+        return self._fire_sound
+
+    def SetFireSound(self, v) -> None:
+        self._fire_sound = str(v)
 
 
 class PhaserProperty(EnergyWeaponProperty):

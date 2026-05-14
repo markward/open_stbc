@@ -87,3 +87,20 @@ def test_torpedo_tube_max_ready_coerces_to_int():
     t.SetMaxReady(1.0)  # hardpoint files have inconsistent typing
     assert isinstance(t.GetMaxReady(), int)
     assert t.GetMaxReady() == 1
+
+
+def test_energy_weapon_fire_sound_default_empty():
+    p = EnergyWeaponProperty("Test")
+    assert p.GetFireSound() == ""
+
+
+def test_energy_weapon_fire_sound_roundtrip():
+    p = EnergyWeaponProperty("Test")
+    p.SetFireSound("Galaxy Phaser")
+    assert p.GetFireSound() == "Galaxy Phaser"
+
+
+def test_phaser_inherits_fire_sound():
+    p = PhaserProperty("Dorsal Phaser 1")
+    p.SetFireSound("Galaxy Phaser")
+    assert p.GetFireSound() == "Galaxy Phaser"
