@@ -54,6 +54,10 @@ def shutdown_audio() -> None:
 def tick_audio(*, camera_position, camera_forward, camera_up, dt, player) -> None:
     if _audio_mod is None:
         return
+    # Push ship positions to looping rumble sources before set_listener,
+    # so positional math sees up-to-date source positions.
+    from engine.audio.engine_rumble import update_positions
+    update_positions()
     px, py, pz = camera_position
     fx, fy, fz = camera_forward
     ux, uy, uz = camera_up

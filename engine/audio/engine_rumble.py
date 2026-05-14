@@ -67,6 +67,30 @@ def install_engine_rumble_listener() -> None:
     _installed = True
 
 
+def update_positions() -> None:
+    """Push each tracked ship's world position to its rumble source.
+
+    Called per tick from host_loop.tick_audio. Real ships have
+    GetWorldLocation() returning a vec3 with .x/.y/.z attributes.
+    """
+    for ship, playing in list(_active.items()):
+        loc_getter = getattr(ship, "GetWorldLocation", None)
+        if loc_getter is None:
+            continue
+        try:
+            loc = loc_getter()
+        except Exception:
+            continue
+        if loc is None:
+            continue
+        x = getattr(loc, "x", None)
+        y = getattr(loc, "y", None)
+        z = getattr(loc, "z", None)
+        if x is None or y is None or z is None:
+            continue
+        playing.SetPosition(float(x), float(y), float(z))
+
+
 def reset_for_tests() -> None:
     global _installed, _unsubscribe
     _installed = False

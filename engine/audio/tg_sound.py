@@ -41,6 +41,19 @@ class _PlayingSound:
             _audio.stop(self._pid)
         self._pid = 0
 
+    def __del__(self) -> None:
+        # GC safety net: if the wrapping object is discarded without an
+        # explicit Stop, release the C++ source so a looping rumble doesn't
+        # play forever.
+        try:
+            self.Stop()
+        except Exception:
+            pass
+
+    def SetPosition(self, x: float, y: float, z: float) -> None:
+        if _audio and self._pid:
+            _audio.set_position(self._pid, x, y, z)
+
 
 class TGSound:
     # Loadspec constants (match App.py).

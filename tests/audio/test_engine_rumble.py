@@ -86,3 +86,36 @@ def test_missing_engine_sound_does_not_crash(boot):
     ship = _FakeShip("Nonexistent Engines")
     ship_lifecycle.publish_added(ship)
     ship_lifecycle.publish_destroyed(ship)
+
+
+def test_update_positions_pushes_ship_world_location(boot):
+    from engine.appc import ship_lifecycle
+    from engine.audio.engine_rumble import update_positions, reset_for_tests
+    reset_for_tests()
+    ship_lifecycle.reset()
+    install_engine_rumble_listener()
+
+    class _Loc:
+        x, y, z = 100.0, 200.0, 300.0
+
+    class _PositionedShip(_FakeShip):
+        def GetWorldLocation(self):
+            return _Loc()
+
+    ship = _PositionedShip("Federation Engines")
+    ship_lifecycle.publish_added(ship)
+
+    _open_stbc_host.audio.clear_command_log()
+    update_positions()
+
+    pos_entries = [e for e in _open_stbc_host.audio.debug_command_log()
+                   if e["op"] == "set_position"]
+    assert len(pos_entries) == 1
+    assert pos_entries[0]["f"][0] == 100.0
+    assert pos_entries[0]["f"][1] == 200.0
+    assert pos_entries[0]["f"][2] == 300.0
+
+    # Tear down: ship_lifecycle.snapshot() is global; remove the partial
+    # test object so later tests that iterate ships (e.g. target_list) don't
+    # see a ship without GetName and crash.
+    ship_lifecycle.reset()
