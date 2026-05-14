@@ -310,6 +310,7 @@ class WeaponSystem(PoweredSubsystem):
         self._currently_firing: list = []
 
     def StartFiring(self, target=None, offset=None) -> None:
+        print(f"[FIRE-CHAIN] StartFiring on {type(self).__name__}({self._name}) IsOn={self.IsOn()} n={self.GetNumWeapons()}", flush=True)
         if not self.IsOn():
             return
         n = self.GetNumWeapons()
@@ -607,13 +608,17 @@ class TorpedoTube(WeaponSystem):
         """
         parent = self.GetParentSubsystem()
         if parent is None:
+            print(f"[FIRE-CHAIN] _spawn_torpedo: tube={self._name} parent=None", flush=True)
             return
         parent_prop = parent.GetProperty() if hasattr(parent, "GetProperty") else None
         if parent_prop is None or not hasattr(parent_prop, "GetTorpedoScript"):
+            print(f"[FIRE-CHAIN] _spawn_torpedo: tube={self._name} parent_prop={parent_prop} (no GetTorpedoScript)", flush=True)
             return
         script_name = parent_prop.GetTorpedoScript(0)
         if not script_name:
+            print(f"[FIRE-CHAIN] _spawn_torpedo: tube={self._name} no script bound for slot 0", flush=True)
             return
+        print(f"[FIRE-CHAIN] _spawn_torpedo: tube={self._name} script={script_name}", flush=True)
 
         import importlib
         try:

@@ -85,6 +85,18 @@ def _bootstrap_firing_pipeline() -> None:
     tcw = App.TacticalControlWindow_GetTacticalControlWindow()
     App.g_kKeyboardBinding.SetDefaultDestination(tcw)
 
+    # Register WC_* unicode keys with the input manager.  Without this,
+    # OnKeyDown(WC_RBUTTON) etc. silently no-op because the key isn't in
+    # g_kInputManager._registered.  KeyConfig.MapScancodes registers
+    # every keyboard scancode plus mouse buttons (WC_LBUTTON / WC_RBUTTON
+    # / WC_MBUTTON) the SDK knows about.
+    try:
+        import KeyConfig
+        KeyConfig.MapScancodes()
+    except Exception as _e:
+        print(f"[host_loop] WARNING: KeyConfig.MapScancodes() failed: {_e}",
+              flush=True)
+
     # Register the canonical key + binding tables (SDK script).
     try:
         import DefaultKeyboardBinding
@@ -134,6 +146,7 @@ def _poll_mouse_buttons(host) -> None:
     test setup that imports host_loop without a window).
     """
     if host is None or not hasattr(host, "mouse_button_pressed"):
+        print("[FIRE-CHAIN] _poll_mouse_buttons: host=None or no mouse_button_pressed", flush=True)
         return
     import App
     for glfw_btn, wc in (
@@ -142,8 +155,10 @@ def _poll_mouse_buttons(host) -> None:
         (host.keys.MOUSE_BUTTON_MIDDLE, App.WC_MBUTTON),
     ):
         if host.mouse_button_pressed(glfw_btn):
+            print(f"[FIRE-CHAIN] mouse_button_pressed glfw={glfw_btn} wc={hex(wc)} → OnKeyDown", flush=True)
             App.g_kInputManager.OnKeyDown(wc)
         if host.mouse_button_released(glfw_btn):
+            print(f"[FIRE-CHAIN] mouse_button_released glfw={glfw_btn} wc={hex(wc)} → OnKeyUp", flush=True)
             App.g_kInputManager.OnKeyUp(wc)
 
 
