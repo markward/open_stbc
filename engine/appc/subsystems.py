@@ -17,6 +17,20 @@ from engine.appc.events import TGEventHandlerObject
 from engine.appc.math import TGPoint3
 
 
+def _init_energy_weapon_state(self):
+    """Shared init for PhaserBank/PulseWeapon/TractorBeam runtime state.
+
+    Field names mirror EnergyWeaponProperty.  Pass 4 copies the property
+    values onto these attributes after instantiation; until then they're
+    all zero.
+    """
+    self._max_charge: float = 0.0
+    self._min_firing_charge: float = 0.0
+    self._normal_discharge_rate: float = 0.0
+    self._recharge_rate: float = 0.0
+    self._charge_level: float = 0.0
+
+
 class ShipSubsystem(TGEventHandlerObject):
     def __init__(self, name: str = ""):
         super().__init__()
@@ -225,6 +239,14 @@ class WeaponSystem(PoweredSubsystem):
     def GetWeaponSystemType(self) -> int:           return self._weapon_system_type
     def SetWeaponSystemType(self, v) -> None:       self._weapon_system_type = int(v)
 
+    # SDK-faithful aliases over the child-subsystem API.
+    # TacticalInterfaceHandlers.FireWeapons (PR 2) reads these.
+    def GetNumWeapons(self) -> int:
+        return self.GetNumChildSubsystems()
+
+    def GetWeapon(self, i: int):
+        return self.GetChildSubsystem(i)
+
 
 class TorpedoAmmoType:
     """A loaded torpedo ammo type — exposes the SDK GetAmmoName surface.
@@ -325,32 +347,113 @@ class TractorBeamSystem(WeaponSystem):
 
 
 class PhaserBank(WeaponSystem):
-    """Individual phaser emitter.  Hangs under a parent PhaserSystem
-    (WeaponSystemProperty WST_PHASER).  SDK App.py: EnergyWeapon subclass.
+    """Individual phaser emitter under a parent PhaserSystem
+    (WeaponSystemProperty WST_PHASER).  Charge fields are populated by
+    Pass 4 from the parent PhaserProperty; see galaxy.py:209-214 for
+    typical values."""
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        _init_energy_weapon_state(self)
 
-    Fields are inherited from WeaponSystem; per-bank specialisation is
-    added when SDK callers prove they need it.
-    """
-    pass
+    def GetMaxCharge(self) -> float:                return self._max_charge
+    def GetMinFiringCharge(self) -> float:          return self._min_firing_charge
+    def GetNormalDischargeRate(self) -> float:      return self._normal_discharge_rate
+    def GetRechargeRate(self) -> float:             return self._recharge_rate
+    def GetChargeLevel(self) -> float:              return self._charge_level
+
+    def GetChargePercentage(self) -> float:
+        if self._max_charge <= 0.0:
+            return 0.0
+        return self._charge_level / self._max_charge
+
+    def SetChargeLevel(self, v) -> None:
+        v = float(v)
+        if v < 0.0:                self._charge_level = 0.0
+        elif v > self._max_charge: self._charge_level = self._max_charge
+        else:                      self._charge_level = v
 
 
 class PulseWeapon(WeaponSystem):
     """Individual pulse-weapon emitter under a parent PulseWeaponSystem
-    (WeaponSystemProperty WST_PULSE)."""
-    pass
+    (WeaponSystemProperty WST_PULSE).  Energy-weapon charge surface plus
+    per-shot cooldown timer; see ships/Hardpoints/vorcha.py for SetCooldownTime
+    call sites."""
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        _init_energy_weapon_state(self)
+        self._cooldown_time: float = 0.0
+
+    def GetMaxCharge(self) -> float:                return self._max_charge
+    def GetMinFiringCharge(self) -> float:          return self._min_firing_charge
+    def GetNormalDischargeRate(self) -> float:      return self._normal_discharge_rate
+    def GetRechargeRate(self) -> float:             return self._recharge_rate
+    def GetChargeLevel(self) -> float:              return self._charge_level
+    def GetCooldownTime(self) -> float:             return self._cooldown_time
+
+    def GetChargePercentage(self) -> float:
+        if self._max_charge <= 0.0:
+            return 0.0
+        return self._charge_level / self._max_charge
+
+    def SetChargeLevel(self, v) -> None:
+        v = float(v)
+        if v < 0.0:                self._charge_level = 0.0
+        elif v > self._max_charge: self._charge_level = self._max_charge
+        else:                      self._charge_level = v
 
 
 class TractorBeam(WeaponSystem):
     """Individual tractor-beam emitter under a parent TractorBeamSystem
-    (WeaponSystemProperty WST_TRACTOR)."""
-    pass
+    (WeaponSystemProperty WST_TRACTOR).  Same energy-weapon charge model
+    as phasers; see galaxy.py:853-854 for typical values (aft tractors
+    recharge=0.5, forward tractors 0.3)."""
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        _init_energy_weapon_state(self)
+
+    def GetMaxCharge(self) -> float:                return self._max_charge
+    def GetMinFiringCharge(self) -> float:          return self._min_firing_charge
+    def GetNormalDischargeRate(self) -> float:      return self._normal_discharge_rate
+    def GetRechargeRate(self) -> float:             return self._recharge_rate
+    def GetChargeLevel(self) -> float:              return self._charge_level
+
+    def GetChargePercentage(self) -> float:
+        if self._max_charge <= 0.0:
+            return 0.0
+        return self._charge_level / self._max_charge
+
+    def SetChargeLevel(self, v) -> None:
+        v = float(v)
+        if v < 0.0:                self._charge_level = 0.0
+        elif v > self._max_charge: self._charge_level = self._max_charge
+        else:                      self._charge_level = v
 
 
 class TorpedoTube(WeaponSystem):
-    """Individual launcher under a parent TorpedoSystem.  Ammo tracking
-    lives on the parent's slot table (SDK-compatible: SetAmmoType(slot, type)
-    indexes by integer, not by tube reference)."""
-    pass
+    """Individual launcher under a parent TorpedoSystem.  Ammo-type tracking
+    lives on the parent's slot table; this class owns per-tube reload state.
+
+    Reload model (galaxy.py:28-30): ImmediateDelay=delay from fire request
+    to launch, ReloadDelay=per-tube reload after firing, MaxReady=shots
+    queued before reload begins.
+    """
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        self._num_ready: int = 0
+        self._last_fire_time: float = float("-inf")
+        self._immediate_delay: float = 0.0
+        self._reload_delay: float = 0.0
+        self._max_ready: int = 0
+
+    def GetNumReady(self) -> int:                   return self._num_ready
+    def SetNumReady(self, v) -> None:               self._num_ready = int(v)
+    def IncNumReady(self) -> None:                  self._num_ready += 1
+    def DecNumReady(self) -> None:                  self._num_ready -= 1
+    def GetLastFireTime(self) -> float:             return self._last_fire_time
+    def SetLastFireTime(self, v) -> None:           self._last_fire_time = float(v)
+    def GetImmediateDelay(self) -> float:           return self._immediate_delay
+    def GetReloadDelay(self) -> float:              return self._reload_delay
+    def GetMaxReady(self) -> int:                   return self._max_ready
 
 
 class HullSubsystem(ShipSubsystem):
