@@ -839,7 +839,7 @@
       <div class="subline">Open rebuild of the engine, 24 years on</div>
 
       <p class="lede">
-        Rebuilding a classic, powered by AI. We are building an open, cross-platform replacement for the <em>Star Trek: Bridge Commander</em> engine—and breaking new ground as the first project of this size to use a large language model as the lead co-pilot.
+        Rebuilding a classic, powered by AI. Challenging Anthropic's Claude models to build an open, cross-platform replacement for the <em>Star Trek: Bridge Commander</em> engine.
       </p>
 
       <div class="motto">May the wind be at our backs</div>
@@ -864,9 +864,13 @@
       <h2>What this is, and what it isn't</h2>
       <p style="margin-top:12px;">
         <strong>This is an experiment, and we don't know how it ends.</strong> The goal: take the original
-        <em>Star Trek: Bridge Commander</em> — a 2002 Windows-only game whose entire gameplay logic
-        lives in Python but whose engine is a compiled, closed-source C++ binary — and rebuild that
-        engine from scratch so the original Python scripts run again on modern macOS, Linux, and Windows.
+        <em>Star Trek: Bridge Commander</em> — a 2002 Windows-only game — and rebuild it's closed-source
+        engine from scratch so the original game scripts run again on modern macOS, Linux, and Windows.
+      </p>
+      <p>
+        The original development team had a great vision, pushing the boundaries of Python scripting to
+        create an ambitious space simulation game which captured the scale and scope of Star Trek. 24 years
+        we are being equally ambitious, attempting to bring these game scripts back to life with the power of AI.
       </p>
       <p>
         What makes this experiment unusual is the method. Almost every line of code in this project
@@ -877,16 +881,15 @@
       </p>
       <p>
         It might not work. It might stall at Phase 05 with the AI scripts running fine but combat
-        refusing to feel right. It might hit a wall at character animation. It might surprise everyone
-        and ship. The point of putting this page up is to make the attempt visible — what's been built,
+        refusing to feel right. It might hit a wall at character animation. It might surprise me
+        and land. The point of putting this page up is to make the attempt visible — what's been built,
         what's next, what broke last week.
       </p>
 
       <div class="callout">
         <p>
           If you are reading this and thinking <em>"that's not how you rebuild a game engine,"</em>
-          you're probably right. Half the reason this project exists is to find out
-          <em>which</em> half is right. Progress will be honest.
+          you're probably right. Maybe it will work though! Our progress will be honest.
         </p>
       </div>
     </section>
@@ -901,10 +904,10 @@
       </div>
       <h2>What we're building</h2>
       <p style="margin-top:12px;">
-        The original game ships as a Windows binary — <code>Appc.dll</code> — with every screen,
+        The original game ships as a Windows binary containing with every screen,
         every mission, every ship and weapon definition written in Python. Roughly 1,200 Python files
-        sit on disk in the SDK, fully readable, fully unchanged since 2002. What's missing is anything
-        to actually drive them.
+        were ambitiously released by the original development team as an SDK, fully readable, fully unchanged since 2002. 
+        What's missing is anything to actually drive them.
       </p>
       <p>The plan is to replace <code>Appc.dll</code> with an open C++ engine that:</p>
 
