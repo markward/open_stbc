@@ -7,7 +7,6 @@ import os
 import pytest
 
 os.environ.setdefault("OPEN_STBC_AUDIO", "0")
-pytest.importorskip("_open_stbc_host")
 
 
 def test_host_loop_exposes_audio_helpers():
@@ -19,8 +18,8 @@ def test_host_loop_exposes_audio_helpers():
 
 def test_init_audio_uses_null_backend_when_env_set(monkeypatch):
     monkeypatch.setenv("OPEN_STBC_AUDIO", "0")
+    _open_stbc_host = pytest.importorskip("_open_stbc_host")
     from engine import host_loop
-    import _open_stbc_host
     host_loop.init_audio()
     log_ops = [e["op"] for e in _open_stbc_host.audio.debug_command_log()]
     assert "init" in log_ops
@@ -29,8 +28,8 @@ def test_init_audio_uses_null_backend_when_env_set(monkeypatch):
 
 def test_tick_audio_pushes_listener_pose(monkeypatch):
     monkeypatch.setenv("OPEN_STBC_AUDIO", "0")
+    _open_stbc_host = pytest.importorskip("_open_stbc_host")
     from engine import host_loop
-    import _open_stbc_host
     host_loop.init_audio()
     _open_stbc_host.audio.clear_command_log()
     host_loop.tick_audio(

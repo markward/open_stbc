@@ -1597,10 +1597,10 @@ def run(mission_name: str = SHIP_GATE_MISSION,
             if max_ticks is not None and ticks >= max_ticks:
                 break
 
-        shutdown_audio()
         if controller.session is not None:
             controller.session.teardown(r)
     finally:
+        shutdown_audio()
         r.shutdown()
 
     return 0
