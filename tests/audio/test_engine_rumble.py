@@ -8,7 +8,7 @@ _open_stbc_host = pytest.importorskip("_open_stbc_host")
 from engine.audio.tg_sound import (
     TGSound, TGSoundManager, init_audio_for_tests, shutdown_audio_for_tests,
 )
-from engine.audio.engine_rumble import install_engine_rumble_listener
+from engine.audio.engine_rumble import install_engine_rumble_listener, reset_for_tests
 
 
 def _wav():
@@ -38,6 +38,7 @@ class _FakeShip:
 
 @pytest.fixture
 def boot(tmp_path):
+    reset_for_tests()  # ensure clean _installed state regardless of prior tests
     init_audio_for_tests()
     wav = tmp_path / "engine.wav"
     wav.write_bytes(_wav())
@@ -46,7 +47,7 @@ def boot(tmp_path):
     shutdown_audio_for_tests()
 
 
-def test_engine_rumble_plays_on_publish_added(boot, monkeypatch):
+def test_engine_rumble_plays_on_publish_added(boot):
     from engine.appc import ship_lifecycle
     ship_lifecycle.reset()
     install_engine_rumble_listener()

@@ -13,7 +13,7 @@ from engine.audio.tg_sound import TGSoundManager
 
 
 _installed = False
-_active: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
+_active: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 
 
 def _engine_sound_name_for(ship) -> str:
