@@ -203,6 +203,9 @@ def register_default_sounds() -> None:
             mgr.LoadSound(path, name, TGSound.LS_3D)
     for path, name in _DEFAULT_2D_SOUNDS:
         if mgr.GetSound(name) is None:
+            # Any loadspec other than LS_3D is treated as non-positional by
+            # the shim. LS_STREAMED is the value SDK code happens to use for
+            # streamed assets, but here it just means "ambient, not 3D."
             mgr.LoadSound(path, name, TGSound.LS_STREAMED)
 
 

@@ -14,6 +14,11 @@ from engine.audio.tg_sound import TGSoundManager
 
 _installed = False
 _unsubscribe = None
+# WeakKeyDictionary: if a ship is GC'd without publish_destroyed firing
+# (e.g. a mission swap that nukes the set without explicit teardown),
+# the entry vanishes and the looping AL source plays until
+# shutdown_audio. Acceptable for current single-mission runs; future
+# mission-swap paths should call publish_destroyed for each removed ship.
 _active: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 
 
