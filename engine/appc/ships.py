@@ -95,7 +95,29 @@ class ShipClass(DamageableObject):
     # SDK callers: MissionLib.py:605 (reset to GREEN at mission start),
     # BridgeHandlers.py:1442 (bridge crew behavior keys off this).
     def GetAlertLevel(self) -> int:                     return self._alert_level
-    def SetAlertLevel(self, v) -> None:                 self._alert_level = int(v)
+
+    def SetAlertLevel(self, v) -> None:
+        """Apply the alert-level → weapon-power policy.
+
+        Red alert powers phasers / torpedoes / pulse weapons on; any other
+        level powers them off.  Tractor stays under manual control (mirrors
+        BC: tractor is toggled by its own UI, not by alert).  In stock BC
+        this side-effect flows through the XO menu after BridgeHandlers.
+        SetAlertLevel; we collapse that layer until the bridge menu system
+        is wired.
+        """
+        self._alert_level = int(v)
+        on = (self._alert_level == ShipClass.RED_ALERT)
+        for slot in (self._phaser_system, self._torpedo_system,
+                     self._pulse_weapon_system):
+            if slot is None:
+                continue
+            if on:
+                slot.TurnOn()
+                slot.SetPowerPercentageWanted(1.0)
+            else:
+                slot.TurnOff()
+                slot.SetPowerPercentageWanted(0.0)
 
     # ── Subsystem accessors ──────────────────────────────────────────────────
     # Mirror sdk/.../App.py:5394-5455.  Loaders that need to populate these

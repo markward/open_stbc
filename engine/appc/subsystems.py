@@ -194,6 +194,12 @@ class PoweredSubsystem(ShipSubsystem):
         super().__init__(name)
         self._normal_power = 0.0
         self._current_power = 0.0
+        # On/off state — TurnOn/TurnOff drive gating in WeaponSystem.StartFiring
+        # and the shield-raise pathway.  Default off matches the SDK; a fresh
+        # ship is unpowered until ShipClass.SetAlertLevel(RED) or a mission
+        # script explicitly turns systems on.
+        self._is_on: bool = False
+        self._power_percentage_wanted: float = 0.0
 
     def GetNormalPowerPerSecond(self) -> float:
         return self._normal_power
@@ -206,6 +212,12 @@ class PoweredSubsystem(ShipSubsystem):
 
     def SetPowerPerSecond(self, value: float) -> None:
         self._current_power = float(value)
+
+    def TurnOn(self) -> None:                              self._is_on = True
+    def TurnOff(self) -> None:                             self._is_on = False
+    def IsOn(self) -> int:                                 return 1 if self._is_on else 0
+    def SetPowerPercentageWanted(self, pct) -> None:       self._power_percentage_wanted = float(pct)
+    def GetPowerPercentageWanted(self) -> float:           return self._power_percentage_wanted
 
 
 class WeaponSystem(PoweredSubsystem):
