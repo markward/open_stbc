@@ -80,7 +80,7 @@ PoweredSubsystem
 
 For each property class below, all setters return `None` (matching SDK); all getters return the stored value or a sensible zero default.
 
-### `EnergyWeaponProperty` (new fields)
+### `EnergyWeaponProperty` (new typed fields)
 
 | Setter | Getter | Default | Source |
 |---|---|---|---|
@@ -88,11 +88,10 @@ For each property class below, all setters return `None` (matching SDK); all get
 | `SetMinFiringCharge(float)` | `GetMinFiringCharge()` | `0.0` | App.py:9271 |
 | `SetNormalDischargeRate(float)` | `GetNormalDischargeRate()` | `0.0` | App.py:9273 |
 | `SetRechargeRate(float)` | `GetRechargeRate()` | `0.0` | App.py:9274 |
-| `SetMaxDamage(float)` | `GetMaxDamage()` | `0.0` | hardpoint usage |
-| `SetMaxDamageDistance(float)` | `GetMaxDamageDistance()` | `0.0` | hardpoint usage |
-| `SetFireSound(str)` | `GetFireSound()` | `""` | hardpoint usage |
 
 `PhaserProperty`, `PulseWeaponProperty`, `TractorBeamProperty` inherit these via class inheritance.
+
+`SetMaxDamage` / `SetMaxDamageDistance` / `SetFireSound` are called by hardpoints (e.g. galaxy.py:208-210) but PR 1 does not promote them to typed accessors — they fall through to `TGModelProperty.__getattr__`, which stores the value and reads it back on demand. PR 2 will introduce typed accessors when it adds the firing-side consumers (damage application, audio trigger).
 
 ### `PulseWeaponProperty` (additional)
 
@@ -100,19 +99,15 @@ For each property class below, all setters return `None` (matching SDK); all get
 |---|---|---|---|
 | `SetCooldownTime(float)` | `GetCooldownTime()` | `0.0` | App.py:9398 |
 
-### `TorpedoTubeProperty` (new fields)
+### `TorpedoTubeProperty` (new typed fields)
 
 | Setter | Getter | Default | Source |
 |---|---|---|---|
 | `SetImmediateDelay(float)` | `GetImmediateDelay()` | `0.0` | hardpoint usage |
 | `SetReloadDelay(float)` | `GetReloadDelay()` | `0.0` | App.py:9527 |
 | `SetMaxReady(int)` | `GetMaxReady()` | `0` | hardpoint usage |
-| `SetDumbfire(int)` | `GetDumbfire()` | `0` | hardpoint usage |
-| `SetWeaponID(int)` | `GetWeaponID()` | `0` | hardpoint usage |
-| `SetDirection(TGPoint3)` | `GetDirection()` | `None` | hardpoint usage |
-| `SetRight(TGPoint3)` | `GetRight()` | `None` | hardpoint usage |
 
-Arc/visual setters that PR 1 doesn't need to interpret (`SetArcWidthAngles`, `SetArcHeightAngles`, `SetPhaserTextureStart`, `SetOuterShellColor`, etc.) are already absorbed by `TGModelProperty.__getattr__` ([engine/appc/properties.py:24-51](engine/appc/properties.py#L24-L51)) — every `SetX` it doesn't know about becomes a no-op storing into `_data`, and `GetX` reads it back. Typed setters defined as real methods naturally override the catch-all by Python's normal attribute resolution. See [Accept-and-discard property setters](#accept-and-discard-property-setters) for why no new infrastructure is needed.
+`SetDumbfire` / `SetWeaponID` / `SetDirection` / `SetRight` and the arc/visual setters that PR 1 doesn't need to interpret (`SetArcWidthAngles`, `SetArcHeightAngles`, `SetPhaserTextureStart`, `SetOuterShellColor`, etc.) are absorbed by `TGModelProperty.__getattr__` ([engine/appc/properties.py:24-51](engine/appc/properties.py#L24-L51)) — every `SetX` it doesn't know about becomes a no-op storing into `_data`, and `GetX` reads it back. Typed setters defined as real methods naturally override the catch-all by Python's normal attribute resolution. See [Accept-and-discard property setters](#accept-and-discard-property-setters) for why no new infrastructure is needed. PR 2 will promote any of these to typed accessors when its firing/targeting/arc-check consumers actually read the values back.
 
 ## Runtime emitter surface
 
@@ -307,9 +302,7 @@ The implementation plan lists exact files + line ranges so the cull is concrete.
 
 Each step is independently testable and reviewable.
 
-## Open questions
+## Decisions recorded during implementation
 
-1. **TorpedoTube `_num_ready` initial value.** Spec sets it to `_max_ready` after Pass 4 copy (tubes pre-loaded). Matches player expectation; SDK behaviour at spawn would refine but isn't blocking.
-2. **`_charge_level` initial value.** Spec sets it to `_max_charge` on Pass 4 copy. If combat balance later wants cold-start delay (`_min_firing_charge` instead), it's a one-line change.
-
-These don't block the spec; revisit during PR 2 tuning.
+1. **TorpedoTube `_num_ready` initial value.** Decided: tubes spawn pre-loaded to `_max_ready` ([ships.py:374](engine/appc/ships.py#L374)). Matches player expectation. PR 2 can revisit if combat balance suggests cold-start delay.
+2. **`_charge_level` initial value.** Decided: phasers/pulse/tractor spawn fully charged to `_max_charge` ([ships.py:360](engine/appc/ships.py#L360)). PR 2 can revisit if combat balance wants a cold-start delay (`_min_firing_charge` instead) — one-line change to the helper.
