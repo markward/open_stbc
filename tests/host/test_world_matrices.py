@@ -1,6 +1,15 @@
 import pytest
 
 
+# Determinant-normalization note (commit d1ac130 "fix(scale)"):
+# The renderer is configured with glFrontFace(GL_CW) and expects det(world) < 0.
+# Proper rotations (identity, MakeZRotation, etc. — det = +1) would render
+# inside-out, so _ship_world_matrix / _astro_world_matrix negate the X body-axis
+# column when det(rot) > 0. These tests assert that convention. When the coupled
+# fix lands (AlignToVectors → proper rotation, pipeline.cc → glFrontFace(GL_CCW),
+# backdrop/sun cull → GL_BACK), drop the X-column negation in expected values.
+
+
 def _make_pose(x, y, z, radius=0.0):
     """Minimal stand-in for a ship or planet object with the pose API."""
     from engine.appc.math import TGPoint3, TGMatrix3
@@ -24,8 +33,9 @@ def _make_pose(x, y, z, radius=0.0):
 
 
 def test_ship_world_matrix_scales_mesh_not_position():
-    """Identity rotation: upper-left 3x3 = natural_scale (× GetScale, here 1.0);
-    translation is the world location unchanged."""
+    """Identity rotation: upper-left 3x3 = diag(-s, +s, +s) under the d1ac130
+    X-column negation (det(identity) = +1 → flip applied); translation is the
+    world location unchanged."""
     from engine import host_loop
 
     pose = _make_pose(100.0, 200.0, 300.0)
@@ -33,8 +43,8 @@ def test_ship_world_matrix_scales_mesh_not_position():
     m = host_loop._ship_world_matrix(pose, natural_scale)
 
     assert len(m) == 16
-    # Upper-left 3x3: identity * natural_scale
-    assert m[0]  == pytest.approx(natural_scale)   # row0 col0
+    # Upper-left 3x3: identity * natural_scale with X axis negated (d1ac130).
+    assert m[0]  == pytest.approx(-natural_scale)  # row0 col0 (X, flipped)
     assert m[5]  == pytest.approx(natural_scale)   # row1 col1
     assert m[10] == pytest.approx(natural_scale)   # row2 col2
     # Off-diagonal rotation elements -> 0
@@ -64,21 +74,22 @@ def test_ship_world_matrix_columns_are_body_axes_in_world():
     from engine import host_loop
 
     pose = _make_pose(0.0, 0.0, 0.0)
-    pose._rot.MakeZRotation(math.radians(45))  # non-symmetric rotation
+    pose._rot.MakeZRotation(math.radians(45))  # non-symmetric, det = +1
 
     natural_scale = 0.5
     m = host_loop._ship_world_matrix(pose, natural_scale)
 
     # Column j of the row-major mat4 lives at positions j, 4+j, 8+j.
-    # It must equal R.GetRow(j) * natural_scale (BC body axis j in world).
+    # It must equal R.GetRow(j) * natural_scale (BC body axis j in world),
+    # with column 0 (X axis) negated under d1ac130 because det(rot) = +1.
     rgt = pose._rot.GetRow(0)
     fwd = pose._rot.GetRow(1)
     up  = pose._rot.GetRow(2)
     s = natural_scale
 
-    assert m[0]  == pytest.approx(rgt.x * s)
-    assert m[4]  == pytest.approx(rgt.y * s)
-    assert m[8]  == pytest.approx(rgt.z * s)
+    assert m[0]  == pytest.approx(-rgt.x * s)
+    assert m[4]  == pytest.approx(-rgt.y * s)
+    assert m[8]  == pytest.approx(-rgt.z * s)
     assert m[1]  == pytest.approx(fwd.x * s)
     assert m[5]  == pytest.approx(fwd.y * s)
     assert m[9]  == pytest.approx(fwd.z * s)
@@ -107,9 +118,10 @@ def test_astro_world_matrix_columns_are_body_axes_in_world():
     up  = pose._rot.GetRow(2)
     s = natural_scale
 
-    assert m[0]  == pytest.approx(rgt.x * s)
-    assert m[4]  == pytest.approx(rgt.y * s)
-    assert m[8]  == pytest.approx(rgt.z * s)
+    # Column 0 (X axis) negated under d1ac130 because det(rot) = +1.
+    assert m[0]  == pytest.approx(-rgt.x * s)
+    assert m[4]  == pytest.approx(-rgt.y * s)
+    assert m[8]  == pytest.approx(-rgt.z * s)
     assert m[1]  == pytest.approx(fwd.x * s)
     assert m[5]  == pytest.approx(fwd.y * s)
     assert m[9]  == pytest.approx(fwd.z * s)
@@ -120,7 +132,8 @@ def test_astro_world_matrix_columns_are_body_axes_in_world():
 
 def test_astro_world_matrix_scales_mesh_and_position():
     """Identity rotation, natural_scale = radius/native: position is BC
-    world-native (unchanged), mesh scaled by natural_scale."""
+    world-native (unchanged), mesh scaled by natural_scale with X axis
+    negated under d1ac130 (det(identity) = +1 → flip applied)."""
     from engine import host_loop
     from engine.scale import PLANET_NIF_NATIVE_RADIUS
 
@@ -129,8 +142,8 @@ def test_astro_world_matrix_scales_mesh_and_position():
     m = host_loop._astro_world_matrix(pose, natural_scale)
 
     assert len(m) == 16
-    # Upper-left 3x3: identity * natural_scale
-    assert m[0]  == pytest.approx(natural_scale)
+    # Upper-left 3x3: identity * natural_scale, X negated (d1ac130).
+    assert m[0]  == pytest.approx(-natural_scale)
     assert m[5]  == pytest.approx(natural_scale)
     assert m[10] == pytest.approx(natural_scale)
     # Off-diagonal rotation elements -> 0
