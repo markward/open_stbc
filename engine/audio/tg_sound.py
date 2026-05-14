@@ -197,3 +197,5 @@ def shutdown_audio_for_tests() -> None:
         return
     _audio.shutdown()
     TGSoundManager._instance = None
+    global g_kSoundManager
+    g_kSoundManager = None
