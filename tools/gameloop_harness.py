@@ -41,7 +41,6 @@ def run_mission_with_loop(
     from engine.core.game import Game, Episode, Mission, _set_current_game
     from engine.appc.events import TGEvent
     import App
-    from engine.appc.placement import _waypoint_registry
 
     mission = Mission()
     episode = Episode()
@@ -50,14 +49,13 @@ def run_mission_with_loop(
     game.SetCurrentEpisode(episode)
     _set_current_game(game)
 
-    App.g_kTimerManager._time = 0.0
-    App.g_kTimerManager._timers.clear()
-    App.g_kRealtimeTimerManager._time = 0.0
-    App.g_kRealtimeTimerManager._timers.clear()
-    App.g_kEventManager._broadcast_handlers.clear()
-    App.g_kSetManager._sets.clear()
-    _waypoint_registry.clear()
-    App._next_event_type_id = 200
+    # Delegate to host_loop's reset so we don't drift: it clears all the
+    # globals AND re-registers the engine's keyboard-dispatch broadcast
+    # handler.  A previous duplicated reset body here dropped the handler
+    # and silently broke the firing chain in any integration test that
+    # ran after the harness.
+    from engine.host_loop import reset_sdk_globals
+    reset_sdk_globals()
     if profile:
         App._stub_tracker.set_mission(module_name)
         App._emission_recorder.set_mission(module_name)
