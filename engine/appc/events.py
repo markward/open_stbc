@@ -5,6 +5,7 @@ from engine.core.ids import TGObject
 # value that won't collide with the SDK's ET_INPUT_FIRE_* range (those are
 # Appc-side constants exposed via App.py:13834+).
 ET_KEYBOARD_EVENT: int = 0x1000
+ET_WEAPON_HIT:     int = 0x1100  # reserved range above input-event ids
 
 
 class TGEvent(TGObject):
@@ -83,6 +84,33 @@ class TGKeyboardEvent(TGEvent):
 
     def GetKeyState(self) -> int:
         return self._key_state
+
+
+class WeaponHitEvent(TGEvent):
+    """Weapon-impact event.  Broadcast by engine.appc.combat.apply_hit
+    after damage is routed.  Mission scripts subscribe to ET_WEAPON_HIT
+    (per-ship or broadcast) to react — e.g. MissionLib.FriendlyFireHandler
+    triggers XO dialogue when the player damages a friendly NPC.
+
+    Inherits TGEvent's _source / Set/GetSource for the firing ship; the
+    weapon-specific surface adds target, damage, hit-point, subsystem.
+    """
+    def __init__(self):
+        super().__init__()
+        self._event_type = ET_WEAPON_HIT
+        self._target = None
+        self._damage: float = 0.0
+        self._hit_point = None
+        self._subsystem = None
+
+    def GetTarget(self):              return self._target
+    def SetTarget(self, tgt) -> None: self._target = tgt
+    def GetDamage(self) -> float:     return self._damage
+    def SetDamage(self, v) -> None:   self._damage = float(v)
+    def GetHitPoint(self):            return self._hit_point
+    def SetHitPoint(self, p) -> None: self._hit_point = p
+    def GetSubsystem(self):           return self._subsystem
+    def SetSubsystem(self, s) -> None: self._subsystem = s
 
 
 def _resolve_handler(qualified_name: str):

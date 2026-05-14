@@ -3,6 +3,7 @@ from engine.appc.events import (
     TGEvent, TGEvent_Create,
     TGBoolEvent, TGBoolEvent_Create,
     TGKeyboardEvent, ET_KEYBOARD_EVENT,
+    WeaponHitEvent, ET_WEAPON_HIT,
     TGEventHandlerObject, TGEventManager,
 )
 from engine.appc.input import (
