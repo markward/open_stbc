@@ -25,6 +25,8 @@
 #include <renderer/dust_pass.h>
 #include <renderer/shield_pass.h>
 #include <renderer/lens_flare_pass.h>
+#include <renderer/torpedo_pass.h>
+#include <renderer/hit_vfx_pass.h>
 #include <renderer/aabb.h>
 #include <ui/UiSystem.h>
 #include <ui/PanelDocument.h>
@@ -57,6 +59,10 @@ std::unique_ptr<renderer::DustPass> g_dust_pass;
 std::unique_ptr<renderer::ShieldPass> g_shield_pass;
 std::vector<renderer::LensFlareDescriptor> g_lens_flares;
 std::unique_ptr<renderer::LensFlarePass>   g_lens_flare_pass;
+std::vector<renderer::TorpedoDescriptor>   g_torpedoes;
+std::unique_ptr<renderer::TorpedoPass>     g_torpedo_pass;
+std::vector<renderer::HitVfxDescriptor>    g_hit_vfx;
+std::unique_ptr<renderer::HitVfxPass>      g_hit_vfx_pass;
 double g_prev_frame_time_seconds = 0.0;
 
 // Bridge pass state. Camera is set from Python via set_bridge_camera each
@@ -150,6 +156,8 @@ void init(int width, int height, const std::string& title,
     g_dust_pass = std::make_unique<renderer::DustPass>();
     g_shield_pass = std::make_unique<renderer::ShieldPass>();
     g_lens_flare_pass = std::make_unique<renderer::LensFlarePass>();
+    g_torpedo_pass = std::make_unique<renderer::TorpedoPass>();
+    g_hit_vfx_pass = std::make_unique<renderer::HitVfxPass>();
     g_prev_frame_time_seconds = glfwGetTime();
 
     if (!ui_assets_root.empty()) {
@@ -181,6 +189,10 @@ void shutdown() {
     g_shield_pass.reset();
     g_lens_flares.clear();
     g_lens_flare_pass.reset();
+    g_torpedoes.clear();
+    g_torpedo_pass.reset();
+    g_hit_vfx.clear();
+    g_hit_vfx_pass.reset();
     g_window.reset();
     g_prev_key_state.clear();
     g_prev_mouse_state.clear();
@@ -237,6 +249,9 @@ void frame() {
         g_lens_flare_pass->render(g_lens_flares, g_camera, *g_pipeline,
                                   fw, fh, now);
     }
+
+    if (g_torpedo_pass) g_torpedo_pass->render(g_torpedoes, g_camera, *g_pipeline);
+    if (g_hit_vfx_pass) g_hit_vfx_pass->render(g_hit_vfx,    g_camera, *g_pipeline);
 
     // ── Bridge pass ──────────────────────────────────────────────────────
     // Renders bridge-tagged instances with the bridge camera, after a
@@ -471,6 +486,55 @@ PYBIND11_MODULE(_open_stbc_host, m) {
           },
           py::arg("flares"),
           "Set the active lens-flare list, applied each frame().");
+
+    m.def("set_torpedoes",
+          [](const std::vector<py::dict>& descs) {
+              g_torpedoes.clear();
+              g_torpedoes.reserve(descs.size());
+              for (const auto& d : descs) {
+                  renderer::TorpedoDescriptor t;
+                  auto pos = d["position"].cast<std::tuple<float, float, float>>();
+                  t.world_pos = {std::get<0>(pos), std::get<1>(pos), std::get<2>(pos)};
+                  t.core_texture = d["core_texture"].cast<std::string>();
+                  auto cc = d["core_color"].cast<std::tuple<float, float, float, float>>();
+                  t.core_color = {std::get<0>(cc), std::get<1>(cc),
+                                   std::get<2>(cc), std::get<3>(cc)};
+                  t.core_size_a = d["core_size_a"].cast<float>();
+                  t.core_size_b = d["core_size_b"].cast<float>();
+                  t.glow_texture = d["glow_texture"].cast<std::string>();
+                  auto gc = d["glow_color"].cast<std::tuple<float, float, float, float>>();
+                  t.glow_color = {std::get<0>(gc), std::get<1>(gc),
+                                   std::get<2>(gc), std::get<3>(gc)};
+                  t.glow_size_a = d["glow_size_a"].cast<float>();
+                  t.glow_size_b = d["glow_size_b"].cast<float>();
+                  t.glow_size_c = d["glow_size_c"].cast<float>();
+                  t.flares_texture = d["flares_texture"].cast<std::string>();
+                  auto fc = d["flares_color"].cast<std::tuple<float, float, float, float>>();
+                  t.flares_color = {std::get<0>(fc), std::get<1>(fc),
+                                     std::get<2>(fc), std::get<3>(fc)};
+                  t.num_flares     = d["num_flares"].cast<int>();
+                  t.flares_size_a  = d["flares_size_a"].cast<float>();
+                  t.flares_size_b  = d["flares_size_b"].cast<float>();
+                  g_torpedoes.push_back(std::move(t));
+              }
+          },
+          py::arg("torpedoes"),
+          "Set the active torpedo list, applied each frame().");
+
+    m.def("set_hit_vfx",
+          [](const std::vector<py::dict>& descs) {
+              g_hit_vfx.clear();
+              g_hit_vfx.reserve(descs.size());
+              for (const auto& d : descs) {
+                  renderer::HitVfxDescriptor v;
+                  auto pos = d["position"].cast<std::tuple<float, float, float>>();
+                  v.world_pos = {std::get<0>(pos), std::get<1>(pos), std::get<2>(pos)};
+                  v.age = d["age"].cast<float>();
+                  g_hit_vfx.push_back(std::move(v));
+              }
+          },
+          py::arg("vfx"),
+          "Set the active hit-VFX list (position + age), applied each frame().");
 
     m.def("dust_set_enabled",
           [](bool enabled) {

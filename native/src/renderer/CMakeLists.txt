@@ -23,6 +23,10 @@ embed_shader(SHADER_SHIELD_VS shaders/shield.vert shield_vs)
 embed_shader(SHADER_SHIELD_FS shaders/shield.frag shield_fs)
 embed_shader(SHADER_LENS_FLARE_VS shaders/lens_flare.vert lens_flare_vs)
 embed_shader(SHADER_LENS_FLARE_FS shaders/lens_flare.frag lens_flare_fs)
+embed_shader(SHADER_TORPEDO_VS shaders/torpedo.vert torpedo_vs)
+embed_shader(SHADER_TORPEDO_FS shaders/torpedo.frag torpedo_fs)
+embed_shader(SHADER_HIT_VFX_VS shaders/hit_vfx.vert hit_vfx_vs)
+embed_shader(SHADER_HIT_VFX_FS shaders/hit_vfx.frag hit_vfx_fs)
 
 add_library(renderer STATIC
     window.cc
@@ -38,6 +42,8 @@ add_library(renderer STATIC
     skin_shield.cc
     shield_pass.cc
     lens_flare_pass.cc
+    torpedo_pass.cc
+    hit_vfx_pass.cc
 )
 target_include_directories(renderer
     PUBLIC include

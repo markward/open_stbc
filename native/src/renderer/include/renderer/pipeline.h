@@ -17,6 +17,8 @@ public:
     Shader& dust_shader() noexcept       { return *dust_; }
     Shader& shield_shader() noexcept     { return *shield_; }
     Shader& lens_flare_shader() noexcept { return *lens_flare_; }
+    Shader& torpedo_shader() noexcept    { return *torpedo_; }
+    Shader& hit_vfx_shader() noexcept    { return *hit_vfx_; }
 
 private:
     std::unique_ptr<Shader> opaque_;
@@ -25,6 +27,8 @@ private:
     std::unique_ptr<Shader> dust_;
     std::unique_ptr<Shader> shield_;
     std::unique_ptr<Shader> lens_flare_;
+    std::unique_ptr<Shader> torpedo_;
+    std::unique_ptr<Shader> hit_vfx_;
 };
 
 }  // namespace renderer

@@ -64,6 +64,36 @@ struct LensFlareDescriptor {
     std::vector<LensFlareElement>   elements;
 };
 
+/// Torpedo render descriptor.  Populated from the SDK projectile script's
+/// CreateTorpedoModel call (sdk/Build/scripts/Tactical/Projectiles/*.py).
+/// Renderer composites three additive billboards (glow + flares + core) at
+/// world_pos each frame.  Sizes are world-units half-sizes per layer.
+struct TorpedoDescriptor {
+    glm::vec3   world_pos;
+    std::string core_texture;
+    glm::vec4   core_color   = glm::vec4(1.0f);
+    float       core_size_a  = 0.0f;
+    float       core_size_b  = 0.0f;
+    std::string glow_texture;
+    glm::vec4   glow_color   = glm::vec4(1.0f);
+    float       glow_size_a  = 0.0f;
+    float       glow_size_b  = 0.0f;
+    float       glow_size_c  = 0.0f;
+    std::string flares_texture;
+    glm::vec4   flares_color = glm::vec4(1.0f);
+    int         num_flares   = 0;
+    float       flares_size_a = 0.0f;
+    float       flares_size_b = 0.0f;
+};
+
+/// Hit-VFX render descriptor.  Engine ages each entry up to 0.5s lifetime;
+/// renderer eases size 0→1 over first 100ms then fades alpha 1→0 over next
+/// 400ms based on `age`.
+struct HitVfxDescriptor {
+    glm::vec3 world_pos;
+    float     age = 0.0f;
+};
+
 class FrameSubmitter {
 public:
     using ModelLookup = std::function<const assets::Model*(unsigned long long)>;

@@ -91,6 +91,11 @@ void Shader::set_vec3(const std::string& name, const glm::vec3& v) const {
     if (loc >= 0) glUniform3fv(loc, 1, glm::value_ptr(v));
 }
 
+void Shader::set_vec4(const std::string& name, const glm::vec4& v) const {
+    GLint loc = glGetUniformLocation(program_, name.c_str());
+    if (loc >= 0) glUniform4fv(loc, 1, glm::value_ptr(v));
+}
+
 void Shader::set_int(const std::string& name, int v) const {
     GLint loc = glGetUniformLocation(program_, name.c_str());
     if (loc >= 0) glUniform1i(loc, v);
