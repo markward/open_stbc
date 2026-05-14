@@ -31,6 +31,70 @@ def _init_energy_weapon_state(self):
     self._charge_level: float = 0.0
 
 
+def _resolve_fire_sound(prop) -> str:
+    """Returns the FireSound name (typed accessor) or empty string."""
+    if prop is None or not hasattr(prop, "GetFireSound"):
+        return ""
+    return prop.GetFireSound() or ""
+
+
+class _EnergyWeaponFireMixin:
+    """Shared Fire/CanFire/StopFiring/UpdateCharge for PhaserBank / PulseWeapon
+    / TractorBeam.  Per-emitter state initialised by _init_energy_weapon_state.
+    Each class also has _firing (False at init), _target/_target_offset (None).
+
+    SFX trigger looks up the property's FireSound name and asks TGSoundManager
+    to play it.  Tries "<name> Start" first (phaser convention), falls back to
+    bare "<name>" (tractor convention).  Names map to WAV assets via
+    sdk/Build/scripts/LoadTacticalSounds.py invoked at audio init.
+    """
+
+    def CanFire(self) -> int:
+        parent = self.GetParentSubsystem()
+        on = parent is not None and parent.IsOn()
+        charged = self._charge_level >= self._min_firing_charge
+        return 1 if (on and charged) else 0
+
+    def Fire(self, target=None, offset=None) -> None:
+        if not self.CanFire():
+            return
+        self._firing = True
+        self._target = target
+        self._target_offset = offset
+        self._play_fire_sfx()
+
+    def StopFiring(self) -> None:
+        self._firing = False
+
+    def IsFiring(self) -> int:
+        return 1 if self._firing else 0
+
+    def UpdateCharge(self, dt: float) -> None:
+        if self._firing:
+            self._charge_level = max(
+                0.0, self._charge_level - self._normal_discharge_rate * dt
+            )
+            if self._charge_level <= 0.0:
+                self._firing = False
+        else:
+            parent = self.GetParentSubsystem()
+            if parent is not None and parent.IsOn():
+                self._charge_level = min(
+                    self._max_charge,
+                    self._charge_level + self._recharge_rate * dt,
+                )
+
+    def _play_fire_sfx(self) -> None:
+        name = _resolve_fire_sound(self.GetProperty())
+        if not name:
+            return
+        from engine.audio.tg_sound import TGSoundManager
+        mgr = TGSoundManager.instance()
+        played = mgr.PlaySound(name + " Start")
+        if played is None:
+            mgr.PlaySound(name)
+
+
 class ShipSubsystem(TGEventHandlerObject):
     def __init__(self, name: str = ""):
         super().__init__()
@@ -379,14 +443,18 @@ class TractorBeamSystem(WeaponSystem):
         return self.IsFiring()
 
 
-class PhaserBank(WeaponSystem):
+class PhaserBank(_EnergyWeaponFireMixin, WeaponSystem):
     """Individual phaser emitter under a parent PhaserSystem
-    (WeaponSystemProperty WST_PHASER).  Charge fields are populated by
-    Pass 4 from the parent PhaserProperty; see galaxy.py:209-214 for
-    typical values."""
+    (WeaponSystemProperty WST_PHASER).  Charge fields populated by Pass 4
+    from the parent PhaserProperty (galaxy.py:209-214 for typical values).
+    Inherits Fire/CanFire/StopFiring/UpdateCharge from the mixin.
+    """
     def __init__(self, name: str = ""):
         super().__init__(name)
         _init_energy_weapon_state(self)
+        self._firing: bool = False
+        self._target = None
+        self._target_offset = None
 
     def GetMaxCharge(self) -> float:                return self._max_charge
     def GetMinFiringCharge(self) -> float:          return self._min_firing_charge
@@ -406,14 +474,18 @@ class PhaserBank(WeaponSystem):
         else:                      self._charge_level = v
 
 
-class PulseWeapon(WeaponSystem):
+class PulseWeapon(_EnergyWeaponFireMixin, WeaponSystem):
     """Individual pulse-weapon emitter under a parent PulseWeaponSystem
     (WeaponSystemProperty WST_PULSE).  Energy-weapon charge surface plus
     per-shot cooldown timer; see ships/Hardpoints/vorcha.py for SetCooldownTime
-    call sites."""
+    call sites.  Inherits Fire/CanFire/StopFiring/UpdateCharge from the mixin.
+    """
     def __init__(self, name: str = ""):
         super().__init__(name)
         _init_energy_weapon_state(self)
+        self._firing: bool = False
+        self._target = None
+        self._target_offset = None
         self._cooldown_time: float = 0.0
 
     def GetMaxCharge(self) -> float:                return self._max_charge
@@ -435,14 +507,19 @@ class PulseWeapon(WeaponSystem):
         else:                      self._charge_level = v
 
 
-class TractorBeam(WeaponSystem):
+class TractorBeam(_EnergyWeaponFireMixin, WeaponSystem):
     """Individual tractor-beam emitter under a parent TractorBeamSystem
     (WeaponSystemProperty WST_TRACTOR).  Same energy-weapon charge model
     as phasers; see galaxy.py:853-854 for typical values (aft tractors
-    recharge=0.5, forward tractors 0.3)."""
+    recharge=0.5, forward tractors 0.3).  Inherits Fire/CanFire/StopFiring/
+    UpdateCharge from the mixin.
+    """
     def __init__(self, name: str = ""):
         super().__init__(name)
         _init_energy_weapon_state(self)
+        self._firing: bool = False
+        self._target = None
+        self._target_offset = None
 
     def GetMaxCharge(self) -> float:                return self._max_charge
     def GetMinFiringCharge(self) -> float:          return self._min_firing_charge
