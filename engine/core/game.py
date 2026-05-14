@@ -125,6 +125,12 @@ class Game(TGObject):
     GetCurrentPlayer = GetPlayer
     SetCurrentPlayer = SetPlayer
 
+    def LoadSound(self, path: str, name: str, loadspec: int):
+        # Late import: engine.audio depends on the native extension which may
+        # not be ready at game.py import time.
+        from engine.audio.tg_sound import TGSoundManager
+        return TGSoundManager.instance().LoadSound(path, name, loadspec)
+
 
 def Game_GetCurrentPlayer():
     """Return the player ship for the current Game, or None.
