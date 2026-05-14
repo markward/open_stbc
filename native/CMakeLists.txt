@@ -48,6 +48,23 @@ set(RMLUI_TESTS         OFF   CACHE BOOL   "" FORCE)
 set(RMLUI_LOTTIE_PLUGIN OFF   CACHE BOOL   "" FORCE)
 FetchContent_MakeAvailable(RmlUi)
 
+# OpenAL Soft for audio output. Library-only build; no examples or utils.
+# CMAKE_POLICY_VERSION_MINIMUM=3.5 is required because CMake 4.x removed
+# compatibility with cmake_minimum_required < 3.5 and openal-soft 1.23.1
+# still declares that floor.
+set(LIBTYPE STATIC CACHE STRING "" FORCE)
+set(ALSOFT_UTILS OFF CACHE BOOL "" FORCE)
+set(ALSOFT_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ALSOFT_TESTS OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL OFF CACHE BOOL "" FORCE)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "" FORCE)
+FetchContent_Declare(
+    openal_soft
+    GIT_REPOSITORY https://github.com/kcat/openal-soft.git
+    GIT_TAG        1.23.1
+)
+FetchContent_MakeAvailable(openal_soft)
+
 option(OPEN_STBC_BUILD_TESTS "Build native tests for open_stbc" ON)
 
 # Public libraries.
