@@ -12,8 +12,8 @@ PR 2a turns them into a firing signal that runs through BC's actual input → ev
 
 ## Goals
 
-1. Holding right-click on the player ship at RED alert fires a torpedo (audibly + state-visible).
-2. Holding left-click at RED alert fires the next phaser bank for as long as the trigger is held and the bank has charge.
+1. Holding right-click on the player ship at RED alert fires a torpedo (state-visible: `_num_ready` decrements, `_firing` flips; SFX deferred to PR 2b — see SFX section).
+2. Holding left-click at RED alert fires the next phaser bank — audible Start sound, charge drains, charge bar in debug panel moves.
 3. Releasing the button stops firing on energy emitters.
 4. AI ships under their existing `AI.Preprocessors.AlertLevel(RED_ALERT)` setup fire on the same gating logic.
 5. Mission scripts that call `g_kKeyboardBinding.BindKey(...)` to remap keys continue to work without modification — the binding pipeline is real, not a shim shortcut.
@@ -27,6 +27,8 @@ PR 2a turns them into a firing signal that runs through BC's actual input → ev
 - `WeaponHitEvent` broadcast.
 - Friendly-fire handlers.
 - AI ship targeting verification.
+- Torpedo launch SFX (requires `TorpedoAmmoType.GetLaunchSound()` modelling; deferred with projectile launch).
+- Phaser fire-loop sustain (Start sound only; Loop transition deferred).
 
 PR 2a's firing state is observable through `IsFiring()`, `GetChargeLevel()`, `GetNumReady()`, the debug-panel "Weapons" row, and the SFX trigger. Anything that flies through space is PR 2b.
 
@@ -467,6 +469,13 @@ DefaultKeyboardBinding.RegisterBindings()
 # Install the tactical handlers onto the (newly-created) control window.
 import TacticalInterfaceHandlers
 TacticalInterfaceHandlers.RegisterHandlers(App.TacticalControlWindow_GetTacticalControlWindow())
+
+# Load weapon SFX names via the SDK's canonical registration script.
+# Registers "Galaxy Phaser Start", "Galaxy Phaser Loop", "Photon Torpedo",
+# "Tractor Beam", etc. by pGame.LoadSound(path, name, LS_3D).  Names that
+# hardpoints reference via SetFireSound now resolve to actual WAV assets.
+import LoadTacticalSounds
+LoadTacticalSounds.LoadSounds()
 ```
 
 Per-frame poll (in the frame loop):
@@ -483,9 +492,13 @@ for button, wc in ((MOUSE_BUTTON_LEFT,  WC_LBUTTON),
 
 ### SFX trigger
 
-Each `Fire()` calls `TGSoundManager.instance().PlaySound(prop.GetFireSound())`. Galaxy phasers have `SetFireSound("Galaxy Phaser")` ([galaxy.py:208](sdk/Build/scripts/ships/Hardpoints/galaxy.py#L208)); torpedoes typically rely on a default sound or have one set per-tube. If `GetFireSound()` returns `None` or empty string, no sound plays — silent fail matches BC behaviour for missing sound resources.
+**Source of truth: the SDK script [LoadTacticalSounds.py](sdk/Build/scripts/LoadTacticalSounds.py).** Called once at host_loop startup, this script registers every weapon sound under its canonical name (`"Galaxy Phaser Start"`, `"Galaxy Phaser Loop"`, `"Photon Torpedo"`, `"Tractor Beam"`, etc.) by calling `pGame.LoadSound(path, name, App.TGSound.LS_3D)` on each WAV asset. We invoke it from `host_loop.init_audio()` so all weapon names resolve before the first ship spawns. No hard-coded names anywhere in the engine — the asset → name mapping lives entirely in the SDK script and the hardpoint files that reference those names.
 
-Sound resource names mirror BC's audio asset table. The existing `TGSoundManager` shim already supports `PlaySound(name)` for registered names; PR 2a relies on the names being registered at audio init. If a hardpoint references an unregistered sound, the call is a no-op — flag it for PR 2b polish, don't block PR 2a.
+**Energy weapon (phaser/pulse/tractor) SFX:** Each `Fire()` calls `TGSoundManager.instance().PlaySound(prop.GetFireSound() + " Start")`. The `" Start"` suffix matches LoadTacticalSounds.py's registration convention — phasers have a Start + Loop pair (`SetFireSound("Galaxy Phaser")` → loaded as `"Galaxy Phaser Start"`). PR 2a plays the Start sound once; the loop sustain is PR 2b polish. Tractors use `SetFireSound("Tractor Beam")` which is loaded under that exact name (no suffix) — handled by trying `GetFireSound() + " Start"` first, falling back to bare `GetFireSound()` if not registered.
+
+**Torpedo SFX is deferred to PR 2b.** Hardpoints don't set `FireSound` on torpedo tubes; the source is `TorpedoAmmoType.GetLaunchSound()` (SDK [App.py:9569](sdk/Build/scripts/App.py#L9569)), which our shim's `TorpedoAmmoType` doesn't yet model. Adding the launch-sound surface needs a path for ammo-types to receive sound names — which in BC happens in C++ Appc init, invisible to us. PR 2b will introduce a small bootstrap that mirrors the C++ defaults (driven by either `LoadTacticalSounds` extension or a sibling Python module). PR 2a's torpedoes are silent at the SFX level — `Fire()` still flips `_firing=True`, decrements `_num_ready`, etc., so the firing logic and per-tube state are fully exercised; only the audible whoosh is missing until PR 2b.
+
+If `GetFireSound()` returns `None`, empty string, or a name `TGSoundManager` hasn't registered, the call is a silent no-op (matches BC behaviour for missing sound resources).
 
 ## Testing
 
@@ -518,17 +531,16 @@ After this PR lands, the user should be able to:
 1. Launch the game (`./build/open_stbc`).
 2. Load a mission.
 3. Shift+3 → RED alert.
-4. Right-click → audible torpedo whoosh; debug panel "Weapons" row briefly shows "FIRE"; tube count visibly decrements.
-5. Left-click+hold → audible phaser sound; charge bar in debug panel drains.
+4. Right-click → silently (PR 2b adds the whoosh), but debug panel "Weapons" row briefly shows "FIRE"; tube count visibly decrements.
+5. Left-click+hold → audible phaser Start sound; charge bar in debug panel drains.
 6. Release → phaser stops.
-7. Shift+1 → GREEN alert; right-click → silence.
+7. Shift+1 → GREEN alert; right-click → nothing happens (gated).
 
 ## Open questions
 
 1. **Time source for `UpdateReload`.** Spec uses `time.monotonic()`. If the engine has a game-time clock that respects pause / time-scale (per CLAUDE.md "Game time scales 0.204"), swap to that — note for the implementer to verify and pick.
-2. **Sound registration coverage.** Galaxy phasers reference `"Galaxy Phaser"`; verify it's in the registered sound table at audio init. If not, PR 2a should register at least the common phaser/torpedo sounds so the SFX trigger isn't silent.
-3. **All-ship tick performance.** Walking every ship × every group × every emitter every frame — for a 30-ship mission with Galaxy-class loadouts, that's ~30 × 4 × 5 emitters = 600 method calls per frame. Should be fine, but flag if profiling shows hot.
-4. **Sequential cursor persistence across spawns.** `_next_emitter_index = 0` on construction. Save/load round-trip preserves it (per the existing pickling pattern on `WeaponSystem`).
+2. **All-ship tick performance.** Walking every ship × every group × every emitter every frame — for a 30-ship mission with Galaxy-class loadouts, that's ~30 × 4 × 5 emitters = 600 method calls per frame. Should be fine, but flag if profiling shows hot.
+3. **Sequential cursor persistence across spawns.** `_next_emitter_index = 0` on construction. Save/load round-trip preserves it (per the existing pickling pattern on `WeaponSystem`).
 
 ## Implementation order
 
