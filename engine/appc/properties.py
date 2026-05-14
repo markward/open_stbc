@@ -167,7 +167,43 @@ class WeaponProperty(SubsystemProperty):
 
 
 class EnergyWeaponProperty(WeaponProperty):
-    pass
+    """Energy-weapon hardpoint template — phasers, pulse cannons, tractors.
+
+    Charge model (sdk/.../App.py:9271-9274): MaxCharge is the reservoir cap,
+    MinFiringCharge is the gate to start firing, NormalDischargeRate drains
+    charge while firing, RechargeRate fills it when idle.  Typical galaxy.py
+    values: max=5, min=3, discharge=1.0/s, recharge=0.08/s.
+    """
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        self._max_charge: float = 0.0
+        self._min_firing_charge: float = 0.0
+        self._normal_discharge_rate: float = 0.0
+        self._recharge_rate: float = 0.0
+
+    def GetMaxCharge(self) -> float:
+        return self._max_charge
+
+    def SetMaxCharge(self, v) -> None:
+        self._max_charge = float(v)
+
+    def GetMinFiringCharge(self) -> float:
+        return self._min_firing_charge
+
+    def SetMinFiringCharge(self, v) -> None:
+        self._min_firing_charge = float(v)
+
+    def GetNormalDischargeRate(self) -> float:
+        return self._normal_discharge_rate
+
+    def SetNormalDischargeRate(self, v) -> None:
+        self._normal_discharge_rate = float(v)
+
+    def GetRechargeRate(self) -> float:
+        return self._recharge_rate
+
+    def SetRechargeRate(self, v) -> None:
+        self._recharge_rate = float(v)
 
 
 class PhaserProperty(EnergyWeaponProperty):
@@ -175,7 +211,19 @@ class PhaserProperty(EnergyWeaponProperty):
 
 
 class PulseWeaponProperty(EnergyWeaponProperty):
-    pass
+    """Pulse-weapon template — energy-weapon charge model plus a per-shot
+    cooldown timer.  Galaxy.py has no pulse cannons; vorcha/marauder do
+    (SetCooldownTime values 0.3-1.6 seconds per cannon).
+    """
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        self._cooldown_time: float = 0.0
+
+    def GetCooldownTime(self) -> float:
+        return self._cooldown_time
+
+    def SetCooldownTime(self, v) -> None:
+        self._cooldown_time = float(v)
 
 
 class TractorBeamProperty(EnergyWeaponProperty):
@@ -183,7 +231,33 @@ class TractorBeamProperty(EnergyWeaponProperty):
 
 
 class TorpedoTubeProperty(WeaponProperty):
-    pass
+    """Torpedo-tube template — per-tube reload timing.  Galaxy.py: each tube
+    has immediate=0.25s, reload=40s (per-tube; six tubes give ~6.7s effective
+    fire interval), MaxReady=1 (one shot queued before reload).
+    """
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        self._immediate_delay: float = 0.0
+        self._reload_delay: float = 0.0
+        self._max_ready: int = 0
+
+    def GetImmediateDelay(self) -> float:
+        return self._immediate_delay
+
+    def SetImmediateDelay(self, v) -> None:
+        self._immediate_delay = float(v)
+
+    def GetReloadDelay(self) -> float:
+        return self._reload_delay
+
+    def SetReloadDelay(self, v) -> None:
+        self._reload_delay = float(v)
+
+    def GetMaxReady(self) -> int:
+        return self._max_ready
+
+    def SetMaxReady(self, v) -> None:
+        self._max_ready = int(v)
 
 
 class PoweredSubsystemProperty(SubsystemProperty):
