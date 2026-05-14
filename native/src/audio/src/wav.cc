@@ -5,14 +5,14 @@ namespace open_stbc::audio {
 
 static bool read_u32(const uint8_t* p, size_t off, size_t len, uint32_t& v) {
     if (off + 4 > len) return false;
-    v = (uint32_t)p[off] | ((uint32_t)p[off+1] << 8) |
-        ((uint32_t)p[off+2] << 16) | ((uint32_t)p[off+3] << 24);
+    v = static_cast<uint32_t>(p[off]) | (static_cast<uint32_t>(p[off+1]) << 8) |
+        (static_cast<uint32_t>(p[off+2]) << 16) | (static_cast<uint32_t>(p[off+3]) << 24);
     return true;
 }
 
 static bool read_u16(const uint8_t* p, size_t off, size_t len, uint16_t& v) {
     if (off + 2 > len) return false;
-    v = (uint16_t)p[off] | ((uint16_t)p[off+1] << 8);
+    v = static_cast<uint16_t>(p[off]) | static_cast<uint16_t>(p[off+1] << 8);
     return true;
 }
 
