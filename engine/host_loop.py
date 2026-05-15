@@ -1829,6 +1829,13 @@ def run(mission_name: str = SHIP_GATE_MISSION,
         bridge_handle  = r.load_model(bridge_nif_abs, bridge_tex_abs)
         controller.nif_to_handle[bridge_nif_abs] = bridge_handle
         controller.bridge_instance = r.create_bridge_instance(bridge_handle)
+        # Eagerly register the "bridge" SetClass so its CreateAmbientLight
+        # value reaches the renderer via aggregate_bridge_for_renderer.
+        # Stock missions only call LoadBridge.Load() when they need it,
+        # but our bridge mesh is always loaded — the lighting needs to
+        # match.
+        import LoadBridge as _LoadBridge
+        _LoadBridge.Load()
         # Identity transform — the bridge pass camera works in
         # bridge-local frame, so the bridge's world position is irrelevant.
         IDENTITY_MAT4 = [
