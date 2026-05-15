@@ -176,7 +176,7 @@ class _EnergyWeaponFireMixin:
             self._charge_level = max(
                 0.0, self._charge_level - self._normal_discharge_rate * dt
             )
-            if self._charge_level <= 0.0:
+            if self._charge_level < self._min_firing_charge:
                 self._firing = False
         else:
             parent = self.GetParentSubsystem()
