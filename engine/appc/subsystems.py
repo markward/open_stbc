@@ -42,24 +42,81 @@ def _resolve_aim_world(ship, target):
     return TGPoint3(0.0, 1.0, 0.0)
 
 
-def _emitter_faces(emitter, ship, aim_world):
-    """True if the emitter's SetDirection rotated to world space points toward aim_world."""
+def _emitter_in_arc(emitter, ship, aim_world):
+    """Returns True if `aim_world` (unit vector) lies inside the emitter's
+    firing arc, rotated into world space via the ship's rotation.
+
+    Emitters with explicit SetArcWidthAngles / SetArcHeightAngles use a
+    yaw × pitch rectangular cone.  Bare emitters (no arc setters — i.e.
+    torpedo tubes) fall back to a 90° dot-product check against the
+    emitter's SetDirection.
+    """
     if not hasattr(emitter, "GetDirection"):
         return True
     try:
-        local = emitter.GetDirection()
+        local_dir = emitter.GetDirection()
     except Exception:
         return True
-    if not isinstance(local, TGPoint3):
+    if not isinstance(local_dir, TGPoint3):
         return True
-    world_dir = TGPoint3(local.x, local.y, local.z)
+    # Rotate emitter direction into world space.
+    world_dir = TGPoint3(local_dir.x, local_dir.y, local_dir.z)
     if ship is not None and hasattr(ship, "GetWorldRotation"):
         rot = ship.GetWorldRotation()
         if isinstance(rot, TGMatrix3):
             world_dir.MultMatrixLeft(rot)
-    return (world_dir.x * aim_world.x
-          + world_dir.y * aim_world.y
-          + world_dir.z * aim_world.z) > 0.0
+
+    # Emitter without explicit arc bounds (torpedo tubes) — fall back to
+    # a 90° dot-product cone.  ShipSubsystem always exposes a typed
+    # GetArcWidthAngles() returning wide defaults, so the trigger for the
+    # arc check is the _arc_set flag set by SetProperty when an
+    # EnergyWeaponProperty actually supplied bounds.  Bare test emitters
+    # (no _arc_set attr at all) use the same typed-tuple probe as before.
+    use_arc_check = getattr(emitter, "_arc_set", None)
+    if use_arc_check is None:
+        arc_w = None
+        if hasattr(emitter, "GetArcWidthAngles"):
+            try:
+                arc_w = emitter.GetArcWidthAngles()
+            except Exception:
+                arc_w = None
+        use_arc_check = isinstance(arc_w, tuple) and len(arc_w) == 2
+    if not use_arc_check:
+        return (world_dir.x * aim_world.x
+              + world_dir.y * aim_world.y
+              + world_dir.z * aim_world.z) > 0.0
+    arc_w = emitter.GetArcWidthAngles()
+
+    # Rotate Right axis into world too.
+    right_local = emitter.GetRight() if hasattr(emitter, "GetRight") else TGPoint3(1.0, 0.0, 0.0)
+    world_right = TGPoint3(right_local.x, right_local.y, right_local.z)
+    if ship is not None and hasattr(ship, "GetWorldRotation"):
+        rot = ship.GetWorldRotation()
+        if isinstance(rot, TGMatrix3):
+            world_right.MultMatrixLeft(rot)
+    # Up = Direction × Right (right-handed body frame).
+    world_up = TGPoint3(
+        world_dir.y * world_right.z - world_dir.z * world_right.y,
+        world_dir.z * world_right.x - world_dir.x * world_right.z,
+        world_dir.x * world_right.y - world_dir.y * world_right.x,
+    )
+
+    # Project aim onto body frame.
+    fwd_dot   = world_dir.x   * aim_world.x + world_dir.y   * aim_world.y + world_dir.z   * aim_world.z
+    right_dot = world_right.x * aim_world.x + world_right.y * aim_world.y + world_right.z * aim_world.z
+    up_dot    = world_up.x    * aim_world.x + world_up.y    * aim_world.y + world_up.z    * aim_world.z
+
+    import math as _math
+    yaw   = _math.atan2(right_dot, fwd_dot)
+    pitch = _math.asin(max(-1.0, min(1.0, up_dot)))
+
+    yaw_lo, yaw_hi = arc_w
+    arc_h = emitter.GetArcHeightAngles() if hasattr(emitter, "GetArcHeightAngles") else None
+    if not (isinstance(arc_h, tuple) and len(arc_h) == 2):
+        # Arc width set but height missing — allow any pitch.
+        return yaw_lo <= yaw <= yaw_hi
+    pitch_lo, pitch_hi = arc_h
+    return (yaw_lo <= yaw <= yaw_hi) and (pitch_lo <= pitch <= pitch_hi)
 
 
 def _init_energy_weapon_state(self):
@@ -168,6 +225,10 @@ class ShipSubsystem(TGEventHandlerObject):
         self._arc_height_hi: float =  _math.pi / 2
         self._max_damage:          float = 0.0
         self._max_damage_distance: float = 0.0
+        # Flag set True only when a property actually supplied typed arc
+        # data (EnergyWeaponProperty hierarchy).  Emitters without it
+        # (torpedo tubes) fall back to a 90° dot-product cone.
+        self._arc_set: bool = False
         # Shared identity fields populated by SetupProperties.
         self._critical: int = 0
         self._targetable: int = 0
@@ -210,10 +271,12 @@ class ShipSubsystem(TGEventHandlerObject):
             val = prop.GetArcWidthAngles()
             if isinstance(val, tuple) and len(val) == 2:
                 self._arc_width_lo, self._arc_width_hi = float(val[0]), float(val[1])
+                self._arc_set = True
         if hasattr(prop, "GetArcHeightAngles"):
             val = prop.GetArcHeightAngles()
             if isinstance(val, tuple) and len(val) == 2:
                 self._arc_height_lo, self._arc_height_hi = float(val[0]), float(val[1])
+                self._arc_set = True
         if hasattr(prop, "GetMaxDamage"):
             val = prop.GetMaxDamage()
             if isinstance(val, (int, float)):
@@ -450,7 +513,7 @@ class WeaponSystem(PoweredSubsystem):
             emitter = self.GetWeapon(idx)
             if emitter is None:
                 continue
-            if not _emitter_faces(emitter, ship, aim_world):
+            if not _emitter_in_arc(emitter, ship, aim_world):
                 continue
             if hasattr(emitter, "CanFire") and emitter.CanFire():
                 emitter.Fire(target, offset)
