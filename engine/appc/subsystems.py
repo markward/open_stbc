@@ -612,6 +612,25 @@ class PhaserSystem(WeaponSystem):
     def GetAimedWeapon(self) -> int:                return self._aimed_weapon
     def SetAimedWeapon(self, v) -> None:            self._aimed_weapon = int(v)
 
+    def StartFiring(self, target=None, offset=None) -> None:
+        """Multi-bank dispatch — fire every PhaserBank whose alert + arc +
+        charge gates all pass.  Differs from torpedo round-robin: phasers
+        engage simultaneously."""
+        if not self.IsOn() or target is None:
+            return
+        ship = self.GetParentShip()
+        aim_world = _resolve_aim_world(ship, target)
+        self._currently_firing = []
+        for i in range(self.GetNumWeapons()):
+            bank = self.GetWeapon(i)
+            if bank is None:
+                continue
+            if not _emitter_in_arc(bank, ship, aim_world):
+                continue
+            if hasattr(bank, "CanFire") and bank.CanFire():
+                bank.Fire(target, offset)
+                self._currently_firing.append(i)
+
 
 class PulseWeaponSystem(WeaponSystem):
     pass

@@ -66,65 +66,79 @@ def galaxy_in_red_alert():
     App.Game_GetCurrentPlayer = _real_gcp
 
 
+def _target_ahead_of(ship, distance=100.0):
+    """Build a fake target placed `distance` units ahead of the ship (+Y)."""
+    from engine.appc.math import TGPoint3
+    class _Target:
+        def __init__(self, pos):
+            self._pos = pos
+        def GetWorldLocation(self):  return self._pos
+        def IsDead(self):            return 0
+    p = ship.GetWorldLocation()
+    return _Target(TGPoint3(p.x, p.y + distance, p.z))
+
+
 def test_holding_left_button_drains_phaser_charge(galaxy_in_red_alert):
-    """Holding LBUTTON at RED alert and running 10 × dt=0.1 ticks drains one
-    phaser bank.  Galaxy phasers: MaxCharge=5, NormalDischargeRate=1.0.
-    After 10 ticks at dt=0.1 the firing bank loses 1.0 unit of charge
-    (10 × 0.1 × 1.0).  The remaining 8 banks stay full."""
+    """Holding LBUTTON with a target locked at RED alert dispatches every
+    eligible PhaserBank simultaneously (PR 2c multi-bank dispatch).
+    After 10 ticks at dt=0.1 every forward-firing bank has drained while
+    aft-facing banks (none on Galaxy) remain full."""
     ship = galaxy_in_red_alert
     phasers = ship.GetPhaserSystem()
+    ship.SetTarget(_target_ahead_of(ship))
 
     starting = [phasers.GetWeapon(i).GetChargeLevel() for i in range(phasers.GetNumWeapons())]
     assert all(c == 5.0 for c in starting), f"Expected all full, got: {starting}"
 
     with patch("engine.audio.tg_sound.TGSoundManager.instance"):
         App.g_kInputManager.OnKeyDown(App.WC_LBUTTON)
-        # Simulate 10 frames at dt=0.1 each.  NormalDischargeRate=1.0 so
-        # each tick removes charge_level × 1.0 × 0.1 = 0.5 (half of
-        # GetChargeLevel() × rate × dt from one bank).
         for _ in range(10):
             _advance_weapons([ship], dt=0.1)
 
     after = [phasers.GetWeapon(i).GetChargeLevel() for i in range(phasers.GetNumWeapons())]
     drained = [i for i, c in enumerate(after) if c < 5.0]
-    # Exactly one bank should be draining (Galaxy is SetSingleFire(1)).
-    assert len(drained) == 1, f"Expected 1 draining bank, got: {drained} levels={after}"
-    # Charge should have dropped but not depleted below MinFiringCharge=3.0
-    # (we only ran 10 ticks × 0.1 dt which drains at most 1.0 unit).
-    assert 3.5 < after[drained[0]] < 5.0, (
-        f"Charge outside expected range: {after[drained[0]]}"
-    )
+    # Galaxy's forward arcs cover multiple banks (dorsal + ventral).
+    # All of them should have drained; assert at least 2.
+    assert len(drained) >= 2, f"Expected ≥2 draining banks, got: {drained} levels={after}"
+    # Each drained bank should sit between 3.5 and 5.0 — 10 ticks of
+    # discharge at 1.0/s × 0.1s/tick = 1.0 total, leaving 4.0; the
+    # MinFiringCharge auto-stop is 3.0 so we shouldn't have hit it.
+    for i in drained:
+        assert 3.5 < after[i] < 5.0, (
+            f"Bank {i} charge outside expected range: {after[i]}"
+        )
 
 
 def test_release_left_button_stops_phaser(galaxy_in_red_alert):
-    """After key-up, the phaser bank stops discharging and starts recharging."""
+    """After key-up, every firing phaser bank stops discharging."""
     ship = galaxy_in_red_alert
     phasers = ship.GetPhaserSystem()
+    ship.SetTarget(_target_ahead_of(ship))
     with patch("engine.audio.tg_sound.TGSoundManager.instance"):
         App.g_kInputManager.OnKeyDown(App.WC_LBUTTON)
         for _ in range(5):
             _advance_weapons([ship], dt=0.1)
         mid = [phasers.GetWeapon(i).GetChargeLevel() for i in range(phasers.GetNumWeapons())]
-
-        # Identify the bank that was actively discharging.
-        firing_bank_idx = next(
-            (i for i in range(phasers.GetNumWeapons()) if mid[i] < 5.0),
-            None,
+        firing_idxs = [i for i in range(phasers.GetNumWeapons()) if mid[i] < 5.0]
+        assert len(firing_idxs) >= 2, (
+            f"Expected ≥2 banks draining after 5 held ticks, got: {firing_idxs}"
         )
-        assert firing_bank_idx is not None, "No bank drained after 5 ticks with LBUTTON held"
-        assert phasers.GetWeapon(firing_bank_idx)._firing is True
+        for i in firing_idxs:
+            assert phasers.GetWeapon(i)._firing is True
 
         App.g_kInputManager.OnKeyUp(App.WC_LBUTTON)
-        # Direct check: the bank's _firing must flip to False.
-        assert phasers.GetWeapon(firing_bank_idx)._firing is False
+        for i in firing_idxs:
+            assert phasers.GetWeapon(i)._firing is False, (
+                f"Bank {i} should stop on key-up"
+            )
 
         for _ in range(5):
             _advance_weapons([ship], dt=0.1)
         after = [phasers.GetWeapon(i).GetChargeLevel() for i in range(phasers.GetNumWeapons())]
 
-    # After key-up the bank recharges (RechargeRate=0.08) rather than
-    # continuing to drain.  Level must be >= mid-point level.
-    assert after[firing_bank_idx] >= mid[firing_bank_idx], (
-        f"Bank {firing_bank_idx} kept draining after key-up: "
-        f"mid={mid[firing_bank_idx]:.3f} after={after[firing_bank_idx]:.3f}"
-    )
+    # After key-up every previously firing bank recharges (RechargeRate=0.08)
+    # rather than continuing to drain.  Each must be >= its mid-point level.
+    for i in firing_idxs:
+        assert after[i] >= mid[i], (
+            f"Bank {i} kept draining after key-up: mid={mid[i]:.3f} after={after[i]:.3f}"
+        )
