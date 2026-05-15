@@ -58,6 +58,21 @@ def test_firing_continues_above_min(galaxy_red):
     assert bank.IsFiring() == 1, "Bank above MinFiringCharge keeps firing"
 
 
+def test_stop_firing_triggers_stop_sound(galaxy_red):
+    """StopFiring() should attempt to play '<FireSound> Stop'."""
+    ship = galaxy_red
+    bank = ship.GetPhaserSystem().GetWeapon(0)
+    bank._charge_level = bank._max_charge
+    with patch("engine.audio.tg_sound.TGSoundManager.instance") as inst:
+        mgr = inst.return_value
+        bank.Fire()
+        bank.StopFiring()
+        called_names = [c.args[0] for c in mgr.PlaySound.call_args_list]
+        assert any(name.endswith(" Stop") for name in called_names), (
+            f"Expected a '... Stop' sound, got: {called_names}"
+        )
+
+
 def test_idle_recharges_only_when_alert_powers_system(galaxy_red):
     """Recharge requires parent.IsOn() (alert-driven power)."""
     ship = galaxy_red

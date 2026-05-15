@@ -166,7 +166,13 @@ class _EnergyWeaponFireMixin:
         self._play_fire_sfx()
 
     def StopFiring(self) -> None:
+        was_firing = self._firing
         self._firing = False
+        if was_firing:
+            name = _resolve_fire_sound(self.GetProperty())
+            if name:
+                from engine.audio.tg_sound import TGSoundManager
+                TGSoundManager.instance().PlaySound(name + " Stop")
 
     def IsFiring(self) -> int:
         return 1 if self._firing else 0
