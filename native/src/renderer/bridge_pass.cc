@@ -120,6 +120,16 @@ void BridgePass::render(const scenegraph::World& world,
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 
+    // BC's NIFs are Gamebryo CW-wound, and pipeline.cc sets
+    // glFrontFace(GL_CW) globally on the assumption that the world
+    // matrix has det < 0 (which holds for ships via
+    // _ship_world_matrix's X-axis flip — see host_loop.py). The bridge
+    // instance is set with identity transform (det = +1), so under
+    // GL_CW the bridge would render with its front faces culled and
+    // back faces visible. Flip the front-face mode for the bridge pass
+    // only, restoring at the end.
+    glFrontFace(GL_CCW);
+
     const GLuint white = ensure_white_texture();
     walk_bridge_meshes(world, lookup, /*want_lightmap_pass=*/false,
         [&](const assets::Model& m, const assets::Mesh& mesh,
@@ -164,6 +174,7 @@ void BridgePass::render(const scenegraph::World& world,
     glDisable(GL_BLEND);
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LESS);
+    glFrontFace(GL_CW);  // restore pipeline-wide default
 
     glBindVertexArray(0);
 }
