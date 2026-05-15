@@ -206,6 +206,42 @@ class EnergyWeaponProperty(WeaponProperty):
         self._normal_discharge_rate: float = 0.0
         self._recharge_rate: float = 0.0
         self._fire_sound: str = ""
+        # Arc bounds — radians.  Hardpoints call SetArcWidthAngles /
+        # SetArcHeightAngles to set firing cone limits.  Defaults are
+        # full-sphere (no gate); typed setters narrow them.
+        import math as _math
+        self._arc_width_lo:  float = -_math.pi
+        self._arc_width_hi:  float =  _math.pi
+        self._arc_height_lo: float = -_math.pi / 2
+        self._arc_height_hi: float =  _math.pi / 2
+        self._max_damage:           float = 0.0
+        self._max_damage_distance:  float = 0.0
+
+    def GetArcWidthAngles(self) -> tuple:
+        return (self._arc_width_lo, self._arc_width_hi)
+
+    def SetArcWidthAngles(self, lo, hi) -> None:
+        self._arc_width_lo = float(lo)
+        self._arc_width_hi = float(hi)
+
+    def GetArcHeightAngles(self) -> tuple:
+        return (self._arc_height_lo, self._arc_height_hi)
+
+    def SetArcHeightAngles(self, lo, hi) -> None:
+        self._arc_height_lo = float(lo)
+        self._arc_height_hi = float(hi)
+
+    def GetMaxDamage(self) -> float:
+        return self._max_damage
+
+    def SetMaxDamage(self, v) -> None:
+        self._max_damage = float(v)
+
+    def GetMaxDamageDistance(self) -> float:
+        return self._max_damage_distance
+
+    def SetMaxDamageDistance(self, v) -> None:
+        self._max_damage_distance = float(v)
 
     def GetMaxCharge(self) -> float:
         return self._max_charge

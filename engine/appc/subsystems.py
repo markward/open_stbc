@@ -158,6 +158,16 @@ class ShipSubsystem(TGEventHandlerObject):
         # hardpoint values across when a property is bound.
         self._direction = TGPoint3(0.0, 1.0, 0.0)
         self._right     = TGPoint3(1.0, 0.0, 0.0)
+        # Arc/damage data mirrored from EnergyWeaponProperty.  Defaults
+        # leave the gate fully open so non-arc emitters (torpedo tubes)
+        # don't get accidentally restricted.
+        import math as _math
+        self._arc_width_lo:  float = -_math.pi
+        self._arc_width_hi:  float =  _math.pi
+        self._arc_height_lo: float = -_math.pi / 2
+        self._arc_height_hi: float =  _math.pi / 2
+        self._max_damage:          float = 0.0
+        self._max_damage_distance: float = 0.0
         # Shared identity fields populated by SetupProperties.
         self._critical: int = 0
         self._targetable: int = 0
@@ -192,6 +202,26 @@ class ShipSubsystem(TGEventHandlerObject):
             r = prop.GetRight()
             if isinstance(r, TGPoint3):
                 self._right = TGPoint3(r.x, r.y, r.z)
+        # hasattr is misleading on TGObject subclasses (fallback __getattr__
+        # synthesizes Get* / Set* for any name and the synthesized getter
+        # returns None when the key isn't set).  Only mirror when the return
+        # value matches the expected shape.
+        if hasattr(prop, "GetArcWidthAngles"):
+            val = prop.GetArcWidthAngles()
+            if isinstance(val, tuple) and len(val) == 2:
+                self._arc_width_lo, self._arc_width_hi = float(val[0]), float(val[1])
+        if hasattr(prop, "GetArcHeightAngles"):
+            val = prop.GetArcHeightAngles()
+            if isinstance(val, tuple) and len(val) == 2:
+                self._arc_height_lo, self._arc_height_hi = float(val[0]), float(val[1])
+        if hasattr(prop, "GetMaxDamage"):
+            val = prop.GetMaxDamage()
+            if isinstance(val, (int, float)):
+                self._max_damage = float(val)
+        if hasattr(prop, "GetMaxDamageDistance"):
+            val = prop.GetMaxDamageDistance()
+            if isinstance(val, (int, float)):
+                self._max_damage_distance = float(val)
 
     def IsTypeOf(self, cls) -> int:
         """SDK class-id check. Returns 1 when this subsystem's source
@@ -276,6 +306,18 @@ class ShipSubsystem(TGEventHandlerObject):
     def SetRight(self, v) -> None:
         if isinstance(v, TGPoint3):
             self._right = TGPoint3(v.x, v.y, v.z)
+
+    def GetArcWidthAngles(self) -> tuple:
+        return (self._arc_width_lo, self._arc_width_hi)
+
+    def GetArcHeightAngles(self) -> tuple:
+        return (self._arc_height_lo, self._arc_height_hi)
+
+    def GetMaxDamage(self) -> float:
+        return self._max_damage
+
+    def GetMaxDamageDistance(self) -> float:
+        return self._max_damage_distance
 
     def GetWorldLocation(self) -> TGPoint3:
         if self._parent_ship is not None:
