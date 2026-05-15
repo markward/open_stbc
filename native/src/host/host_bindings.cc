@@ -53,6 +53,12 @@ std::unique_ptr<renderer::Window> g_window;
 scenegraph::World g_world;
 scenegraph::Camera g_camera;
 renderer::Lighting g_lighting;
+// Separate lighting state for the bridge pass. Populated by the Python
+// host loop via set_bridge_lighting() each tick, mirroring the space
+// pass's set_lighting() flow. Decoupled because the bridge interior's
+// ambient is authored on its own SetClass and is typically much
+// brighter than the space scene's.
+renderer::Lighting g_bridge_lighting;
 std::vector<renderer::Backdrop> g_backdrops;
 std::unique_ptr<renderer::BackdropPass> g_backdrop_pass;
 std::vector<renderer::SunDescriptor> g_suns;
@@ -154,6 +160,7 @@ void init(int width, int height, const std::string& title,
     g_world = scenegraph::World{};
     g_loaded_models.clear();
     g_lighting = renderer::Lighting{};
+    g_bridge_lighting = renderer::Lighting{};
     g_backdrops.clear();
     g_backdrop_pass = std::make_unique<renderer::BackdropPass>();
     g_suns.clear();
@@ -211,6 +218,7 @@ void shutdown() {
     // subsequent init() will see the documented default, not stale state
     // from the previous session.
     g_lighting = renderer::Lighting{};
+    g_bridge_lighting = renderer::Lighting{};
     g_hud_state = ui::HudState{};
 }
 
@@ -278,7 +286,7 @@ void frame() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         if (fh > 0) g_bridge_camera.aspect = static_cast<float>(fw) / static_cast<float>(fh);
         g_bridge_pass->render(g_world, g_bridge_camera, *g_pipeline,
-                              lookup, g_lighting);
+                              lookup, g_bridge_lighting);
     }
 
     if (g_ui_system) {
@@ -421,6 +429,32 @@ PYBIND11_MODULE(_open_stbc_host, m) {
           },
           py::arg("ambient"), py::arg("directionals"),
           "Set the global lighting state used by the next frame()'s opaque pass.");
+
+    m.def("set_bridge_lighting",
+          [](std::tuple<float,float,float> ambient,
+             const std::vector<std::tuple<
+                 std::tuple<float,float,float>,
+                 std::tuple<float,float,float>>>& directionals) {
+              g_bridge_lighting.ambient = {std::get<0>(ambient),
+                                           std::get<1>(ambient),
+                                           std::get<2>(ambient)};
+              int n = std::min(static_cast<int>(directionals.size()),
+                               renderer::Lighting::MaxDirectionals);
+              g_bridge_lighting.directional_count = n;
+              for (int i = 0; i < n; ++i) {
+                  const auto& [dir, col] = directionals[i];
+                  glm::vec3 d{std::get<0>(dir), std::get<1>(dir), std::get<2>(dir)};
+                  float len = glm::length(d);
+                  g_bridge_lighting.directional_dir_ws[i] =
+                      (len > 1e-6f) ? d / len : glm::vec3(0.0f, 1.0f, 0.0f);
+                  g_bridge_lighting.directional_color[i] = {
+                      std::get<0>(col), std::get<1>(col), std::get<2>(col)};
+              }
+          },
+          py::arg("ambient"), py::arg("directionals"),
+          "Set the bridge pass's lighting state, applied each frame() when "
+          "the bridge pass is enabled. Separate from set_lighting (which "
+          "feeds the space scene).");
 
     m.def("set_backdrops",
           [](const std::vector<py::dict>& descriptors) {
