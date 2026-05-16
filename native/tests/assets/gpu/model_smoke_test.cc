@@ -140,6 +140,29 @@ TEST_F(DBridgeIntegration, MaterialLightmapPassDistribution) {
     EXPECT_EQ(base_only, 145);
     EXPECT_EQ(materials_with_dark, 17);
 
+    // Emissive analysis: which materials self-illuminate? Useful for
+    // identifying "light fixture" shapes that should resist red-alert
+    // dimming.
+    int nonzero_emissive = 0;
+    std::map<std::tuple<int,int,int>, int> emissive_histogram;
+    for (const auto& m : model->materials) {
+        const float e = m.emissive.x + m.emissive.y + m.emissive.z;
+        if (e > 1e-6f) ++nonzero_emissive;
+        // Bucket to nearest 0.05 for clarity.
+        auto bucket = std::make_tuple(
+            static_cast<int>(m.emissive.x * 20.0f + 0.5f),
+            static_cast<int>(m.emissive.y * 20.0f + 0.5f),
+            static_cast<int>(m.emissive.z * 20.0f + 0.5f));
+        ++emissive_histogram[bucket];
+    }
+    std::fprintf(stderr, "DBridge: %d/%zu materials with non-zero emissive\n",
+                 nonzero_emissive, model->materials.size());
+    std::fprintf(stderr, "  emissive value distribution (bucketed /20):\n");
+    for (const auto& [k, count] : emissive_histogram) {
+        std::fprintf(stderr, "    (%d,%d,%d) → %d materials\n",
+                     std::get<0>(k), std::get<1>(k), std::get<2>(k), count);
+    }
+
     // Every mesh must be attached to some node, otherwise the renderer
     // (which iterates nodes to find meshes to draw) silently drops it.
     int meshes_attached = 0;

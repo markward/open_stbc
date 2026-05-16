@@ -86,6 +86,7 @@ void draw_mesh(const assets::Model& model,
                const glm::mat4& world,
                GLuint white_fallback) {
     shader.set_mat4("u_model", world);
+    shader.set_vec3("u_emissive", mat.emissive);
     const int base_tex = mat.stages[
         static_cast<std::size_t>(assets::Material::StageSlot::Base)
     ].texture_index;
