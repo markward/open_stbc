@@ -958,6 +958,12 @@ def _apply_view_mode_side_effects(view_mode: "_ViewModeController", h) -> None:
     # the player is inside the bridge.
     from engine.audio.engine_rumble import set_muted as _rumble_set_muted
     _rumble_set_muted(target)
+    # Bridge ambient hum (AmbBridge): start when entering, stop when
+    # leaving. Mirrors LoadBridge.py:213-217's play-at-load behaviour
+    # but gated on view mode so it only sounds when the player is
+    # actually on the bridge.
+    from engine.audio.bridge_ambient import set_active as _bridge_ambient_set
+    _bridge_ambient_set(target)
     view_mode._last_synced_is_bridge = target
 
 

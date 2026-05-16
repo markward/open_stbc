@@ -188,9 +188,10 @@ _DEFAULT_3D_SOUNDS: tuple[tuple[str, str], ...] = (
     ("sfx/engine1.wav", "Kessok Engines"),
 )
 _DEFAULT_2D_SOUNDS: tuple[tuple[str, str], ...] = (
-    ("sfx/redalert.wav",    "RedAlertSound"),
-    ("sfx/yellowalert.wav", "YellowAlertSound"),
-    ("sfx/greenalert.wav",  "GreenAlertSound"),
+    ("sfx/redalert.wav",       "RedAlertSound"),
+    ("sfx/yellowalert.wav",    "YellowAlertSound"),
+    ("sfx/greenalert.wav",     "GreenAlertSound"),
+    ("sfx/bridge2.loop.wav",   "AmbBridge"),
 )
 
 
