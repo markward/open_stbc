@@ -120,59 +120,33 @@ void BridgePass::render(const scenegraph::World& world,
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 
-    // DBridge.NIF has mixed face winding: visible inspection (chairs,
-    // walls, side-of-step) renders correctly under GL_CCW, but other
-    // shapes (floor surfaces, top of step) only render under GL_CW.
-    // There's no single glFrontFace setting that catches both. Disable
-    // back-face culling for the bridge pass — we're inside an enclosed
-    // interior with ~145 small meshes, fillrate impact is negligible.
+    // DBridge.NIF has mixed face winding; no single glFrontFace catches
+    // both. Disable back-face culling for the bridge pass — interior is
+    // enclosed with ~145 small meshes, fillrate impact is negligible.
     glDisable(GL_CULL_FACE);
 
+    // All 145 bridge shapes are drawn opaque with the bridge shader. The
+    // 17 shapes whose Base texture is a *_lm.tga file are not lightmap
+    // OVERLAYS over an underlying base mesh — they ARE the geometry for
+    // those regions (floor, doors, wall insets), authored with pre-baked
+    // lighting as their base color. The Material::lightmap_pass tag is
+    // therefore not consulted here; all shapes go through sub-pass A.
+    // (The lightmap shader is kept registered on Pipeline for future use
+    // if BC content with actual multi-pass lightmaps shows up.)
     const GLuint white = ensure_white_texture();
     walk_bridge_meshes(world, lookup, /*want_lightmap_pass=*/false,
         [&](const assets::Model& m, const assets::Mesh& mesh,
             const assets::Material& mat, const glm::mat4& w) {
             draw_mesh(m, mesh, mat, base_shader, w, white);
         });
-
-    // ── Sub-pass B: lightmap geometry, multiply blend over framebuffer ──
-    // GL state for fixed-function-style multiply lightmaps:
-    //   LEQUAL  — lightmap mesh is coplanar with the base mesh under it
-    //             in most stock content; LESS would reject every fragment
-    //             on exact-coplanar duplicates.
-    //   depth-write OFF — sub-pass B does not contribute to the depth
-    //             buffer; only A's opaque pass owns depth.
-    //   blend DST_COLOR/ZERO — `framebuffer *= lightmap`, the canonical
-    //             multiply-blend lightmap composite.
-    //   polygon offset (-1, -1) — handles floating-point drift between
-    //             the base and lightmap copies even when nominally
-    //             coplanar; cheap and standard for this pattern.
-    auto& lm_shader = pipeline.lightmap_shader();
-    lm_shader.use();
-    lm_shader.set_mat4("u_view", camera.view_matrix());
-    lm_shader.set_mat4("u_proj", camera.proj_matrix());
-    lm_shader.set_int("u_lightmap", 0);
-
-    glDepthFunc(GL_LEQUAL);
-    glDepthMask(GL_FALSE);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_DST_COLOR, GL_ZERO);
-    glEnable(GL_POLYGON_OFFSET_FILL);
-    glPolygonOffset(-1.0f, -1.0f);
-
     walk_bridge_meshes(world, lookup, /*want_lightmap_pass=*/true,
         [&](const assets::Model& m, const assets::Mesh& mesh,
             const assets::Material& mat, const glm::mat4& w) {
-            draw_mesh(m, mesh, mat, lm_shader, w, white);
+            draw_mesh(m, mesh, mat, base_shader, w, white);
         });
 
-    // Restore GL state so subsequent passes don't inherit our changes.
-    glDisable(GL_POLYGON_OFFSET_FILL);
-    glPolygonOffset(0.0f, 0.0f);
-    glDisable(GL_BLEND);
-    glDepthMask(GL_TRUE);
-    glDepthFunc(GL_LESS);
-    glEnable(GL_CULL_FACE);  // restore pipeline-wide default
+    // Restore pipeline-wide cull state for downstream passes.
+    glEnable(GL_CULL_FACE);
 
     glBindVertexArray(0);
 }

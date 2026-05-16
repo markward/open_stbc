@@ -127,4 +127,23 @@ TEST_F(DBridgeIntegration, MaterialLightmapPassDistribution) {
     EXPECT_EQ(model->materials.size(), 145u);
     EXPECT_EQ(lm, 17);
     EXPECT_EQ(base_only, 128);
+
+    // Every mesh must be attached to some node, otherwise the renderer
+    // (which iterates nodes to find meshes to draw) silently drops it.
+    int meshes_attached = 0;
+    for (const auto& n : model->nodes) meshes_attached += n.meshes.size();
+    int zero_index = 0;
+    int zero_vao = 0;
+    int no_material = 0;
+    for (const auto& mesh : model->meshes) {
+        if (mesh.index_count() == 0) ++zero_index;
+        if (mesh.vao() == 0) ++zero_vao;
+        if (mesh.material_index() < 0) ++no_material;
+    }
+    std::fprintf(stderr,
+                 "DBridge: %zu meshes total, %d attached, %zu nodes; "
+                 "%d zero-index, %d zero-vao, %d no-material\n",
+                 model->meshes.size(), meshes_attached, model->nodes.size(),
+                 zero_index, zero_vao, no_material);
+    EXPECT_EQ(meshes_attached, static_cast<int>(model->meshes.size()));
 }
