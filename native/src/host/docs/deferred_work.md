@@ -265,11 +265,44 @@ the list.
     references a "Red Alpha Glow" convention for the pulsing red
     emergency-strip-lights effect during red alert
     (https://www.bc-central.net/forums/index.php?action=printpage;topic=8210.0,
-    listed under future tutorial topics). The naming hints at a
-    red-channel-+-alpha texture overlay rather than per-material
-    emissive pulsing. Mechanism not fully documented in the excerpt
-    we have; would need a NIF-data survey + visual reference from
-    the original game to confirm. Part of deferred item 27.
+    listed as a future tutorial topic — no implementation detail).
+
+    Asset-level investigation (2026-05-16) reverse-engineered the
+    convention:
+
+    - `redalertpanel.tga` exists at `game/data/Models/Sets/EBridge/High/`
+      (16×128, 32-bit with 8-bit alpha mask). Other `*light.tga`
+      files in the same directory also carry alpha masks
+      (commandstationlight, floorlight, pillarlightnew, walllight,
+      etc.) for ambient panel-glow patterns.
+    - `EBridge.nif` block #72 is `NiTriShape` named
+      `"redalertpillars Material: Material #40"` carrying a
+      `NiMultiTextureProperty` whose 5 stages are **all empty** —
+      the geometry exists but no texture is statically bound.
+    - The texture is not referenced by any SDK Python script
+      (`grep` across `sdk/Build/scripts/` finds no `redalertpillars`
+      / `redalertpanel`).
+    - Conclusion: the BC C++ engine has a hardcoded convention:
+      shapes whose name matches `redalert*` get their texture slot
+      filled at runtime with a `redalert*.tga` from the bridge's
+      texture directory, drawn as an additive (or alpha-blended)
+      glow overlay while alert state == RED. The glow likely pulses
+      via an animated tint applied by the same engine path.
+    - **DBridge.NIF doesn't use this convention** (no matching
+      texture, no matching shape name) — DBridge is older/simpler.
+      Implementation isn't visually testable on the current bridge;
+      EBridge support has to land first.
+
+    Implementation sketch when EBridge lands:
+    - Asset pipeline tags nodes whose name starts with `redalert` so
+      the renderer can find them.
+    - Texture loader scans the bridge texture directory for
+      `redalert*.tga` files and uploads them alongside the NIF
+      textures.
+    - Bridge pass adds a sub-pass that, when the player's alert
+      level is RED, draws each redalert-tagged shape with the
+      matching texture using additive blend and a time-varying tint
+      for the pulse.
 
 38. **Bridge door animations.** DBridge.NIF contains 12
     NiKeyframeController + 12 NiKeyframeData blocks — almost
