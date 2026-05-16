@@ -120,15 +120,13 @@ void BridgePass::render(const scenegraph::World& world,
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 
-    // BC's NIFs are Gamebryo CW-wound, and pipeline.cc sets
-    // glFrontFace(GL_CW) globally on the assumption that the world
-    // matrix has det < 0 (which holds for ships via
-    // _ship_world_matrix's X-axis flip — see host_loop.py). The bridge
-    // instance is set with identity transform (det = +1), so under
-    // GL_CW the bridge would render with its front faces culled and
-    // back faces visible. Flip the front-face mode for the bridge pass
-    // only, restoring at the end.
-    glFrontFace(GL_CCW);
+    // DBridge.NIF has mixed face winding: visible inspection (chairs,
+    // walls, side-of-step) renders correctly under GL_CCW, but other
+    // shapes (floor surfaces, top of step) only render under GL_CW.
+    // There's no single glFrontFace setting that catches both. Disable
+    // back-face culling for the bridge pass — we're inside an enclosed
+    // interior with ~145 small meshes, fillrate impact is negligible.
+    glDisable(GL_CULL_FACE);
 
     const GLuint white = ensure_white_texture();
     walk_bridge_meshes(world, lookup, /*want_lightmap_pass=*/false,
@@ -174,7 +172,7 @@ void BridgePass::render(const scenegraph::World& world,
     glDisable(GL_BLEND);
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LESS);
-    glFrontFace(GL_CW);  // restore pipeline-wide default
+    glEnable(GL_CULL_FACE);  // restore pipeline-wide default
 
     glBindVertexArray(0);
 }
