@@ -181,10 +181,18 @@ the list.
     live view of the outside world. Pulls in framebuffer / render-
     target plumbing. Unblocks item 25.
 
-27. **Animated bridge state.** Red-alert tint on the bridge ambient,
-    viewscreen flicker, station-screen content updates. Mechanically
-    fits as either per-tick mutations of `g_bridge_lighting` or new
-    bridge-pass uniforms.
+27. **Animated bridge state.** Red-alert ambient dim is wired
+    (`engine/host_loop.py:_aggregate_bridge_lights` scales the ambient
+    to 50% when `player.GetAlertLevel() == 2`); BC's emissive
+    convention (`Material::emissive == (1,1,1)` for 22 light-fixture
+    materials in DBridge) keeps the ceiling panels bright through the
+    dim. Still TODO:
+    - Pulsing red emergency-strip lights on the walls during red
+      alert. Would need either a separate bridge pass with a
+      pulsing additive tint over specific shapes, or a per-material
+      `pulse_phase` uniform driven from a time uniform.
+    - Yellow-alert tinting (currently no visual change).
+    - Viewscreen flicker / station-screen content updates.
 
 28. **Per-ship-class bridge variants.** DBridge is hardcoded in
     `host_loop.py:502`; other classes (FBridge, EBridge, KBridge,
@@ -204,11 +212,15 @@ the list.
     `NiAlphaProperty`; wire it into the shader) if specific panels
     need tuning.
 
-32. **NIF `Dark`-stage lightmap support.** Modern authoring tools can
-    put a lightmap in stage 1 (`Dark`) of `NiMultiTextureProperty`;
-    stock BC content doesn't use this path, but adding a second
-    predicate in `material_build.cc` would extend `lightmap_pass`
-    tagging to non-stock bridges.
+32. **Cleanup: drop `Material::lightmap_pass` + `lightmap.{vert,frag}`.**
+    These were the original design's "tag lightmap shapes + render
+    them via multiply blend" mechanism. The final design (Dark-slot
+    lightmap with two-UV composite in `bridge.frag`) doesn't need
+    either: the lightmap goes to `StageSlot::Dark` and the bridge
+    shader samples it via `u_dark_map`. `lightmap_pass` is now 0 for
+    every material in DBridge, and `Pipeline::lightmap_shader()` is
+    never bound. Removing both reduces surface area; gated on
+    confidence that no other content needs them.
 
 33. **`CreateAmbientLight` 4th-arg true semantics.** The chosen Phase 1
     interpretation (clamp dimmer to [0, 1]) matches visual expectations
@@ -216,6 +228,38 @@ the list.
     else) is still unconfirmed and may matter for non-stock content.
     See `engine/appc/sets.py:CreateAmbientLight` for the chosen
     behaviour and rationale.
+
+34. **Bridge SFX one-shots.** `engine/audio/bridge_ambient.py` wires
+    the looping `AmbBridge` to view-mode toggle, but BC's
+    `LoadBridge.LoadSounds()` (sdk/.../LoadBridge.py:349-379)
+    registers more bridge sounds that aren't yet wired:
+    - `RedAlertSound` / `YellowAlertSound` / `GreenAlertSound`
+      one-shots when `SetAlertLevel` changes (registered as default
+      sounds; just needs a transition hook).
+    - `CollisionAlertSound` (sfx/critical.wav) — looping when hull is
+      critical.
+    - `ConsoleExplosion1..8` — random pick when consoles take damage.
+    - `InSystemWarp` (sfx/Bridge/bridge_loop_warp.wav) — looping
+      while at warp.
+    - `ViewOn` / `ViewOff` (sfx/hail.wav, sfx/ViewscreenOff.WAV) —
+      pair with the viewscreen-RTT work (item 26).
+
+35. **Bridge camera pose tuning.** Eye is currently anchored at
+    `(0, 50, 47)` with initial yaw=π (forward = -Y) — values copied
+    from MissionLib's `CameraObjectClass_Create(0, 50, 47, -1.55,
+    0, 0, 1)` and tuned visually. User noted slight misalignment
+    vs the BC original. The MissionLib pose is axis-angle (angle
+    -1.55 rad around +Z); the Gamebryo NiCamera default forward
+    convention that combines with this rotation hasn't been
+    cleanrooomed yet, so the eye/forward defaults are a best-guess.
+    Tracked in `engine/host_loop.py:_BridgeCamera`.
+
+36. **DBridge mesh has mixed face winding.** Workaround: bridge pass
+    disables back-face culling (`bridge_pass.cc`). Sub-percent
+    fillrate overhead at most; not worth fixing unless something
+    weird shows up. Documented here so a future "why is bridge cull
+    state different from the rest of the pipeline" question has an
+    answer.
 
 ## v1 deviations from the original plan
 
