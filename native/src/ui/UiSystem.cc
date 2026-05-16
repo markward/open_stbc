@@ -176,7 +176,18 @@ PanelDocument* UiSystem::get_panel(int panel_id) {
 }
 
 void UiSystem::set_ui_scale(float scale) {
-    if (context_) context_->SetDensityIndependentPixelRatio(scale);
+    base_scale_ = scale;
+    // Re-apply against the cached framebuffer height so callers that flip
+    // the multiplier between renders see the change immediately. render()
+    // will overwrite this if the framebuffer has resized in the meantime.
+    if (last_fb_height_ > 0) apply_scale_for_height_(last_fb_height_);
+}
+
+void UiSystem::apply_scale_for_height_(int fb_height) {
+    if (!context_ || fb_height <= 0) return;
+    float dp_ratio = base_scale_ * static_cast<float>(fb_height) / kReferenceHeight;
+    context_->SetDensityIndependentPixelRatio(dp_ratio);
+    last_fb_height_ = fb_height;
 }
 
 void UiSystem::toggle_debugger() {
@@ -200,6 +211,15 @@ void UiSystem::update_hud(const HudState& state) {
 void UiSystem::render(int fb_width, int fb_height) {
     if (!context_) return;
     if (!rendering_enabled_) return;
+    // Push viewport changes into RmlUi so vw/vh units and layout
+    // recompute on resize. SetDimensions internally no-ops when the
+    // size is unchanged, so this is safe to call every frame; we still
+    // guard the dp-ratio recompute since that touches every element.
+    if (fb_width != last_fb_width_ || fb_height != last_fb_height_) {
+        context_->SetDimensions(Rml::Vector2i(fb_width, fb_height));
+        last_fb_width_ = fb_width;
+        if (fb_height != last_fb_height_) apply_scale_for_height_(fb_height);
+    }
     render_iface_->SetViewport(fb_width, fb_height);
     render_iface_->BeginFrame();
     context_->Render();

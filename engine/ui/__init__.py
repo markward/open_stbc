@@ -9,11 +9,11 @@ from .collapsible import UiCollapsibleList
 from .panel import UiPanel
 from .stat_row import UiStatRow
 
-# Global UI scale. Every `dp` value in RCSS / inline style is multiplied
-# by this. 1.0 = native pixels; 2.0 = doubled. Will become user-configurable
-# (settings menu / cli flag) — for now hardcoded here so the panel reads
-# comfortably on a 1080p / 1440p display.
-UI_SCALE: float = 2.0
+# Global UI scale multiplier. The native side scales `dp` by
+# `UI_SCALE * fb_height / 1080` so a value of 1.0 looks identical at 1080p,
+# 1440p, and UHD instead of locking text to a fixed pixel size. Bump above
+# 1.0 to enlarge everything globally; drop below for denser layouts.
+UI_SCALE: float = 1.0
 
 
 def init() -> None:

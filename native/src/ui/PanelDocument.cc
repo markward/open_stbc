@@ -111,13 +111,14 @@ PanelDocument::~PanelDocument() {
 
 void PanelDocument::apply_anchor() {
     if (!doc_) return;
-    // 10dp inset on every edge so corner panels don't sit flush against
+    // 15dp inset on every edge so corner panels don't sit flush against
     // the viewport bounds; "center" uses left/top: 50% plus a translate
-    // to put the element's center at the viewport center.
-    if      (anchor_ == "top-left")     { doc_->SetProperty("left",  "10dp"); doc_->SetProperty("top",    "10dp"); }
-    else if (anchor_ == "top-right")    { doc_->SetProperty("right", "10dp"); doc_->SetProperty("top",    "10dp"); }
-    else if (anchor_ == "bottom-left")  { doc_->SetProperty("left",  "10dp"); doc_->SetProperty("bottom", "10dp"); }
-    else if (anchor_ == "bottom-right") { doc_->SetProperty("right", "10dp"); doc_->SetProperty("bottom", "10dp"); }
+    // to put the element's center at the viewport center.  top-right
+    // uses 1vw temporarily for a positioning test (debug panel only).
+    if      (anchor_ == "top-left")     { doc_->SetProperty("left",  "15dp"); doc_->SetProperty("top",    "15dp"); }
+    else if (anchor_ == "top-right")    { doc_->SetProperty("right", "1vw");  doc_->SetProperty("top",    "1vw"); }
+    else if (anchor_ == "bottom-left")  { doc_->SetProperty("left",  "15dp"); doc_->SetProperty("bottom", "15dp"); }
+    else if (anchor_ == "bottom-right") { doc_->SetProperty("right", "15dp"); doc_->SetProperty("bottom", "15dp"); }
     else if (anchor_ == "center") {
         doc_->SetProperty("left",      "50%");
         doc_->SetProperty("top",       "50%");

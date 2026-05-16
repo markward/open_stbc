@@ -13,6 +13,12 @@
  * values LoadInterface.py sets at game start. The Python theme registry
  * still exists for future runtime tinting — once we wire up the RmlUi
  * animation system or generate RCSS dynamically.
+ *
+ * Sizing is in `dp`. The native UiSystem multiplies dp by
+ * `UI_SCALE * fb_height / 1080` so these values render at the same
+ * screen-relative size across 1080p / 1440p / UHD instead of being
+ * locked to an absolute pixel count. Source measurements are tuned to
+ * read comfortably at UI_SCALE=1.0 on a 1080p display.
  */
 
 body {
@@ -21,7 +27,7 @@ body {
     width: 100%;
     height: 100%;
     font-family: antonio;
-    font-size: 14dp;
+    font-size: 20dp;
     color: #e8e8d0;
 }
 
@@ -34,10 +40,10 @@ body {
        so the target-list scroll wrapper has nowhere to bleed above the
        header.  Side and bottom padding stay for layout breathing room. */
     padding-top: 0dp;
-    padding-right: 8dp;
-    padding-bottom: 8dp;
-    padding-left: 8dp;
-    border-radius: 4dp;
+    padding-right: 11dp;
+    padding-bottom: 11dp;
+    padding-left: 11dp;
+    border-radius: 6dp;
     box-sizing: border-box;
     overflow: hidden;
 }
@@ -58,14 +64,14 @@ body {
     position: relative;
     z-index: 1;
     background-color: #1e1e1e;
-    /* Header absorbs the panel's old 8dp top padding so it sits flush
-       against the panel border.  No margin-bottom either — body's top
-       butts up against header's bottom so the scroll wrapper has no
-       padding gap to bleed into above the header. */
-    padding-top: 14dp;
-    padding-bottom: 6dp;
-    padding-left: 12dp;
-    padding-right: 32dp;
+    /* Header absorbs the panel's old top padding so it sits flush against
+       the panel border.  No margin-bottom either — body's top butts up
+       against header's bottom so the scroll wrapper has no padding gap to
+       bleed into above the header. */
+    padding-top: 20dp;
+    padding-bottom: 9dp;
+    padding-left: 18dp;
+    padding-right: 46dp;
     margin-bottom: 0dp;
     color: #e8e8d0;
     font-weight: bold;
@@ -75,18 +81,18 @@ body {
 .bc-panel-title {
     display: inline-block;
     text-transform: uppercase;
-    letter-spacing: 2dp;
+    letter-spacing: 3dp;
 }
 
 .bc-panel-toggle {
     position: absolute;
-    right: 8dp;
-    top: 4dp;
-    width: 24dp;
+    right: 11dp;
+    top: 6dp;
+    width: 35dp;
     text-align: center;
     color: #ffffff;
     cursor: pointer;
-    font-size: 12dp;     /* 15% smaller than the body's 14dp default */
+    font-size: 18dp;     /* 10% smaller than the body's 20dp default */
 }
 
 .bc-panel-body {
@@ -100,7 +106,7 @@ body {
 /* Top-level rows in the targets panel (ships) get a uniform bottom gap.
    Nested rows inside an expanded ship use the per-element defaults. */
 .bc-target-scroll > * {
-    margin-bottom: 5dp;
+    margin-bottom: 7dp;
 }
 
 /* Scroll wrapper used by TargetListController.  Apply -margin-top here
@@ -115,15 +121,15 @@ body {
 
 .bc-stat-row {
     display: block;
-    margin-bottom: 4dp;
-    padding-left: 12dp;
-    padding-right: 12dp;
+    margin-bottom: 6dp;
+    padding-left: 18dp;
+    padding-right: 18dp;
     white-space: nowrap;
 }
 
 .bc-stat-label {
     display: inline-block;
-    width: 80dp;
+    width: 116dp;
     color: #8aa0b4;
 }
 
@@ -140,12 +146,12 @@ body {
 
 .bc-collapsible-header {
     display: block;
-    padding-top: 6dp;
-    padding-bottom: 6dp;
-    padding-right: 12dp;
-    padding-left: 12dp;
-    margin-bottom: 3dp;
-    border-left: 3dp #7f7f7f;
+    padding-top: 9dp;
+    padding-bottom: 9dp;
+    padding-right: 18dp;
+    padding-left: 18dp;
+    margin-bottom: 4dp;
+    border-left: 4dp #7f7f7f;
     color: #e8e8d0;
     font-weight: bold;
     cursor: pointer;
@@ -165,17 +171,17 @@ body {
 /* Selected ship / weapon-system row — brighter text + thicker left stripe. */
 .bc-collapsible-header.selected {
     color: #ffffff;
-    border-left-width: 6dp;
-    padding-left: 9dp;
+    border-left-width: 9dp;
+    padding-left: 13dp;
 }
 
 .bc-arrow {
     display: inline-block;
-    width: 18dp;
-    margin-right: 3dp;
+    width: 26dp;
+    margin-right: 4dp;
     text-align: center;
     color: #ffffff;
-    font-size: 12dp;     /* 15% smaller than the body's 14dp default */
+    font-size: 18dp;     /* 10% smaller than the body's 20dp default */
 }
 
 .bc-title {
@@ -184,21 +190,21 @@ body {
 
 .bc-collapsible-children {
     display: block;
-    padding-left: 4dp;
+    padding-left: 6dp;
 }
 
 /* ── Button ─────────────────────────────────────────────────────────────── */
 
 .bc-button {
     display: block;
-    padding-top: 6dp;
-    padding-bottom: 6dp;
-    padding-right: 12dp;
-    padding-left: 34dp;
-    margin-bottom: 3dp;
+    padding-top: 9dp;
+    padding-bottom: 9dp;
+    padding-right: 18dp;
+    padding-left: 50dp;
+    margin-bottom: 4dp;
     background-color: #3a3a3a;
     color: #e0e0d8;
-    border-left: 3dp #cf609f;
+    border-left: 4dp #cf609f;
     cursor: pointer;
     white-space: nowrap;
 }
@@ -210,8 +216,8 @@ body {
 
 .bc-button.selected {
     color: #ffffff;
-    padding-left: 31dp;
-    border-left-width: 6dp;
+    padding-left: 45dp;
+    border-left-width: 9dp;
 }
 
 .bc-button.menu-1.selected { background-color: #7f3c2b8c; border-left-color: #fe7856; }
@@ -228,10 +234,10 @@ body {
 .bc-panel-footer {
     display: flex;
     justify-content: flex-end;
-    padding-top: 8dp;
-    padding-right: 8dp;
-    padding-bottom: 8dp;
-    padding-left: 8dp;
+    padding-top: 11dp;
+    padding-right: 11dp;
+    padding-bottom: 11dp;
+    padding-left: 11dp;
 }
 
 /* ── Scrollbar styling ─────────────────────────────────────────────────

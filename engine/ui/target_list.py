@@ -13,8 +13,8 @@ from engine.ui.panel import UiPanel
 
 
 # Pixels-per-notch (dp) for wheel-driven scroll.  ~one collapsed row
-# height = header padding (6+6) + line height (~16) + margin (3) ≈ 31dp.
-_ROW_HEIGHT_DP = 30.0
+# height = header padding (8+8) + line height (~22) + margin (4) ≈ 42dp.
+_ROW_HEIGHT_DP = 44.0
 
 
 _SUBSYSTEM_GETTERS = (

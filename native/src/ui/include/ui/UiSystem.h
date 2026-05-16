@@ -50,10 +50,13 @@ public:
     /// owns a given element id when callers pass element ids directly.
     auto& panels_for_bindings() { return panels_; }
 
-    /// Set the density-independent-pixel ratio for the UI context. Every
-    /// `dp` value in RCSS / inline style is multiplied by this — a setting
-    /// of 2.0 doubles the visual size of every UI element. Affects all
-    /// documents in the context (HUD + panels).
+    /// Set the base UI scale multiplier. The actual `dp-ratio` applied to
+    /// the RmlUi context is `scale * fb_height / reference_height` and is
+    /// recomputed on every render() when the framebuffer height changes.
+    /// This keeps UI elements at the same screen-relative size across
+    /// 1080p / 1440p / UHD instead of locking them to absolute pixels.
+    /// A multiplier of 1.0 matches the reference height (1080p) at native
+    /// dp; 1.25 makes everything 25% larger at all resolutions.
     void set_ui_scale(float scale);
 
     /// Toggle the RmlUi debugger overlay. Shows the live element tree,
@@ -74,6 +77,18 @@ private:
     std::unordered_map<int, std::unique_ptr<PanelDocument>> panels_;
     int                                   next_panel_id_ = 1;
     bool                                  rendering_enabled_ = true;
+
+    // Resolution-proportional dp scaling. base_scale_ is the user-facing
+    // multiplier passed to set_ui_scale(); applied_scale_ is the value most
+    // recently pushed to the RmlUi context. last_fb_height_ caches the
+    // framebuffer height that produced applied_scale_ so render() can skip
+    // the recompute when the window hasn't resized.
+    float                                 base_scale_ = 1.0f;
+    int                                   last_fb_width_ = 0;
+    int                                   last_fb_height_ = 0;
+    static constexpr float                kReferenceHeight = 1080.0f;
+
+    void apply_scale_for_height_(int fb_height);
 };
 
 }  // namespace ui
