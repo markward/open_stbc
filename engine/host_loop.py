@@ -412,12 +412,15 @@ def _build_phaser_beam_render_data(ships):
             beam_length = (dx * dx + dy * dy + dz * dz) ** 0.5
             tile_per_unit = bank.GetLengthTextureTilePerUnit()
             u_tiles = max(1.0, beam_length * tile_per_unit) if tile_per_unit > 0 else 1.0
-            # SDK-faithful per-bank colours + width.  Banks bound to a
-            # PhaserProperty supply non-zero PhaserWidth; non-phaser
-            # emitters (no path here today) would fall back to a default.
-            outer_width = bank.GetPhaserWidth() or 0.30
-            core_scale  = bank.GetCoreScale()  or 0.50
-            inner_width = outer_width * core_scale
+            # SDK-faithful per-bank colours + width.  PhaserWidth is the
+            # beam diameter and MainRadius is the half-width (== width/2
+            # on Galaxy: 0.30 vs 0.15).  Our shader's u_width is a
+            # half-width (vertices at ±perp × u_width), so MainRadius is
+            # the value we want — passing PhaserWidth would render at
+            # 2× the intended size.
+            outer_half = bank.GetMainRadius() or 0.15
+            core_scale = bank.GetCoreScale()  or 0.50
+            inner_half = outer_half * core_scale
             outer_color = bank.GetOuterShellColor()
             inner_color = bank.GetInnerCoreColor()
             # Two concentric beams per bank — outer shell first, then
@@ -430,10 +433,10 @@ def _build_phaser_beam_render_data(ships):
             }
             out.append({**common,
                          "color": outer_color,
-                         "width": float(outer_width)})
+                         "width": float(outer_half)})
             out.append({**common,
                          "color": inner_color,
-                         "width": float(inner_width)})
+                         "width": float(inner_half)})
     return out
 
 
