@@ -296,7 +296,65 @@ class EnergyWeaponProperty(WeaponProperty):
 
 
 class PhaserProperty(EnergyWeaponProperty):
-    pass
+    """Phaser-beam template — adds layered colour + geometry over the
+    EnergyWeaponProperty base.
+
+    SDK setters (see sdk/Build/scripts/ships/Hardpoints/galaxy.py:418-438):
+    - SetPhaserWidth(w):       outer beam half-width in world units
+    - SetMainRadius(r):        inner beam half-width (overrides core scaling)
+    - SetCoreScale(s):         inner-core width as fraction of outer (0.5 typical)
+    - SetOuterShellColor(c):   outer halo tint (orange-red on Fed phasers)
+    - SetInnerShellColor(c):   second outer tint (often same as outer)
+    - SetOuterCoreColor(c):    bright transition tint (light tan on Fed)
+    - SetInnerCoreColor(c):    central bright core (near-white on Fed)
+
+    Colours stored as RGBA tuples; SDK passes TGColorA, we coerce on set.
+    """
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        # Geometry — defaults match BC's typical Federation phaser.
+        self._phaser_width: float = 0.30
+        self._main_radius:  float = 0.15
+        self._core_scale:   float = 0.50
+        # Colour layers — RGBA tuples.  Default to a neutral white so a
+        # property without explicit Set*Color reads as visible-but-bland
+        # rather than transparent.
+        self._outer_shell_color: tuple = (1.0, 1.0, 1.0, 1.0)
+        self._inner_shell_color: tuple = (1.0, 1.0, 1.0, 1.0)
+        self._outer_core_color:  tuple = (1.0, 1.0, 1.0, 1.0)
+        self._inner_core_color:  tuple = (1.0, 1.0, 1.0, 1.0)
+        # Beam texture (relative path under game/).
+        self._texture_name: str = ""
+
+    def GetPhaserWidth(self) -> float:      return self._phaser_width
+    def SetPhaserWidth(self, v) -> None:    self._phaser_width = float(v)
+    def GetMainRadius(self) -> float:       return self._main_radius
+    def SetMainRadius(self, v) -> None:     self._main_radius = float(v)
+    def GetCoreScale(self) -> float:        return self._core_scale
+    def SetCoreScale(self, v) -> None:      self._core_scale = float(v)
+
+    @staticmethod
+    def _coerce_color(c) -> tuple:
+        # TGColorA exposes .r/.g/.b/.a; tuples pass through.
+        if hasattr(c, "r") and hasattr(c, "g") and hasattr(c, "b"):
+            a = getattr(c, "a", 1.0)
+            return (float(c.r), float(c.g), float(c.b), float(a))
+        if isinstance(c, tuple) and len(c) >= 3:
+            return (float(c[0]), float(c[1]), float(c[2]),
+                    float(c[3]) if len(c) > 3 else 1.0)
+        return (1.0, 1.0, 1.0, 1.0)
+
+    def GetOuterShellColor(self) -> tuple:  return self._outer_shell_color
+    def SetOuterShellColor(self, c) -> None: self._outer_shell_color = self._coerce_color(c)
+    def GetInnerShellColor(self) -> tuple:  return self._inner_shell_color
+    def SetInnerShellColor(self, c) -> None: self._inner_shell_color = self._coerce_color(c)
+    def GetOuterCoreColor(self) -> tuple:   return self._outer_core_color
+    def SetOuterCoreColor(self, c) -> None:  self._outer_core_color  = self._coerce_color(c)
+    def GetInnerCoreColor(self) -> tuple:   return self._inner_core_color
+    def SetInnerCoreColor(self, c) -> None:  self._inner_core_color  = self._coerce_color(c)
+
+    def GetTextureName(self) -> str:        return self._texture_name
+    def SetTextureName(self, name) -> None: self._texture_name = str(name)
 
 
 class PulseWeaponProperty(EnergyWeaponProperty):

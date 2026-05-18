@@ -269,6 +269,19 @@ class ShipSubsystem(TGEventHandlerObject):
         self._length:              float = 0.0
         # Texture tiles per world unit along the beam (0 = stretch once).
         self._length_texture_tile_per_unit: float = 0.0
+        # Phaser-specific beam geometry — mirrored from PhaserProperty.
+        # 0 on non-phaser subsystems; descriptor builder gates on these.
+        self._phaser_width: float = 0.0
+        self._main_radius:  float = 0.0
+        self._core_scale:   float = 0.0
+        # Phaser beam colours (RGBA tuples).  Neutral defaults are fine
+        # because the bank only emits beams when SetProperty has populated
+        # them from a PhaserProperty hardpoint.
+        self._outer_shell_color: tuple = (1.0, 1.0, 1.0, 1.0)
+        self._inner_shell_color: tuple = (1.0, 1.0, 1.0, 1.0)
+        self._outer_core_color:  tuple = (1.0, 1.0, 1.0, 1.0)
+        self._inner_core_color:  tuple = (1.0, 1.0, 1.0, 1.0)
+        self._texture_name: str = ""
         # Flag set True only when a property actually supplied typed arc
         # data (EnergyWeaponProperty hierarchy).  Emitters without it
         # (torpedo tubes) fall back to a 90° dot-product cone.
@@ -337,6 +350,33 @@ class ShipSubsystem(TGEventHandlerObject):
             val = prop.GetLengthTextureTilePerUnit()
             if isinstance(val, (int, float)):
                 self._length_texture_tile_per_unit = float(val)
+        # Phaser-specific fields.  The typed getters live on PhaserProperty
+        # (not the EnergyWeaponProperty base) so isinstance-check by
+        # return-value type — non-phaser properties' data-bag fallback
+        # returns None.
+        if hasattr(prop, "GetPhaserWidth"):
+            v = prop.GetPhaserWidth()
+            if isinstance(v, (int, float)): self._phaser_width = float(v)
+        if hasattr(prop, "GetMainRadius"):
+            v = prop.GetMainRadius()
+            if isinstance(v, (int, float)): self._main_radius = float(v)
+        if hasattr(prop, "GetCoreScale"):
+            v = prop.GetCoreScale()
+            if isinstance(v, (int, float)): self._core_scale = float(v)
+        for getter, attr in (
+            ("GetOuterShellColor", "_outer_shell_color"),
+            ("GetInnerShellColor", "_inner_shell_color"),
+            ("GetOuterCoreColor",  "_outer_core_color"),
+            ("GetInnerCoreColor",  "_inner_core_color"),
+        ):
+            if hasattr(prop, getter):
+                v = getattr(prop, getter)()
+                if isinstance(v, tuple) and len(v) == 4:
+                    setattr(self, attr, v)
+        if hasattr(prop, "GetTextureName"):
+            v = prop.GetTextureName()
+            if isinstance(v, str):
+                self._texture_name = v
 
     def IsTypeOf(self, cls) -> int:
         """SDK class-id check. Returns 1 when this subsystem's source
@@ -439,6 +479,16 @@ class ShipSubsystem(TGEventHandlerObject):
 
     def GetLengthTextureTilePerUnit(self) -> float:
         return self._length_texture_tile_per_unit
+
+    # Phaser-specific accessors (return defaults on non-phaser subsystems).
+    def GetPhaserWidth(self) -> float:        return self._phaser_width
+    def GetMainRadius(self) -> float:         return self._main_radius
+    def GetCoreScale(self) -> float:          return self._core_scale
+    def GetOuterShellColor(self) -> tuple:    return self._outer_shell_color
+    def GetInnerShellColor(self) -> tuple:    return self._inner_shell_color
+    def GetOuterCoreColor(self) -> tuple:     return self._outer_core_color
+    def GetInnerCoreColor(self) -> tuple:     return self._inner_core_color
+    def GetTextureName(self) -> str:          return self._texture_name
 
     def GetWorldLocation(self) -> TGPoint3:
         if self._parent_ship is not None:

@@ -14,7 +14,10 @@
 namespace renderer {
 
 namespace {
-constexpr const char* kBeamTexturePath = "game/data/Textures/Tactical/PhaserLights.tga";
+// Source-of-truth: galaxy.py:438 → SetTextureName("data/phaser.tga").
+// PhaserLights.tga (in Textures/Tactical/) is the lit-strip markings on
+// the saucer hull, NOT the beam visual.
+constexpr const char* kBeamTexturePath = "game/data/phaser.tga";
 }
 
 PhaserPass::PhaserPass() = default;

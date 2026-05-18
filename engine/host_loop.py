@@ -410,22 +410,30 @@ def _build_phaser_beam_render_data(ships):
             dy = target_pos.y - emitter_pos.y
             dz = target_pos.z - emitter_pos.z
             beam_length = (dx * dx + dy * dy + dz * dz) ** 0.5
-            tile_per_unit = (bank.GetLengthTextureTilePerUnit()
-                             if hasattr(bank, "GetLengthTextureTilePerUnit")
-                             else 0.0)
+            tile_per_unit = bank.GetLengthTextureTilePerUnit()
             u_tiles = max(1.0, beam_length * tile_per_unit) if tile_per_unit > 0 else 1.0
-            out.append({
+            # SDK-faithful per-bank colours + width.  Banks bound to a
+            # PhaserProperty supply non-zero PhaserWidth; non-phaser
+            # emitters (no path here today) would fall back to a default.
+            outer_width = bank.GetPhaserWidth() or 0.30
+            core_scale  = bank.GetCoreScale()  or 0.50
+            inner_width = outer_width * core_scale
+            outer_color = bank.GetOuterShellColor()
+            inner_color = bank.GetInnerCoreColor()
+            # Two concentric beams per bank — outer shell first, then
+            # the brighter inner core overlaid on top.  Additive blend
+            # combines them into the layered look.
+            common = {
                 "emitter": (emitter_pos.x, emitter_pos.y, emitter_pos.z),
                 "target":  (target_pos.x,  target_pos.y,  target_pos.z),
-                # Federation amber, additive.  Per-faction colors are a
-                # follow-up — PR 2c only ships the player Galaxy.
-                "color":   (1.0, 0.6, 0.2, 1.0),
-                # Width in world units.  Galaxy GetRadius() ≈ 4.4 wu;
-                # ~0.4 reads as a clean beam line without dominating the
-                # silhouette.
-                "width":   0.4,
                 "u_tiles": float(u_tiles),
-            })
+            }
+            out.append({**common,
+                         "color": outer_color,
+                         "width": float(outer_width)})
+            out.append({**common,
+                         "color": inner_color,
+                         "width": float(inner_width)})
     return out
 
 
