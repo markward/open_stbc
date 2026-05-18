@@ -267,6 +267,8 @@ class ShipSubsystem(TGEventHandlerObject):
         self._max_damage_distance: float = 0.0
         # Phaser-strip length along the Right axis (0 = point emitter).
         self._length:              float = 0.0
+        # Texture tiles per world unit along the beam (0 = stretch once).
+        self._length_texture_tile_per_unit: float = 0.0
         # Flag set True only when a property actually supplied typed arc
         # data (EnergyWeaponProperty hierarchy).  Emitters without it
         # (torpedo tubes) fall back to a 90° dot-product cone.
@@ -331,6 +333,10 @@ class ShipSubsystem(TGEventHandlerObject):
             val = prop.GetLength()
             if isinstance(val, (int, float)):
                 self._length = float(val)
+        if hasattr(prop, "GetLengthTextureTilePerUnit"):
+            val = prop.GetLengthTextureTilePerUnit()
+            if isinstance(val, (int, float)):
+                self._length_texture_tile_per_unit = float(val)
 
     def IsTypeOf(self, cls) -> int:
         """SDK class-id check. Returns 1 when this subsystem's source
@@ -430,6 +436,9 @@ class ShipSubsystem(TGEventHandlerObject):
 
     def GetLength(self) -> float:
         return self._length
+
+    def GetLengthTextureTilePerUnit(self) -> float:
+        return self._length_texture_tile_per_unit
 
     def GetWorldLocation(self) -> TGPoint3:
         if self._parent_ship is not None:

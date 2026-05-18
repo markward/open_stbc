@@ -112,6 +112,7 @@ void PhaserPass::render(const std::vector<PhaserBeamDescriptor>& beams,
     for (std::size_t i = 0; i < beams.size(); ++i) {
         shader.set_vec4 ("u_color", beams[i].color);
         shader.set_float("u_width", beams[i].width);
+        shader.set_float("u_tiles", beams[i].u_tiles > 0.0f ? beams[i].u_tiles : 1.0f);
         glDrawArrays(GL_TRIANGLES, static_cast<GLint>(i * 6), 6);
     }
     glBindVertexArray(0);

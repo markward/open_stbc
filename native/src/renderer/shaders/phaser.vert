@@ -8,8 +8,10 @@ layout(location = 2) in float a_corner;   // 0..5 → which quad corner
 uniform mat4  u_view_proj;
 uniform vec3  u_camera_pos;
 uniform float u_width;
+uniform float u_tiles;   // texture repeats along beam length
 
 out vec2 v_uv;
+out float v_t;       // raw beam-axis parameter (0 emitter, 1 target) for endpoint fade
 
 void main() {
     // Quad layout (corner index → t along beam, side perpendicular):
@@ -25,5 +27,8 @@ void main() {
     vec3 perp    = normalize(cross(axis, to_cam));
     vec3 world   = base + perp * (side * u_width);
     gl_Position  = u_view_proj * vec4(world, 1.0);
-    v_uv         = vec2(t, side * 0.5 + 0.5);
+    // Tile the texture along beam length per SDK SetLengthTextureTilePerUnit.
+    // GL_REPEAT wrap on S is the default for asset uploads.
+    v_uv         = vec2(t * u_tiles, side * 0.5 + 0.5);
+    v_t          = t;
 }

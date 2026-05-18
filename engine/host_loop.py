@@ -403,6 +403,17 @@ def _build_phaser_beam_render_data(ships):
             else:
                 target_pos = target.GetWorldLocation()
             emitter_pos = bank._strip_emit_position(target_pos)
+            # Compute beam length so the renderer can tile the texture
+            # at the SDK-prescribed rate.  Galaxy phasers tile every
+            # 2 world units (SetLengthTextureTilePerUnit=0.5).
+            dx = target_pos.x - emitter_pos.x
+            dy = target_pos.y - emitter_pos.y
+            dz = target_pos.z - emitter_pos.z
+            beam_length = (dx * dx + dy * dy + dz * dz) ** 0.5
+            tile_per_unit = (bank.GetLengthTextureTilePerUnit()
+                             if hasattr(bank, "GetLengthTextureTilePerUnit")
+                             else 0.0)
+            u_tiles = max(1.0, beam_length * tile_per_unit) if tile_per_unit > 0 else 1.0
             out.append({
                 "emitter": (emitter_pos.x, emitter_pos.y, emitter_pos.z),
                 "target":  (target_pos.x,  target_pos.y,  target_pos.z),
@@ -413,6 +424,7 @@ def _build_phaser_beam_render_data(ships):
                 # ~0.4 reads as a clean beam line without dominating the
                 # silhouette.
                 "width":   0.4,
+                "u_tiles": float(u_tiles),
             })
     return out
 

@@ -103,6 +103,7 @@ struct PhaserBeamDescriptor {
     glm::vec3 target_world;
     glm::vec4 color;     // RGBA additive tint
     float     width;     // world-units half-width of the beam quad
+    float     u_tiles;   // texture repeats along beam length (0 = stretch once)
 };
 
 class FrameSubmitter {

@@ -594,6 +594,7 @@ PYBIND11_MODULE(_open_stbc_host, m) {
                   b.target_world  = {std::get<0>(t), std::get<1>(t), std::get<2>(t)};
                   b.color         = {std::get<0>(c), std::get<1>(c), std::get<2>(c), std::get<3>(c)};
                   b.width         = d["width"].cast<float>();
+                  b.u_tiles       = d.contains("u_tiles") ? d["u_tiles"].cast<float>() : 1.0f;
                   g_phaser_beams.push_back(std::move(b));
               }
           },

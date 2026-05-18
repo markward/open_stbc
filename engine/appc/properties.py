@@ -219,12 +219,24 @@ class EnergyWeaponProperty(WeaponProperty):
         # Phaser-strip length along the Right axis (galaxy.py: 1.5–1.7).
         # 0.0 = treat the emitter as a point.
         self._length:               float = 0.0
+        # Texture tiling along the beam.  SDK convention: tiles per
+        # world unit of beam length.  Galaxy phasers use 0.5 (one full
+        # texture every 2 world units).  PhaserLights.tga is 32x32 so
+        # without tiling it stretches across the whole beam and dilutes
+        # the alpha gradient.
+        self._length_texture_tile_per_unit: float = 0.0
 
     def GetLength(self) -> float:
         return self._length
 
     def SetLength(self, v) -> None:
         self._length = float(v)
+
+    def GetLengthTextureTilePerUnit(self) -> float:
+        return self._length_texture_tile_per_unit
+
+    def SetLengthTextureTilePerUnit(self, v) -> None:
+        self._length_texture_tile_per_unit = float(v)
 
     def GetArcWidthAngles(self) -> tuple:
         return (self._arc_width_lo, self._arc_width_hi)
