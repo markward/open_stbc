@@ -184,3 +184,44 @@ def test_app_load_round_trip():
     assert db.GetString("Helm") == "Helm"
     App.g_kLocalizationManager.Unload(db)
     assert App.g_kLocalizationManager.GetIfRegistered("data/TGL/Bridge Menus.tgl") is None
+
+
+# ── Manager actually parses TGL files when they exist on disk ────────────────
+# The shim used to return an empty database for every Load(), so consumers
+# fell back to "key as value". With real parsing wired up, the SDK call form
+# Load("data/TGL/...") resolves to either game/data/TGL/... or
+# sdk/Build/Data/TGL/... and the resulting database carries the parsed strings
+# and per-key media filenames.
+
+def test_load_populates_strings_from_sdk_tgl():
+    """Load() finds an SDK-shipped TGL and decodes its values."""
+    mgr = TGLocalizationManager()
+    db = mgr.Load("data/TGL/Tutorial/Tutorial.tgl")
+    assert db.GetString("Unused").startswith("This string is only here")
+
+
+def test_load_populates_filenames_from_sdk_tgl():
+    """The same TGL exposes the per-key media filename."""
+    mgr = TGLocalizationManager()
+    db = mgr.Load("data/TGL/Tutorial/Tutorial.tgl")
+    assert db.GetFilename("Unused") == "Unused.wav"
+
+
+def test_load_unknown_file_falls_back_to_empty_database():
+    """When the TGL can't be resolved on disk, Load() returns an empty
+    database — GetString falls back to returning the key so SDK menu lookups
+    keep operating on real strings rather than stubs."""
+    mgr = TGLocalizationManager()
+    db = mgr.Load("data/TGL/__does_not_exist__.tgl")
+    assert db.GetString("Foo") == "Foo"
+    assert db.HasString("Foo") is False
+    assert db.GetFilename("Foo") == ""
+
+
+def test_load_caches_parsed_database_across_calls():
+    """Re-Load() with the same filename returns the same instance (no
+    re-parse), matching Appc's reference-counted database lifetime."""
+    mgr = TGLocalizationManager()
+    db1 = mgr.Load("data/TGL/Tutorial/Tutorial.tgl")
+    db2 = mgr.Load("data/TGL/Tutorial/Tutorial.tgl")
+    assert db1 is db2

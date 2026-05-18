@@ -13,12 +13,47 @@ same database, and the database is released when refcount returns to zero.
 This matches the Appc semantics — MissionLib.py routinely wraps Load/Unload
 around short-lived menu queries on shared menu databases.
 
-Phase 1 fallback: TGL files are a binary format (uint32 offset table + ASCII
-keys + UTF-16LE values) whose full structure isn't yet decoded.  GetString
-returns the lookup key when no decoded entry is present, which keeps callers
-operating on real strings (FindMenu("Helm"), TextBanner(..., "Friendly Fire"),
-etc.) without crashing.  HasString reflects the actual cache contents.
+Load() resolves the SDK-relative path against game/ (real install) then
+sdk/Build/ (SDK fallback) and decodes the binary TGL via
+engine.missions.tgl_reader.  When the file can't be located, an empty
+database is returned and GetString falls back to returning the key, which
+keeps SDK call sites (FindMenu("Helm"), TextBanner(..., "Friendly Fire"),
+etc.) operating on real strings rather than stubs.
 """
+
+from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def _resolve_tgl_path(filename: str):
+    """Resolve an SDK-form TGL path to a real file on disk, or None.
+
+    SDK scripts pass paths like "data/TGL/Bridge Menus.tgl" — relative to
+    the BC working directory. We mirror that by checking game/ first, then
+    fall back to sdk/Build/ for SDK-shipped TGLs (used in headless tests
+    where game/ may not be installed). The SDK ships its TGLs under
+    sdk/Build/Data/TGL (capital D); the prefix is re-cased when present so
+    lookups work on case-sensitive filesystems.
+    """
+    raw = Path(filename)
+    candidates = []
+    if raw.is_absolute():
+        candidates.append(raw)
+    candidates.append(_PROJECT_ROOT / "game" / filename)
+
+    sdk_path = filename
+    for lower in ("data/TGL/", "data/tgl/", "Data/tgl/"):
+        if sdk_path.startswith(lower):
+            sdk_path = "Data/TGL/" + sdk_path[len(lower):]
+            break
+    candidates.append(_PROJECT_ROOT / "sdk" / "Build" / sdk_path)
+    candidates.append(_PROJECT_ROOT / filename)
+
+    for c in candidates:
+        if c.is_file():
+            return c
+    return None
 
 
 class TGString:
@@ -89,10 +124,10 @@ class _TGString(str):
 
 
 class TGLocalizationDatabase:
-    def __init__(self, filename: str):
+    def __init__(self, filename: str, *, strings=None, sounds=None):
         self._filename = filename
-        self._strings: dict[str, str] = {}
-        self._sounds:  dict[str, str] = {}
+        self._strings: dict[str, str] = dict(strings) if strings else {}
+        self._sounds:  dict[str, str] = dict(sounds) if sounds else {}
 
     def GetString(self, key: str) -> _TGString:
         # Headless fallback: return the key itself so consumers receive a
@@ -127,9 +162,25 @@ class TGLocalizationManager:
         if entry is not None:
             entry[1] += 1
             return entry[0]
-        db = TGLocalizationDatabase(filename)
+        db = self._build_database(filename)
         self._cache[filename] = [db, 1]
         return db
+
+    @staticmethod
+    def _build_database(filename: str) -> TGLocalizationDatabase:
+        path = _resolve_tgl_path(filename)
+        if path is None:
+            return TGLocalizationDatabase(filename)
+        # Lazy import — engine.missions.tgl_reader has no engine.appc deps,
+        # but keeping the import inside the call keeps module-load time
+        # minimal for tests that never touch localization data.
+        from engine.missions.tgl_reader import read_tgl, TGLParseError
+        try:
+            parsed = read_tgl(path)
+        except (TGLParseError, OSError):
+            return TGLocalizationDatabase(filename)
+        return TGLocalizationDatabase(
+            filename, strings=parsed.strings, sounds=parsed.sounds)
 
     def Unload(self, database: TGLocalizationDatabase) -> None:
         for filename, entry in list(self._cache.items()):

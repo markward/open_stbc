@@ -1,39 +1,47 @@
 """Binary TGL parser.
 
-BC's localization databases are stored as .tgl files. Empirical layout
-(reverse-engineered from sdk/Build/Data/TGL/Tutorial/Episode/Episode.tgl
-and game/data/TGL/Maelstrom/Maelstrom.tgl):
+BC's localization databases are stored as .tgl files. Layout
+(reverse-engineered from sdk/Build/Data/TGL/Tutorial/Tutorial.tgl,
+sdk/Build/Data/TGL/Tutorial/Episode/Episode.tgl, and
+game/data/TGL/Maelstrom/Maelstrom.tgl + game/data/TGL/Bridge Crew General.TGL):
 
     header (20 bytes):
-        uint32  magic_or_version  (0x00001701 in samples examined)
-        uint32  unknown
-        uint32  unknown
-        uint32  count             (number of entries)
-        uint32  unknown
+        uint32  magic            (0x00001701 in every sample examined)
+        uint32  unknown          (always 1)
+        uint32  unknown          (always 0)
+        uint32  count            (number of entries)
+        uint32  unknown          (always 0)
 
-    toc (count * 12 bytes):
-        each entry has three uint32s. The third is a cumulative
-        byte-end into the keys blob (so subtracting consecutive values
-        gives per-entry key lengths). The first two fields are also
-        cumulative-end-like values but we don't rely on them — the
-        keys/values/filenames blobs each end with their own size prefix
-        and contain NUL-separated entries that we can simply split.
+    toc (count * 12 bytes), one triple per entry:
+        uint32  value_start_wchars   start of entry i's value in the values
+                                     blob, measured in UTF-16 code units
+        uint32  filename_start_bytes start of entry i's filename in the
+                                     filenames blob, in bytes
+        uint32  key_end_bytes        end of entry i's key in the keys blob,
+                                     in bytes (== start of key i+1)
+        Each entry i's slice is therefore [TOC[i], TOC[i+1]) for value and
+        filename (with TOC[count] taken from the size prefix below), and
+        [TOC[i-1].f2, TOC[i].f2) for keys (with TOC[-1].f2 == 0).
 
-    keys blob (TOC[count-1].field2 bytes):
-        concatenated NUL-terminated ASCII keys.
+    keys blob (TOC[count-1].f2 bytes):
+        concatenated NUL-terminated ASCII keys, in TOC order.
 
-    uint32  value_size_chars      (size of next blob in WCHARs)
-    values blob (value_size_chars * 2 bytes):
-        concatenated NUL-terminated UTF-16-LE strings.
+    uint32  value_size_wchars
+    values blob (value_size_wchars * 2 bytes):
+        concatenated NUL-terminated UTF-16-LE strings, in TOC order.
 
     uint32  filename_size_bytes
     filenames blob:
-        concatenated NUL-terminated ASCII filenames.
+        concatenated NUL-terminated ASCII media filenames, in TOC order.
+        Speakers are NOT stored as a separate field — when a TGL has
+        speakered dialogue the filename path encodes the speaker
+        (e.g. "sfx/Bridge/Crew/XO/...") and the exporter optionally
+        prepends "Speaker: " into the value string at export time.
 
 Entries with empty filename strings ("") are not surfaced in TGLFile.sounds.
 
-A truly empty TGL (such as the tutorial's placeholder Episode.tgl, which
-has count=1 and a trailing "Unused" filler) decodes to a TGLFile with no
+A truly empty TGL (the tutorial's placeholder Episode.tgl, which has
+count=1 and a trailing "Unused" filler) decodes to a TGLFile with no
 strings and no sounds.
 """
 from __future__ import annotations
