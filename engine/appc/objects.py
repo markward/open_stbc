@@ -168,7 +168,17 @@ class ObjectClass(TGEventHandlerObject):
         pass
 
     def AttachObject(self, *args) -> None:
-        pass
+        # SDK ConditionInRange.SetupProximitySphere calls
+        # pObject1.AttachObject(self.pProx) so the proximity check is
+        # parented to the anchor object's transform. Phase 1 has no
+        # scene graph, but we do need the anchor reference so the
+        # per-tick proximity evaluator can center the radius correctly.
+        if args:
+            obj = args[0]
+            # Late import: ai → planet → ai cycles otherwise.
+            from engine.appc.ai import ProximityCheck
+            if isinstance(obj, ProximityCheck):
+                obj._anchor = self
 
     def DetachObject(self, *args) -> None:
         pass

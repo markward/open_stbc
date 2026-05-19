@@ -198,6 +198,17 @@ class ProximityManager:
     def AddObject(self, obj) -> None:
         if obj not in self._objects:
             self._objects.append(obj)
+        # SDK ConditionInRange.SetupProximitySphere calls
+        # pProximityManager.AddObject(pProx) — the proximity check is
+        # registered here so the per-tick evaluator can find it. We track
+        # it in _proximity_checks too (anchor=None — anchor will be set
+        # by ObjectClass.AttachObject(prox) which is called immediately
+        # after).
+        from engine.appc.ai import ProximityCheck
+        if isinstance(obj, ProximityCheck):
+            entry = (obj, None)
+            if entry not in self._proximity_checks:
+                self._proximity_checks.append(entry)
 
     def RemoveObject(self, obj) -> None:
         if obj in self._objects:
@@ -265,7 +276,12 @@ def evaluate_proximity_checks() -> None:
     """Walk every live ProximityManager and dispatch each ProximityCheck's
     per-tick evaluation.  Called from GameLoop.tick between tick_all_ai and
     tick_all_ship_motion so the SDK conditions see fresh transitions before
-    the motion integrator advances ships further."""
+    the motion integrator advances ships further.
+
+    The (check, anchor) tuple stores an explicit anchor when the call
+    site used AddProximityCheck(check, anchor); SDK condition flow
+    instead leaves anchor=None and relies on ObjectClass.AttachObject
+    having stored the anchor on the check itself."""
     import App
     for pSet in App.g_kSetManager._sets.values():
         pm = pSet.GetProximityManager() if hasattr(pSet, "GetProximityManager") else None

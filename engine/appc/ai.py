@@ -36,6 +36,7 @@ Class hierarchy (mirrors SDK):
 
 from engine.appc.objects import ObjectClass
 from engine.appc.actions import TGAction
+from engine.appc.events import TGEvent
 
 
 # ── Condition system ──────────────────────────────────────────────────────────
@@ -582,9 +583,15 @@ class ProximityCheck(ObjectClass):
     TT_INSIDE  = 0
     TT_OUTSIDE = 1
 
-    def __init__(self, event_type: int = 0):
+    def __init__(self, event_type: int = 0, event_handler=None):
         super().__init__()
         self._event_type = int(event_type)
+        # SDK ConditionInRange calls ProximityCheck_Create(eEventType, pEventHandler).
+        # The handler is the destination object for fired events — the
+        # event-manager routes through it so the SDK condition's
+        # TGPythonInstanceWrapper.ProcessEvent dispatches to the right
+        # method ("ProximityEvent") on the wrapped Python instance.
+        self._event_handler = event_handler
         self._proximity_radius: float = 0.0
         # Per-object inside/outside tag.  Stored as a list of
         # (obj, type) pairs because the same object can theoretically appear
@@ -594,6 +601,10 @@ class ProximityCheck(ObjectClass):
         self._check_types: list = []
         self._ignore_object_size: bool = False
         self._trigger_type: int = self.TT_INSIDE
+        # Anchor object — set by ObjectClass.AttachObject(prox); the
+        # per-tick evaluator centers the radius on this object's
+        # world location.
+        self._anchor = None
         # Per-tick inside-set tracker.  Stored as ids so we don't pin objects
         # alive past their own lifecycle and so equality follows identity.
         # Eager init: TGObject.__getattr__ returns a truthy _Stub for missing
@@ -620,10 +631,33 @@ class ProximityCheck(ObjectClass):
     def GetIgnoreObjectSize(self) -> int:
         return 1 if self._ignore_object_size else 0
 
-    def SetTriggerType(self, t) -> None:
-        self._trigger_type = int(t)
+    def SetTriggerType(self, *args) -> None:
+        """Two forms:
+            SetTriggerType(tt)        → default trigger type for newly-
+                                        added objects (used by older SDK).
+            SetTriggerType(obj, tt)   → per-object trigger type, used by
+                                        SDK ConditionInRange.ProximityEvent
+                                        to re-arm an object after a
+                                        boundary-crossing event fires.
+        """
+        if len(args) == 1:
+            self._trigger_type = int(args[0])
+        elif len(args) == 2:
+            obj, tt = args
+            tt = int(tt)
+            self._check_objects = [
+                (o, tt) if o is obj else (o, t) for o, t in self._check_objects
+            ]
 
-    def GetTriggerType(self) -> int:
+    def GetTriggerType(self, obj=None) -> int:
+        """Per-object trigger lookup when `obj` is given (used by SDK
+        ConditionInRange.ProximityEvent / ExitedSet). With no argument,
+        returns the default trigger type for the check."""
+        if obj is None:
+            return self._trigger_type
+        for o, t in self._check_objects:
+            if o is obj:
+                return t
         return self._trigger_type
 
     def AddObjectToCheckList(self, obj, trigger_type=None) -> None:
@@ -661,47 +695,151 @@ class ProximityCheck(ObjectClass):
         tid = int(type_id)
         self._check_types = [(i, t) for i, t in self._check_types if i != tid]
 
-    def Evaluate(self, anchor_obj) -> None:
-        """Per-tick: for each watched object, test whether it's inside
-        the proximity radius around ``anchor_obj`` and fire the configured
-        event type when an inside-transition occurs.
+    def CheckProximity(self, obj) -> None:
+        """Immediate, single-object proximity test against this check's
+        anchor. SDK ConditionInRange.SetupProximitySphere calls this once
+        per newly-registered watched object so initial-state transitions
+        fire without waiting for the next tick. No-op if no anchor is
+        attached yet."""
+        if self._anchor is None:
+            return
+        # Force a fire if the watched object currently matches its
+        # per-object trigger condition. Bypasses the edge-detection
+        # bookkeeping so the SDK condition can re-arm via
+        # SetTriggerType in its ProximityEvent handler and immediately
+        # see a fresh event next CheckProximity call.
+        self._evaluate_one(obj, force=True)
 
-        Called by GameLoop.tick between tick_all_ai and tick_all_ship_motion.
-        Only TT_INSIDE transitions fire events in this slice — TT_OUTSIDE
-        and group/type-based variants land when the proximity subsystem
-        gets full SDK fidelity.
+    def _evaluate_one(self, obj, force: bool = False) -> None:
+        """Shared per-object logic for Evaluate() and CheckProximity().
+
+        Fire when the watched object matches its trigger type:
+          TT_INSIDE  → fire when inside the radius
+          TT_OUTSIDE → fire when outside the radius
+
+        Evaluate() is edge-triggered: only fires when the inside/outside
+        state changes from the last tick (so a stationary inside object
+        doesn't spam events every frame). CheckProximity() uses
+        force=True for immediate firing on initial setup.
         """
         import App
-        from engine.appc.events import TGEvent_Create
-
-        anchor_loc = anchor_obj.GetWorldLocation() if hasattr(anchor_obj, "GetWorldLocation") else None
-        if anchor_loc is None:
+        anchor_loc = (
+            self._anchor.GetWorldLocation()
+            if hasattr(self._anchor, "GetWorldLocation") else None
+        )
+        loc = obj.GetWorldLocation() if hasattr(obj, "GetWorldLocation") else None
+        if anchor_loc is None or loc is None:
+            return
+        # Look up the per-object trigger type.
+        trigger_type = None
+        for o, t in self._check_objects:
+            if o is obj:
+                trigger_type = t
+                break
+        if trigger_type is None:
             return
         r2 = self._proximity_radius * self._proximity_radius
+        dx = loc.x - anchor_loc.x
+        dy = loc.y - anchor_loc.y
+        dz = loc.z - anchor_loc.z
+        is_inside = (dx * dx + dy * dy + dz * dz) <= r2
+        matches = (
+            (trigger_type == ProximityCheck.TT_INSIDE and is_inside) or
+            (trigger_type == ProximityCheck.TT_OUTSIDE and not is_inside)
+        )
+        # Edge detection: only fire on transition into the matching
+        # state, not every tick the object stays there. The
+        # _inside_set tracker remembers which objects were inside on
+        # the previous evaluation.
+        was_inside = id(obj) in self._inside_set
+        if is_inside:
+            self._inside_set.add(id(obj))
+        else:
+            self._inside_set.discard(id(obj))
+        if not matches:
+            return
+        if not force and is_inside == was_inside:
+            return
+        evt = ProximityEvent()
+        evt.SetEventType(self._event_type)
+        evt._proximity_check = self
+        evt._object = obj
+        # When a per-condition event handler is attached, route the
+        # event through it (SDK ConditionInRange flow). Otherwise fall
+        # back to the watched object as destination (Task 4 contract).
+        if self._event_handler is not None:
+            evt.SetDestination(self._event_handler)
+        else:
+            evt.SetDestination(obj)
+        App.g_kEventManager.AddEvent(evt)
 
-        inside_now = self._inside_set
-        new_inside: set = set()
-        for obj, trigger_type in self._check_objects:
-            loc = obj.GetWorldLocation() if hasattr(obj, "GetWorldLocation") else None
-            if loc is None:
-                continue
-            dx = loc.x - anchor_loc.x
-            dy = loc.y - anchor_loc.y
-            dz = loc.z - anchor_loc.z
-            is_inside = (dx * dx + dy * dy + dz * dz) <= r2
-            if is_inside:
-                new_inside.add(id(obj))
-                if trigger_type == ProximityCheck.TT_INSIDE and id(obj) not in inside_now:
-                    # Outside → inside transition.  Fire.
-                    evt = TGEvent_Create()
-                    evt.SetEventType(self._event_type)
-                    evt.SetDestination(obj)
-                    App.g_kEventManager.AddEvent(evt)
-        self._inside_set = new_inside
+    def Evaluate(self, anchor_obj=None) -> None:
+        """Per-tick: for each watched object, test whether it's crossed
+        its per-object trigger boundary against ``anchor_obj``.
+
+        When called from ``evaluate_proximity_checks`` the anchor is
+        passed explicitly (back-compat with Task 4); when called from
+        the SDK condition flow the anchor was recorded via
+        ``ObjectClass.AttachObject(self)`` and stored as ``self._anchor``.
+        Either path resolves to the same anchor.
+
+        Called by GameLoop.tick between tick_all_ai and tick_all_ship_motion.
+        """
+        if anchor_obj is not None:
+            self._anchor = anchor_obj
+        if self._anchor is None:
+            return
+        # Snapshot watched objects so trigger-type swaps inside ProximityEvent
+        # handlers don't perturb iteration.
+        for obj, _t in list(self._check_objects):
+            self._evaluate_one(obj)
+
+    def RemoveAndDelete(self) -> None:
+        """SDK calls this when scrapping a no-longer-needed proximity
+        sphere (ConditionInRange.__del__, .SetupProximitySphere). Clear
+        the watch list and detach so the per-tick evaluator drops this
+        check on its next pass."""
+        self._check_objects = []
+        self._check_object_ids = []
+        self._check_types = []
+        self._inside_set = set()
+        # Drop ourselves from the anchor-set's proximity manager so
+        # evaluate_proximity_checks stops walking us.
+        anchor = self._anchor
+        if anchor is not None and hasattr(anchor, "GetContainingSet"):
+            pSet = anchor.GetContainingSet()
+            if pSet is not None and hasattr(pSet, "GetProximityManager"):
+                pm = pSet.GetProximityManager()
+                if pm is not None:
+                    pm.RemoveObject(self)
+        self._anchor = None
 
 
-def ProximityCheck_Create(event_type: int = 0) -> ProximityCheck:
-    return ProximityCheck(event_type)
+class ProximityEvent(TGEvent):
+    """Event fired when a watched object crosses a ProximityCheck
+    boundary. SDK condition handlers read ``GetObject()`` / ``GetProximityCheck()``
+    to identify the crossing object and the originating check."""
+    def __init__(self):
+        super().__init__()
+        self._object = None
+        self._proximity_check = None
+
+    def GetObject(self):
+        return self._object
+
+    def GetProximityCheck(self):
+        return self._proximity_check
+
+
+def ProximityCheck_Create(event_type: int = 0, event_handler=None) -> ProximityCheck:
+    """SDK signature: ``ProximityCheck_Create(eEventType[, pEventHandler])``.
+
+    The optional ``event_handler`` is a TGPythonInstanceWrapper that
+    becomes the destination for events the check fires — used by
+    Conditions/ConditionInRange so the wrapper's ProcessEvent routes the
+    proximity event to the right method on the wrapped Python instance.
+    """
+    return ProximityCheck(event_type, event_handler)
 
 
 def ProximityCheck_CreateWithEvent(event) -> ProximityCheck:

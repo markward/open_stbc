@@ -388,6 +388,15 @@ ET_DELETE_OBJECT_PUBLIC = 200
 ET_OBJECT_GROUP_OBJECT_ENTERED_SET = 201
 ET_OBJECT_GROUP_OBJECT_EXITED_SET = 202
 ET_CONDITION_ATK_FORGIVE = 203
+# Group membership changed (Add/Remove name on an ObjectGroup) — fires
+# the GROUP_CHANGED event the SDK uses to invalidate cached views of
+# the group's members. ConditionInRange subscribes to rebuild its
+# proximity sphere when its target list churns.
+ET_OBJECT_GROUP_CHANGED = 204
+# AI-internal proximity transition. SDK Conditions/ConditionInRange
+# fires a ProximityCheck with this event type so its ProximityEvent
+# method runs when watched ships cross the radius boundary.
+ET_AI_INTERNAL_PROX_EVENT = 205
 
 # ── Input event types — used by DefaultKeyboardBinding + TacticalInterfaceHandlers
 # Values are stable arbitrary integers well above the Phase-1 event range.
