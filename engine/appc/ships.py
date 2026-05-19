@@ -751,7 +751,24 @@ class ShipClass(DamageableObject):
 
     # ── Targeting ────────────────────────────────────────────────────────────
     def GetTarget(self):                          return self._target
-    def SetTarget(self, target) -> None:          self._target = target
+    def SetTarget(self, target) -> None:
+        """Accepts a string name OR an object reference.
+
+        SDK pattern (AI/Preprocessors.py:1260 — SelectTarget.Update):
+        ``pOurShip.SetTarget(self.sCurrentTarget)`` where sCurrentTarget is
+        always a string. The Appc C++ side resolves the name to the
+        matching object within the ship's containing set; Python callers
+        that already have an object reference pass it directly.
+
+        String inputs resolve via the containing set's name table; None or
+        unresolvable strings null the target out.
+        """
+        if isinstance(target, str):
+            pSet = self.GetContainingSet() if hasattr(self, "GetContainingSet") else None
+            resolved = pSet.GetObject(target) if pSet is not None else None
+            self._target = resolved
+        else:
+            self._target = target
     def GetTargetSubsystem(self):                 return self._target_subsystem
     def SetTargetSubsystem(self, s) -> None:      self._target_subsystem = s
 
