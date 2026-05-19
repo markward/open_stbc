@@ -380,6 +380,14 @@ ET_OBJECT_DELETED = 104
 ET_ENTERED_SET = 105
 ET_OBJECT_EXPLODING = 106
 
+# Used by Conditions/Condition*.py — broadcast events the SDK conditions
+# subscribe to. Values arbitrary but stable; keep contiguous with the
+# existing ET_* block so future grep finds them all in one place.
+ET_DELETE_OBJECT_PUBLIC = 200
+ET_OBJECT_GROUP_OBJECT_ENTERED_SET = 201
+ET_OBJECT_GROUP_OBJECT_EXITED_SET = 202
+ET_CONDITION_ATK_FORGIVE = 203
+
 # ── Input event types — used by DefaultKeyboardBinding + TacticalInterfaceHandlers
 # Values are stable arbitrary integers well above the Phase-1 event range.
 # The SDK allocates these via Appc.ET_*; we pick our own stable IDs since the

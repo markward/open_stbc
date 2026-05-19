@@ -131,3 +131,38 @@ def test_unrelated_event_does_not_fire():
     mgr.AddEvent(evt)
 
     assert fired == []
+
+
+def test_reset_clears_broadcast_handlers():
+    """After reset_sdk_globals (called on mission swap), broadcast handlers
+    from the prior mission must NOT fire. Conditions register handlers on
+    g_kEventManager during mission init; without clearing, stale handlers
+    leak across missions and fire against wrong objects."""
+    import sys, types
+    # engine.host_loop imports engine.renderer → _dauntless_host (C++ ext).
+    # In test environments without a matching-Python-ABI build, install a
+    # benign stub so the import succeeds. The reset path itself doesn't
+    # call any renderer entrypoint.
+    if "_dauntless_host" not in sys.modules:
+        sys.modules["_dauntless_host"] = types.ModuleType("_dauntless_host")
+        sys.modules["_dauntless_host"].InstanceId = int  # type: ignore[attr-defined]
+    import App
+    from engine.host_loop import reset_sdk_globals
+
+    fired = []
+
+    class Spy:
+        def Hit(self, evt):
+            fired.append(1)
+
+    spy = Spy()
+    wrapper = TGPythonInstanceWrapper()
+    wrapper.SetPyWrapper(spy)
+    App.g_kEventManager.AddBroadcastPythonMethodHandler(50, wrapper, "Hit")
+
+    reset_sdk_globals()
+
+    evt = TGEvent_Create(); evt.SetEventType(50)
+    App.g_kEventManager.AddEvent(evt)
+
+    assert fired == [], "stale handler from prior mission fired after reset"
