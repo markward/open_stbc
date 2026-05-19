@@ -310,6 +310,53 @@ class ShipClass(DamageableObject):
         zero = TGPoint3(0.0, 0.0, 0.0)
         self.TurnDirectionsToDirections(forward, diff, zero, zero)
 
+    def InSystemWarp(self, target, distance) -> int:
+        """Teleport-to-near-target sub-light warp.
+
+        Stateless model: if target is None or the ship is already within
+        `distance` of the target, return 0 without moving. Otherwise
+        compute unit dir = (target - ship).normalize(), translate the
+        ship to (target − unit_dir · distance), zero the integrator's
+        current speed (so brake-aware control resumes cleanly on the
+        next AI tick rather than overshooting under leftover velocity),
+        and return 1.
+
+        SDK callers (Intercept.Update) invoke this each AI tick. The
+        stateless model converges: one teleport per warp request,
+        subsequent ticks find distance ≤ fDistance and return 0.
+
+        Visual streaks / camera flash / multi-frame animation will hook
+        in via a later renderer-side warp pass. The kinematic teleport
+        stays correct; visuals stack on top.
+        """
+        if target is None:
+            return 0
+        ship_loc = self.GetWorldLocation()
+        target_loc = target.GetWorldLocation()
+        diff = TGPoint3(
+            target_loc.x - ship_loc.x,
+            target_loc.y - ship_loc.y,
+            target_loc.z - ship_loc.z,
+        )
+        d = diff.Length()
+        if d <= distance:
+            return 0
+        # Unit dir ship → target, then arrival = target − unit · distance.
+        diff.Scale(1.0 / d)
+        self.SetTranslateXYZ(
+            target_loc.x - diff.x * distance,
+            target_loc.y - diff.y * distance,
+            target_loc.z - diff.z * distance,
+        )
+        self._current_speed = 0.0
+        return 1
+
+    def StopInSystemWarp(self) -> None:
+        """No-op in the stateless teleport model. Required only so
+        AI.PlainAI.Intercept.LostFocus doesn't AttributeError when our
+        AI driver eventually models focus loss."""
+        pass
+
     def SetNetType(self, net_type: int) -> None:
         self._net_type = net_type
 
