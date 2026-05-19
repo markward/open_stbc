@@ -1164,7 +1164,12 @@ def reset_sdk_globals() -> None:
     App.g_kTimerManager._timers.clear()
     App.g_kRealtimeTimerManager._time = 0.0
     App.g_kRealtimeTimerManager._timers.clear()
+    # Clear the event manager's handler tables so stale handlers from the
+    # prior mission don't fire against the new mission's state. SDK
+    # conditions register handlers on g_kEventManager during mission init.
     App.g_kEventManager._broadcast_handlers.clear()
+    if hasattr(App.g_kEventManager, "_method_handlers"):
+        App.g_kEventManager._method_handlers.clear()
     register_input_handlers(App.g_kEventManager)
     App.g_kSetManager._sets.clear()
     _waypoint_registry.clear()
