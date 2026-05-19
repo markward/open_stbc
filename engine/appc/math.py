@@ -71,6 +71,12 @@ class TGPoint3:
         self.y += other.y
         self.z += other.z
 
+    def Subtract(self, other: "TGPoint3") -> None:
+        """In-place vector subtract (matches NiPoint3.Subtract in the Appc interface)."""
+        self.x -= other.x
+        self.y -= other.y
+        self.z -= other.z
+
     def Set(self, other: "TGPoint3") -> None:
         """Copy XYZ from another TGPoint3 (in-place assignment)."""
         self.x = other.x
