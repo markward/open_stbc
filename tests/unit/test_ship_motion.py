@@ -288,3 +288,17 @@ def test_get_relative_position_info_zero_distance():
     assert dist == pytest.approx(0.0)
     assert (unit.x, unit.y, unit.z) == (0.0, 0.0, 0.0)
     assert angle == pytest.approx(0.0)
+
+
+def test_get_relative_position_info_forward_after_yaw_uses_column_convention():
+    """After yaw +π/2 around Z, model-forward (+Y) maps to world -X under
+    the column-vector convention used by the integrator and the SDK
+    (R · model_forward = R.col(1)). A target at world +X is then 180°
+    off forward — proves the readout matches the integrator + SDK and
+    not the row-vector convention `_PlayerControl` uses."""
+    ship = ShipClass()
+    R = TGMatrix3(); R.MakeZRotation(math.pi / 2.0)
+    ship.SetMatrixRotation(R)
+    target = TGPoint3(100.0, 0.0, 0.0)
+    _, _, _, angle = ship.GetRelativePositionInfo(target)
+    assert angle == pytest.approx(math.pi, abs=1e-6)

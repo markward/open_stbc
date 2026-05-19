@@ -150,7 +150,11 @@ class ShipClass(DamageableObject):
         if distance < 1e-9:
             return diff, 0.0, TGPoint3(0.0, 0.0, 0.0), 0.0
         unit = TGPoint3(diff.x / distance, diff.y / distance, diff.z / distance)
-        forward = self.GetWorldRotation().GetRow(1)
+        # World-forward = R · model_forward = column 1 of R. Matches the
+        # column-vector convention the integrator (ship_motion) and the
+        # SDK's TurnToOrientation.Update use; GetRow(1) would be wrong
+        # for non-identity rotations.
+        forward = self.GetWorldRotation().GetCol(1)
         # Clamp to acos domain to guard against FP drift outside [-1, 1].
         cos_a = unit.x * forward.x + unit.y * forward.y + unit.z * forward.z
         if cos_a > 1.0: cos_a = 1.0
