@@ -217,7 +217,21 @@ class ProximityManager:
     def GetLineIntersectObjects(self, *args) -> tuple:
         return ()
 
-    def EndObjectIteration(self) -> None:
+    def GetNextObject(self, iterator=None):
+        """Return the next object from a proximity iterator.
+
+        Phase 1 stub: GetLineIntersectObjects returns (), so the
+        iterator is always empty — this method returns None to terminate
+        SDK while-loops on the first call. Real iteration lands when
+        the proximity subsystem itself gets real work (planet/large-ship
+        avoidance for AI scripts like Intercept).
+        """
+        return None
+
+    def EndObjectIteration(self, iterator=None) -> None:
+        """Release a proximity iterator handle. Phase 1 stub: no-op
+        because GetLineIntersectObjects returns () and the iterator
+        handle is opaque."""
         pass
 
     def DumpCollisions(self) -> None:

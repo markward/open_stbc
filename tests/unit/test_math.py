@@ -68,6 +68,29 @@ def test_tgpoint3_unitize():
     assert abs(v.Length() - 1.0) < 1e-10
 
 
+def test_unitize_returns_pre_normalization_length():
+    """SDK contract (NiPoint3.Unitize): returns the length before
+    normalization as a float. SDK call sites rely on this:
+        fDistance = vDiff.Unitize()  # vDiff is now unit-length; we know
+                                     # how far it was."""
+    v = TGPoint3(3.0, 4.0, 0.0)
+    length = v.Unitize()
+    assert length == pytest.approx(5.0)
+    # And the vector is normalized in place.
+    assert v.x == pytest.approx(0.6)
+    assert v.y == pytest.approx(0.8)
+    assert v.z == pytest.approx(0.0)
+
+
+def test_unitize_zero_vector_returns_zero():
+    """Edge case: unitizing a zero vector leaves it as zero and
+    returns 0 (avoid divide-by-zero)."""
+    v = TGPoint3(0.0, 0.0, 0.0)
+    length = v.Unitize()
+    assert length == 0.0
+    assert (v.x, v.y, v.z) == (0.0, 0.0, 0.0)
+
+
 def test_tgpoint3_unit_cross_is_normalized():
     a = TGPoint3(1.0, 0.0, 0.0)
     b = TGPoint3(0.0, 1.0, 0.0)
@@ -287,3 +310,34 @@ def test_tgpoint3_mult_matrix_left_returns_self_for_chaining_optional():
     R = TGMatrix3()
     result = p.MultMatrixLeft(R)
     assert result is None or result is p
+
+
+# ── TGPoint3.Subtract ──────────────────────────────────────────────────────────
+# In-place vector subtract. Mirrors the existing TGPoint3.Add contract. Used by
+# SDK scripts like AI/PlainAI/Intercept.py which compute relative vectors via
+# `vec.Subtract(other)` 13+ times.
+
+def test_tgpoint3_subtract_is_in_place():
+    v = TGPoint3(10.0, 20.0, 30.0)
+    result = v.Subtract(TGPoint3(1.0, 2.0, 3.0))
+    assert result is None  # in-place, returns None
+    assert (v.x, v.y, v.z) == (9.0, 18.0, 27.0)
+
+
+def test_tgpoint3_subtract_negative_components():
+    v = TGPoint3(0.0, 0.0, 0.0)
+    v.Subtract(TGPoint3(-5.0, -5.0, -5.0))
+    assert (v.x, v.y, v.z) == (5.0, 5.0, 5.0)
+
+
+def test_tgpoint3_subtract_zero_is_identity():
+    v = TGPoint3(7.0, 8.0, 9.0)
+    v.Subtract(TGPoint3(0.0, 0.0, 0.0))
+    assert (v.x, v.y, v.z) == (7.0, 8.0, 9.0)
+
+
+def test_tgpoint3_subtract_self_zeroes():
+    v = TGPoint3(3.0, 4.0, 5.0)
+    other = TGPoint3(3.0, 4.0, 5.0)
+    v.Subtract(other)
+    assert (v.x, v.y, v.z) == (0.0, 0.0, 0.0)

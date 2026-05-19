@@ -82,23 +82,29 @@ Driver runs from the same 60 Hz tick used elsewhere — CLAUDE.md notes Q1 close
 
 Bind to PyBullet rigid bodies (Phase 1 harness) and the C++ engine later:
 
-- `TurnTowardLocation(vec)` — still open. PD-style solver: compute axis-angle from current forward to target direction, set target angular velocity. Largely the same math as `TurnDirectionsToDirections` (done) — should be a thin wrapper.
+- `TurnTowardLocation(vec)` — ✅ done in [Ship AI Intercept plan](../plans/2026-05-18-ship-ai-intercept.md). Thin wrapper on `TurnDirectionsToDirections`.
 - `SetTargetAngularVelocityDirect(vec)` — ✅ done in Steps 1-3 plan; defensive copy in [Ship AI Motion plan](../plans/2026-05-18-ship-ai-motion.md).
 - `SetSpeed(speed, direction, frame)` — ✅ done; defensive copy added in motion slice. `SetImpulse` alias added.
 - `GetPredictedPosition(p, v, a, t)` — ✅ done in motion slice.
-- `GetRelativePositionInfo(vec)` — ✅ done in motion slice.
-- `InSystemWarp(target, distance)` — still open. Start with "teleport to within `distance` of target, decel"; refine when chase camera + sub-light warp visuals land.
-- `StopInSystemWarp()` — still open. `Intercept.LostFocus` calls it ([`Intercept.py:73`](../../../sdk/Build/scripts/AI/PlainAI/Intercept.py)).
-- `GetImpulseEngineSubsystem().GetMaxSpeed()` / `GetMaxAccel()` — ✅ already exist on the subsystem; the motion integrator + `TurnDirectionsToDirections` solver use them.
+- `GetRelativePositionInfo(vec)` — ✅ done in motion slice; row→col convention fix in commit `68f6220`.
+- `InSystemWarp(target, distance)` — ✅ done in [Ship AI Intercept plan](../plans/2026-05-18-ship-ai-intercept.md). Stateless teleport-to-near-target. Renderer-side visuals (streaks, camera flash) are a separate follow-up.
+- `StopInSystemWarp()` — ✅ done; no-op in the stateless model.
+- `GetImpulseEngineSubsystem().GetMaxSpeed()` / `GetMaxAccel()` — ✅ exist on the subsystem; motion integrator + TurnDirectionsToDirections solver use them.
 
 ### Step 5 — End-to-end smoke trail, one leaf at a time
 
 1. **`PlainAI.Stay`** ([`Stay.py`](../../../sdk/Build/scripts/AI/PlainAI/Stay.py)) — ✅ done in [Steps 1-3 plan](../plans/2026-05-18-ship-ai-runtime-step1-3.md).
 2. **`PlainAI.GoForward`** — ✅ done in [Ship AI Motion plan](../plans/2026-05-18-ship-ai-motion.md). `SetImpulse` aliased to `SetSpeed`; linear ramp + position integration land in `engine/appc/ship_motion.py`.
 3. **`PlainAI.TurnToOrientation`** — ✅ done in [Ship AI Motion plan](../plans/2026-05-18-ship-ai-motion.md). `TurnDirectionsToDirections` solver in `engine/appc/ships.py`; angular ramp + rotation integration in `engine/appc/ship_motion.py`.
-4. **`PlainAI.Intercept`** ([`Intercept.py`](../../../sdk/Build/scripts/AI/PlainAI/Intercept.py)) — still open; needs `TurnTowardLocation`, `InSystemWarp`/`StopInSystemWarp`, obstacle-avoidance.
+4. **`PlainAI.Intercept`** ([`Intercept.py`](../../../sdk/Build/scripts/AI/PlainAI/Intercept.py)) — ✅ done in [Ship AI Intercept plan](../plans/2026-05-18-ship-ai-intercept.md). Closes the gap on the canonical "turn + thrust + warp + prediction" hard-case. Obstacle avoidance still no-op (ProximityManager stub). `bMoveInFront=1` branch correct but untested end-to-end; first NonFedAttack test will cover it.
 5. **`PlainAI.FollowObject` + `CircleObject`** — still open; `GetRelativePositionInfo` is now available (landed in the motion slice).
 6. **`AI.Compound.BasicAttack`** — still open.
+
+### Follow-up after Intercept
+
+- **Renderer warp visuals.** `InSystemWarp` currently teleports kinematically with no visual treatment. When the chase-camera / particle / motion-blur subsystems land, hook them in via a renderer-side pass; the engine-side teleport stays correct.
+- **Obstacle avoidance.** `Intercept.AdjustDestinationForLargeObstacles` runs but is a no-op because `ProximityManager.GetLineIntersectObjects` returns `()`. Real avoidance lands when the proximity subsystem itself gets real work (planet avoidance, large-ship avoidance, line-sphere geometry helper).
+- **Integrator publishes `_velocity`.** The motion integrator advances position via `_current_speed * forward * dt` but never writes back to `PhysicsObjectClass._velocity`. SDK `Intercept.Update` reads `pShip.GetVelocityTG().Length()` as `fCurrentSpeed` to decide whether to brake or coast — under Phase 1 this always reads 0, so the SDK takes the `fCurrentSpeed < fMaxVel` branch unconditionally. The Intercept smoke still converges deterministically because `fMaxVel` shrinks as distance shrinks, but brake-aware tuning will be off for any caller that needs real velocity reads. Fix: have `ship_motion._step_ship_motion` call `ship.SetVelocity(world_forward * _current_speed)` each tick (after the position update). Defer until a consumer actually depends on it.
 
 ### Step 6 — `ConditionScript` actually evaluates
 

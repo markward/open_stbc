@@ -281,6 +281,82 @@ class ShipClass(DamageableObject):
             return float(total_angle / max_av)
         return 0.0
 
+    def TurnTowardLocation(self, target_vec) -> None:
+        """Set the angular velocity setpoint to rotate this ship to face
+        a world-space point.
+
+        Thin wrapper on TurnDirectionsToDirections: compute the unit
+        direction from ship to target, read current world-forward from
+        column 1 of the world rotation (column-vector convention; matches
+        the integrator + SDK), call the solver with (forward, target_dir,
+        zero, zero) so primary alignment runs but no secondary roll
+        constraint applies. If the ship is already at the target (zero
+        distance) this is a no-op so any prior setpoint is preserved
+        and the solver doesn't see a NaN direction.
+
+        Called by AI.PlainAI.Intercept.Update each tick to face the
+        predicted intercept point.
+        """
+        loc = self.GetWorldLocation()
+        diff = TGPoint3(
+            target_vec.x - loc.x,
+            target_vec.y - loc.y,
+            target_vec.z - loc.z,
+        )
+        if diff.Length() < 1e-9:
+            return
+        diff.Unitize()
+        forward = self.GetWorldRotation().GetCol(1)
+        zero = TGPoint3(0.0, 0.0, 0.0)
+        self.TurnDirectionsToDirections(forward, diff, zero, zero)
+
+    def InSystemWarp(self, target, distance) -> int:
+        """Teleport-to-near-target sub-light warp.
+
+        Stateless model: if target is None or the ship is already within
+        `distance` of the target, return 0 without moving. Otherwise
+        compute unit dir = (target - ship).normalize(), translate the
+        ship to (target − unit_dir · distance), zero the integrator's
+        current speed (so brake-aware control resumes cleanly on the
+        next AI tick rather than overshooting under leftover velocity),
+        and return 1.
+
+        SDK callers (Intercept.Update) invoke this each AI tick. The
+        stateless model converges: one teleport per warp request,
+        subsequent ticks find distance ≤ fDistance and return 0.
+
+        Visual streaks / camera flash / multi-frame animation will hook
+        in via a later renderer-side warp pass. The kinematic teleport
+        stays correct; visuals stack on top.
+        """
+        if target is None:
+            return 0
+        ship_loc = self.GetWorldLocation()
+        target_loc = target.GetWorldLocation()
+        diff = TGPoint3(
+            target_loc.x - ship_loc.x,
+            target_loc.y - ship_loc.y,
+            target_loc.z - ship_loc.z,
+        )
+        d = diff.Length()
+        if d <= distance:
+            return 0
+        # Unit dir ship → target, then arrival = target − unit · distance.
+        diff.Scale(1.0 / d)
+        self.SetTranslateXYZ(
+            target_loc.x - diff.x * distance,
+            target_loc.y - diff.y * distance,
+            target_loc.z - diff.z * distance,
+        )
+        self._current_speed = 0.0
+        return 1
+
+    def StopInSystemWarp(self) -> None:
+        """No-op in the stateless teleport model. Required only so
+        AI.PlainAI.Intercept.LostFocus doesn't AttributeError when our
+        AI driver eventually models focus loss."""
+        pass
+
     def SetNetType(self, net_type: int) -> None:
         self._net_type = net_type
 
