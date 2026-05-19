@@ -2,6 +2,8 @@
 our engine. The condition class is loaded via _SDKFinder; the engine
 surfaces it touches (ObjectGroup, g_kEventManager, TGPythonInstanceWrapper)
 must all be in place for this to work."""
+import pytest
+
 import App
 from engine.appc.ai import ConditionScript_Create
 from engine.appc.events import TGEvent_Create
@@ -9,10 +11,28 @@ from engine.appc.ships import ShipClass
 
 
 def _reset_app_state():
+    """Clear ONLY the state these tests touch:
+      - g_kSetManager._sets (re-populated per test)
+      - g_kEventManager._method_handlers (Task 1 dict; conditions
+        register here via AddBroadcastPythonMethodHandler)
+    We deliberately do NOT clear _broadcast_handlers because that dict
+    holds module-import-time registrations (e.g. KeyboardBinding._OnKeyboardEvent_Dispatch
+    on event type 4096) that downstream weapon-hit / input-pipeline
+    tests rely on. Conditions never write to _broadcast_handlers; they
+    use _method_handlers."""
     App.g_kSetManager._sets.clear()
-    App.g_kEventManager._broadcast_handlers.clear()
     if hasattr(App.g_kEventManager, "_method_handlers"):
         App.g_kEventManager._method_handlers.clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_app_state():
+    """Reset condition-touched state BEFORE and AFTER each test so this
+    file's tests are order-independent and don't leak into unrelated
+    downstream tests."""
+    _reset_app_state()
+    yield
+    _reset_app_state()
 
 
 def test_condition_exists_initial_status_when_object_present():

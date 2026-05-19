@@ -1,8 +1,10 @@
 """End-to-end tests for SDK Conditions.ConditionInRange.
 
-Depends on ProximityCheck + the per-tick evaluator (Task 4). The
-condition watches sObject1's position; when any of lsObjectNames is
-within fDistance, status flips to 1."""
+Depends on ProximityCheck + the per-tick evaluator. The condition
+watches sObject1's position; when any of lsObjectNames is within
+fDistance, status flips to 1."""
+import pytest
+
 import App
 from engine.appc.ai import ConditionScript_Create
 from engine.appc.planet import evaluate_proximity_checks
@@ -10,10 +12,28 @@ from engine.appc.ships import ShipClass
 
 
 def _reset_app_state():
+    """Clear ONLY the state these tests touch:
+      - g_kSetManager._sets (re-populated per test)
+      - g_kEventManager._method_handlers (Task 1 dict; conditions
+        register here via AddBroadcastPythonMethodHandler)
+    We deliberately do NOT clear _broadcast_handlers because that dict
+    holds module-import-time registrations (e.g. KeyboardBinding._OnKeyboardEvent_Dispatch
+    on event type 4096) that downstream weapon-hit / input-pipeline
+    tests rely on. Conditions never write to _broadcast_handlers; they
+    use _method_handlers."""
     App.g_kSetManager._sets.clear()
-    App.g_kEventManager._broadcast_handlers.clear()
     if hasattr(App.g_kEventManager, "_method_handlers"):
         App.g_kEventManager._method_handlers.clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_app_state():
+    """Reset condition-touched state BEFORE and AFTER each test so this
+    file's tests are order-independent and don't leak into unrelated
+    downstream tests."""
+    _reset_app_state()
+    yield
+    _reset_app_state()
 
 
 def _place_two_ships(d):

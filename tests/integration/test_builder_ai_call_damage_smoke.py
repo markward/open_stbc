@@ -32,14 +32,28 @@ def game_context():
 
 
 def _reset_app_state():
+    """Clear ONLY the state these tests touch. Do NOT clear
+    _broadcast_handlers — that dict holds module-import-time
+    registrations (e.g. KeyboardBinding._OnKeyboardEvent_Dispatch on
+    event type 4096) that downstream weapon-hit / input-pipeline tests
+    rely on. CallDamageAI's 53 builder blocks register handlers via
+    _method_handlers, never _broadcast_handlers."""
     App.g_kSetManager._sets.clear()
-    App.g_kEventManager._broadcast_handlers.clear()
     if hasattr(App.g_kEventManager, "_method_handlers"):
         App.g_kEventManager._method_handlers.clear()
 
 
-def test_call_damage_ai_activates_without_crashing(game_context):
+@pytest.fixture(autouse=True)
+def _isolate_app_state():
+    """Reset condition/builder-touched state BEFORE and AFTER each test
+    so downstream tests aren't polluted by the 53-block CallDamageAI
+    tree's per-leaf condition wiring."""
     _reset_app_state()
+    yield
+    _reset_app_state()
+
+
+def test_call_damage_ai_activates_without_crashing(game_context):
     pSet = App.SetClass_Create(); pSet.SetName("S")
     ship = ShipClass(); pSet.AddObjectToSet(ship, "Test")
     App.g_kSetManager._sets["S"] = pSet
@@ -57,7 +71,6 @@ def test_call_damage_ai_activates_without_crashing(game_context):
 
 
 def test_call_damage_ai_second_tick_does_not_rebuild(game_context):
-    _reset_app_state()
     pSet = App.SetClass_Create(); pSet.SetName("S")
     ship = ShipClass(); pSet.AddObjectToSet(ship, "Test")
     App.g_kSetManager._sets["S"] = pSet
