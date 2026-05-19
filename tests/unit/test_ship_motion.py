@@ -240,6 +240,46 @@ def test_motion_integrator_runs_after_ai_setpoints():
     assert ship._current_speed == pytest.approx(7.0)
 
 
+def test_integrator_publishes_velocity_for_sdk_consumers():
+    """After the integrator advances the ship, GetVelocityTG().Length()
+    should reflect the current speed. SDK scripts (Intercept, Defensive,
+    et al.) read this for brake-aware control; without the publish step
+    they always see zero and lose half their decision tree."""
+    ship = ShipClass()
+    _place(ship)
+    ship.SetImpulse(50.0, TGPoint3_GetModelForward(),
+                    App.PhysicsObjectClass.DIRECTION_MODEL_SPACE)
+    ship.SetTargetAngularVelocityDirect(TGPoint3(0.0, 0.0, 0.0))
+
+    tick_all_ship_motion(1.0 / 60.0)
+
+    v = ship.GetVelocityTG()
+    # Speed has snapped to 50 under FALLBACK_MAX_ACCEL; direction is
+    # world +Y at identity rotation.
+    assert v.y == pytest.approx(50.0)
+    assert v.x == pytest.approx(0.0, abs=1e-9)
+    assert v.z == pytest.approx(0.0, abs=1e-9)
+    assert v.Length() == pytest.approx(50.0)
+
+
+def test_integrator_zero_speed_publishes_zero_velocity():
+    """When _current_speed is zero (no motion this tick), the published
+    velocity must also be zero. Prevents stale velocity from a prior
+    setpoint leaking into the SDK's brake-aware decision."""
+    ship = ShipClass()
+    _place(ship)
+    # Seed a non-zero velocity to detect failure to clear.
+    ship.SetVelocity(TGPoint3(99.0, 99.0, 99.0))
+    ship.SetSpeed(0.0, TGPoint3_GetModelForward(),
+                  App.PhysicsObjectClass.DIRECTION_MODEL_SPACE)
+    ship.SetTargetAngularVelocityDirect(TGPoint3(0.0, 0.0, 0.0))
+
+    tick_all_ship_motion(1.0 / 60.0)
+
+    v = ship.GetVelocityTG()
+    assert v.Length() == pytest.approx(0.0)
+
+
 def test_get_predicted_position_returns_p_v_t_half_a_t_squared():
     """GetPredictedPosition(p, v, a, t) = p + v*t + 0.5*a*t²"""
     ship = ShipClass()

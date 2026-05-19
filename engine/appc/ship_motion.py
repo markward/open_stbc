@@ -101,6 +101,16 @@ def _step_ship_motion(ship, dt: float) -> None:
             p.z + world_dir.z * ship._current_speed * dt,
         )
 
+    # Publish velocity so SDK consumers (Intercept's brake-aware control,
+    # Defensive, etc.) reading GetVelocityTG().Length() see real numbers.
+    # Zero speed publishes zero velocity — caller-visible state must
+    # match the integrator's actual progress this tick.
+    ship.SetVelocity(TGPoint3(
+        world_dir.x * ship._current_speed,
+        world_dir.y * ship._current_speed,
+        world_dir.z * ship._current_speed,
+    ))
+
     # ── Resolve target angular velocity ──────────────────────────────
     if av is None:
         target_av_x = target_av_y = target_av_z = 0.0
