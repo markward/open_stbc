@@ -37,6 +37,11 @@ def _setup_intercept_scene(hostile_start=(0.0, 5000.0, 0.0),
     App.g_kRealtimeTimerManager._time = 0.0
     App.g_kRealtimeTimerManager._timers.clear()
     App.g_kSetManager._sets.clear()
+    # Pin AI-cadence jitter for determinism. Intercept.GetNextUpdateTime
+    # samples App.g_kSystemWrapper.GetRandomNumber to vary the 0.4s AI
+    # cadence by +/-0.2s; without a fixed seed, integration runs diverge
+    # and the test becomes flaky.
+    App.g_kSystemWrapper.SetRandomSeed(20260518)
 
     pSet = App.SetClass_Create()
     pSet.SetName("intercept_smoke")
@@ -133,18 +138,23 @@ def test_intercept_speed_ramps_up_then_back_toward_zero():
     player, hostile, pai = _setup_intercept_scene()
     loop = GameLoop()
     peak_speed = 0.0
+    final_speed = 0.0
     for _ in range(TICK_RATE * 60):
         loop.tick()
-        peak_speed = max(peak_speed, hostile._current_speed)
         if pai._status == ArtificialIntelligence.US_DONE:
+            final_speed = hostile._current_speed
             break
+        # Track peak BEFORE the next tick so that the completing tick
+        # does not get folded into peak_speed (otherwise final < peak
+        # collapses to final < final and the assertion fails).
+        peak_speed = max(peak_speed, hostile._current_speed)
     assert peak_speed > 10.0, (
         f"hostile never accelerated meaningfully; peak={peak_speed}"
     )
     # On completion the brake-aware code should have driven speed
     # toward 0 (within the same tick when fSpeed = 0 is set, since
     # FALLBACK_MAX_ACCEL snaps).
-    assert hostile._current_speed < peak_speed, (
+    assert final_speed < peak_speed, (
         "hostile did not decelerate before completion"
     )
 
