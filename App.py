@@ -5,6 +5,7 @@ from engine.appc.events import (
     TGKeyboardEvent, ET_KEYBOARD_EVENT,
     WeaponHitEvent, ET_WEAPON_HIT,
     TGEventHandlerObject, TGEventManager,
+    TGPythonInstanceWrapper,
 )
 from engine.appc.input import (
     TGInputManager, KeyboardBinding,
