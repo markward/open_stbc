@@ -13,6 +13,8 @@ The driver is *not* TimeSliceProcess-based. PlainAI carries its own
 _next_update_time field; the driver consults it each tick. This keeps
 Step 3 testable independently of the TimeSliceProcess scheduler (Step 2).
 """
+import inspect
+
 from engine.appc.ai import (
     ArtificialIntelligence, PlainAI, PriorityListAI, SequenceAI,
     ConditionalAI, PreprocessingAI, BuilderAI,
@@ -121,7 +123,37 @@ def _tick_preprocessing(ai: PreprocessingAI, game_time: float) -> int:
         if ai._contained_ai is not None:
             tick_ai(ai._contained_ai, game_time)
         return ai._status
-    result = getattr(inst, method)()
+
+    # Introspect once per PreprocessingAI instance whether the method
+    # takes a positional dEndTime arg (SDK SelectTarget/FireScript) or
+    # is 0-arg (synthetic test fixtures and simpler preprocessors).
+    # Use __dict__.get to bypass TGObject.__getattr__ returning a _Stub
+    # for missing attrs.
+    cache = ai.__dict__.get("_preprocess_arity_cache")
+    if cache is None or cache[0] is not inst or cache[1] != method:
+        bound = getattr(inst, method)
+        try:
+            sig = inspect.signature(bound)
+            arity = sum(
+                1 for p in sig.parameters.values()
+                if p.kind in (
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                )
+            )
+        except (TypeError, ValueError):
+            # Builtin / no inspectable signature → assume 0-arg.
+            arity = 0
+        ai._preprocess_arity_cache = (inst, method, arity)
+        cache = ai._preprocess_arity_cache
+
+    arity = cache[2]
+    bound = getattr(inst, method)
+    if arity >= 1:
+        result = bound(game_time + 1.0)
+    else:
+        result = bound()
+
     if result is None:
         result = PS_NORMAL
     if result == PS_DONE:
