@@ -65,6 +65,27 @@ class ShipClass(DamageableObject):
     def GetAI(self):
         return self._ai
 
+    # ── Motion setpoints (AI-driven, no physics yet) ─────────────────────────
+    # Stay, GoForward, Intercept, et al. call SetSpeed/SetTargetAngularVelocityDirect
+    # each AI tick. The Phase-1 slice records the most-recent setpoint so tests
+    # can assert "Stay drove speed to 0 and angular velocity to zero." The full
+    # PD-solver + Bullet integration lives in the deferred Step 4 of the AI
+    # runtime plan.
+
+    def SetSpeed(self, speed, direction, frame) -> None:
+        self._speed_setpoint = (float(speed), direction, int(frame))
+
+    def GetSpeedSetpoint(self):
+        return getattr(self, "_speed_setpoint", None)
+
+    def SetTargetAngularVelocityDirect(self, vec) -> None:
+        # Defensive copy — vec is a TGPoint3 the caller may mutate.
+        from engine.appc.math import TGPoint3
+        self._target_angular_velocity_setpoint = TGPoint3(vec.x, vec.y, vec.z)
+
+    def GetTargetAngularVelocitySetpoint(self):
+        return getattr(self, "_target_angular_velocity_setpoint", None)
+
     def SetNetType(self, net_type: int) -> None:
         self._net_type = net_type
 
