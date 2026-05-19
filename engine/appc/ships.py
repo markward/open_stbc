@@ -58,6 +58,16 @@ class ShipClass(DamageableObject):
         # XO menu (see sdk/.../BridgeHandlers.py:194); shield/weapon
         # side-effects happen downstream of XO, not here.
         self._alert_level: int = ShipClass.GREEN_ALERT
+        # Integrator-owned motion state — AI scripts write setpoints
+        # (_speed_setpoint, _target_angular_velocity_setpoint) and the
+        # ship_motion.tick_all_ship_motion integrator ramps these
+        # _current_* values toward those targets each tick, then writes
+        # the result back to the ship's transform. Zero initial state
+        # means a freshly-spawned ship is at rest until an AI tells it
+        # otherwise — matches Stay semantics exactly.
+        from engine.appc.math import TGPoint3
+        self._current_speed: float = 0.0
+        self._current_angular_velocity = TGPoint3(0.0, 0.0, 0.0)
 
     def SetAI(self, ai) -> None:
         self._ai = ai
