@@ -96,3 +96,36 @@ def format_line(path: Path, status: str, reason: tuple) -> str:
     exc = payload
     exc_msg = (str(exc).splitlines() or [""])[0]
     return f"  {marker}  {display}\n         {type(exc).__name__}: {exc_msg}"
+
+
+def main() -> None:
+    files = discover_tgl_files()
+
+    print("open_stbc TGL harness")
+    print("=" * 50)
+    print(f"Found {len(files)} TGL files\n")
+    print("Parsing...\n")
+
+    results: list[tuple[Path, str, tuple]] = []
+    for path in files:
+        status, reason = classify(path)
+        results.append((path, status, reason))
+        print(format_line(path, status, reason))
+
+    passed = sum(1 for _, s, _ in results if s == "pass")
+    failed = len(results) - passed
+    print(f"\n{'=' * 50}")
+    print(f"Results: {passed} passed, {failed} failed of {len(results)} total")
+
+    if failed:
+        errors: Counter[str] = Counter()
+        for _, status, reason in results:
+            if status == "fail":
+                errors[error_key(status, reason)] += 1
+        print(f"\nTop errors ({len(errors)} distinct):")
+        for msg, count in errors.most_common(15):
+            print(f"  [{count:2d}]  {msg}")
+
+
+if __name__ == "__main__":
+    main()
