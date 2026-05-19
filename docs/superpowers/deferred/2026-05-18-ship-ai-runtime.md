@@ -32,7 +32,7 @@ From [`sdk/Build/scripts/App.py:4922-5232`](../../../sdk/Build/scripts/App.py):
 - **`RandomAI`** — `AddAI`. Picks at random.
 - **`PreprocessingAI`** — `SetContainedAI(ai)`, `SetPreprocessingMethod(instance, method_name)` (two-arg form is the modern path, used by E7M2/E7M3), `GetPreprocessingInstance()`, `ForceUpdate`, `ForceDormantStatus`, `ForceStatusChange`. Statuses PS_NORMAL / PS_SKIP_ACTIVE / PS_SKIP_DORMANT / PS_DONE — preprocess return value gates whether contained AI runs that tick. Also FDS_NORMAL / FDS_TRUE / FDS_FALSE for forced-dormant override.
 - **`ConditionalAI`** — `SetContainedAI`, `AddCondition`. Contained AI runs iff condition status is active.
-- **`BuilderAI`** (subclass of PreprocessingAI) — lazy construction; `AddAIBlock`, `AddDependency`, `AddDependencyObject`.
+- **`BuilderAI`** (subclass of PreprocessingAI) — ✅ lazy-construction active in [BuilderAI + Conditions plan](../plans/2026-05-18-builder-ai-conditions.md). On first AI tick, the activator does a topological sort over `_dependencies` and calls each block's `BuilderCreateN` function in `_module_name`. Dep results pass as positional args; `_dep_objects` pass as kwargs. The last block becomes `_contained_ai`. Cyclic/failing graphs mark `_activation_failed` and short-circuit.
 - **`AIScriptAssist`**, **`OptimizedFireScript`**, **`OptimizedSelectTarget`** — preprocessing flavours specialised for weapon firing and target selection.
 
 Scheduling lives in `TimeSliceProcess` ([`App.py:4468-4492`](../../../sdk/Build/scripts/App.py)) and `PythonMethodProcess` ([`App.py:4494-4511`](../../../sdk/Build/scripts/App.py)) — priorities UNSTOPPABLE / CRITICAL / NORMAL / LOW, `SetDelay`, `SetDelayUsesGameTime`, `SetFunction`, `Update`. The AI ticker plugs into these.
@@ -100,6 +100,14 @@ Bind to PyBullet rigid bodies (Phase 1 harness) and the C++ engine later:
 5. **`PlainAI.FollowObject` + `CircleObject`** — still open; `GetRelativePositionInfo` is now available (landed in the motion slice).
 6. **`AI.Compound.BasicAttack`** — still open.
 
+### Follow-up after BuilderAI + ConditionScript (Slice A complete)
+
+The BasicAttack roadmap now has its foundation. Next slices, in order:
+- **Slice B**: `SelectTarget` preprocessor port (~600 LOC from `sdk/.../AI/Preprocessors.py`).
+- **Slice C**: `FireScript` preprocessor port (~1000 LOC).
+- **Slice D**: PlainAI sub-graphs that FedAttack/NonFedAttack splice in (`TorpRun`, `StationaryAttack`, `TurnToAttack`, `SweepPhasers`, `ICOMove`, `WarpBeforeDeath`, `EvadeTorps`).
+- **Slice E**: `NonFedAttack`/`FedAttack` `CreateAI` assembly + visible mission where a hostile flies in and opens fire.
+
 ### Follow-up after Intercept
 
 - **Renderer warp visuals.** `InSystemWarp` currently teleports kinematically with no visual treatment. When the chase-camera / particle / motion-blur subsystems land, hook them in via a renderer-side pass; the engine-side teleport stays correct.
@@ -107,7 +115,7 @@ Bind to PyBullet rigid bodies (Phase 1 harness) and the C++ engine later:
 
 ### Step 6 — `ConditionScript` actually evaluates
 
-`ConditionScript_Create("Conditions.ConditionInRange", "ConditionInRange", *args)` should `__import__` the module, instantiate the class with `*args`, and feed its evaluator into `SetStatus`. The 30 condition classes under [`sdk/Build/scripts/Conditions/`](../../../sdk/Build/scripts/Conditions/) are mostly short predicates over ship state (range, line-of-sight, system disabled, attacked-by, in-set, timer elapsed). Most don't need per-tick evaluation — they're event-driven (e.g. `ConditionAttacked` flips when a damage event lands). Decide per-class whether the evaluator runs each tick or only on the relevant event.
+✅ Mechanism done in [BuilderAI + Conditions plan](../plans/2026-05-18-builder-ai-conditions.md). `ConditionScript_Create` now eagerly imports the module, instantiates the named class, and falls back to a data-bag on failure. Two SDK conditions pinned end-to-end with regression tests: `ConditionExists` and `ConditionInRange`. The remaining 28 conditions try-eager-fallback-lazy — future slices add them one at a time as their consumers (FireScript, SelectTarget, sub-graphs) demand them.
 
 ## Decisions to nail down before Step 3
 
