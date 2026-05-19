@@ -493,6 +493,13 @@ class _UtopiaModule:
         # Captain name — saved in BCS save filenames (MissionLib.py:2801) and
         # shown in UI.  Default "Picard" matches the BC default profile.
         self._captain_name = "Picard"
+        # Per-torpedo-type ammo economy. Keys are TorpedoSystem ammo-type
+        # indices, values are int counts. -1 is the SDK sentinel for
+        # "unset / unlimited"; getters return it for unseen types so
+        # DockWithStarbase (Actions/ShipScriptActions.py:382-395) sees the
+        # same default as the original engine.
+        self._max_torpedo_load: dict = {}
+        self._starbase_torpedo_load: dict = {}
 
     def GetGameTime(self) -> float:
         return g_kTimerManager.get_time()
@@ -565,6 +572,21 @@ class _UtopiaModule:
 
     def GetLoadFilename(self):
         return _save_load_manager.GetLoadFilename()
+
+    # ── Torpedo economy ─────────────────────────────────────────────────────
+    # MissionLib.SetMaxTorpsForPlayer / SetTotalTorpsAtStarbase write here at
+    # mission init; Actions.ShipScriptActions.DockWithStarbase reads on dock.
+    def SetMaxTorpedoLoad(self, iType, iNumTorps) -> None:
+        self._max_torpedo_load[int(iType)] = int(iNumTorps)
+
+    def GetMaxTorpedoLoad(self, iType) -> int:
+        return self._max_torpedo_load.get(int(iType), -1)
+
+    def SetCurrentStarbaseTorpedoLoad(self, iType, iNumTorps) -> None:
+        self._starbase_torpedo_load[int(iType)] = int(iNumTorps)
+
+    def GetCurrentStarbaseTorpedoLoad(self, iType) -> int:
+        return self._starbase_torpedo_load.get(int(iType), -1)
 
     # Event-type allocator on the UtopiaModule receiver as well, matching the
     # SDK pattern App.g_kUtopiaModule.GetNextEventType() (in addition to the
