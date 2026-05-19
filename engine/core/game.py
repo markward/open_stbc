@@ -20,6 +20,20 @@ class Mission(TGEventHandlerObject):
         self._enemy_group = None
         self._neutral_group = None
         self._tractor_group = None
+        self._script: str = ""
+
+    def GetScript(self) -> str:
+        """Return the mission's script module name (e.g. 'Maelstrom.M1Basic').
+
+        SDK call sites: MissionLib.py:3426/3455/4757, AI.Compound.CallDamageAI,
+        Bridge/BridgeUtils.py, Multiplayer/MissionShared.py, mission scripts.
+        Used to look up the active mission's Python module for callbacks like
+        ``CallDamage`` referenced from BuilderAI sub-AI nodes.
+        """
+        return self._script
+
+    def SetScript(self, script: str) -> None:
+        self._script = script or ""
 
     def _make_group(self):
         from engine.appc.objects import ObjectGroup
