@@ -171,7 +171,28 @@ class Torpedo(ObjectClass): pass
 class Debris(ObjectClass): pass
 class AsteroidField(ObjectClass): pass
 class AsteroidTile(ObjectClass): pass
-class Grid(ObjectClass): pass
+
+class GridClass(ObjectClass):
+    # SDK boilerplate calls Create → AddObjectToSet → SetHidden(1) on every
+    # region; nothing ever sets line length, step, position, or un-hides.
+    # See docs/superpowers/deferred/2026-05-18-gridclass-debug-overlay.md.
+    def __init__(self):
+        ObjectClass.__init__(self)
+        self._hidden = True
+        self._line_length = 0.0
+        self._step = 0.0
+
+    def SetLineLength(self, length): self._line_length = float(length)
+    def GetLineLength(self): return self._line_length
+    def SetStep(self, step): self._step = float(step)
+    def GetStep(self): return self._step
+    def UpdatePosition(self, *args, **kwargs): pass
+    def Update(self, *args, **kwargs): pass
+
+Grid = GridClass  # legacy alias for CT_GRID and any code reading the old name
+
+def GridClass_Create(): return GridClass()
+
 class Placement(ObjectClass): pass
 class MultiplayerGame: pass
 class SortedRegionMenu(STMenu): pass
