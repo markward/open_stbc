@@ -204,6 +204,23 @@ def test_get_next_object_accepts_arbitrary_iterator_arg():
     assert pm.GetNextObject("anything") is None
 
 
+def test_end_object_iteration_accepts_iterator_handle():
+    """SDK iterator protocol: pProx.EndObjectIteration(pIter). The
+    iterator handle is the value returned by GetLineIntersectObjects.
+    Phase 1 stub accepts it as a no-op."""
+    pm = ProximityManager()
+    it = pm.GetLineIntersectObjects(None, None, 1.0, 1)
+    # Must not raise.
+    pm.EndObjectIteration(it)
+
+
+def test_end_object_iteration_zero_arg_still_works():
+    """Backwards-compat: the no-arg call form must still work in case
+    any existing caller uses it."""
+    pm = ProximityManager()
+    pm.EndObjectIteration()  # must not raise
+
+
 # ── App namespace ────────────────────────────────────────────────────────────
 
 def test_app_exposes_planet_factories():

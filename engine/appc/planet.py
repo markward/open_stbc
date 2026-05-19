@@ -228,7 +228,10 @@ class ProximityManager:
         """
         return None
 
-    def EndObjectIteration(self) -> None:
+    def EndObjectIteration(self, iterator=None) -> None:
+        """Release a proximity iterator handle. Phase 1 stub: no-op
+        because GetLineIntersectObjects returns () and the iterator
+        handle is opaque."""
         pass
 
     def DumpCollisions(self) -> None:
