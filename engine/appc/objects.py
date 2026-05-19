@@ -483,8 +483,14 @@ class ObjectGroupWithInfo(ObjectGroup):
         super().RemoveName(name)
         self._info.pop(name, None)
 
-    def __getitem__(self, name: str):
-        return self.GetInfo(name)
+    def __getitem__(self, name: str) -> dict:
+        """Per-name info dict, or empty dict for unknown names.
+
+        SDK SelectTarget rating reads pGroupWithInfo[sTarget]["Priority"]
+        then chains `.has_key("Priority")` — the empty-dict fallback
+        keeps that pattern safe for targets without recorded info.
+        """
+        return self._info.get(name, {})
 
     def __setitem__(self, name: str, info) -> None:
         self.AddNameAndInfo(name, info)
