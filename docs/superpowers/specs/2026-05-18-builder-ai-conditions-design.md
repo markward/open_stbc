@@ -97,7 +97,7 @@ Other 28 conditions get tried via the fallback path but are not required to work
 
 | File | Count | Coverage |
 |---|---|---|
-| `tests/integration/test_builder_ai_call_damage_smoke.py` (new) | 2 | Load `AI.Compound.CallDamageAI`, call `CreateAI(pShip, sTargetName, sFriend, sEnemy)` (signature TBC by reading the SDK file at implementation time), drive the resulting AI through one `GameLoop.tick()`: (a) builder activation succeeded (`_activated=True`, `_activation_failed=False`); (b) `_contained_ai` is a non-None composite (PriorityList or Sequence). Doesn't assert per-tick behaviour or sub-tree correctness — that's Slice E. |
+| `tests/integration/test_builder_ai_call_damage_smoke.py` (new) | 2 | Load `AI.Compound.CallDamageAI`, call `CreateAI(pShip)` (the SDK signature is single-arg), drive the resulting AI through one `GameLoop.tick()`: (a) builder activation succeeded (`_activated=True`, `_activation_failed=False`); (b) `_contained_ai` is a non-None composite (PriorityList or Sequence). Doesn't assert per-tick behaviour or sub-tree correctness — that's Slice E. |
 
 Total: ~38 new unit tests + 2 integration on top of the ~280 from prior slices.
 
