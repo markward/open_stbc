@@ -1,21 +1,12 @@
-"""Per-tick kinematic integrator for AI-controlled ships.
+"""Per-tick kinematic integrator scaffold for AI-controlled ships.
 
-Reads each ship's _speed_setpoint and _target_angular_velocity_setpoint
-(written by AI scripts via ShipClass.SetSpeed / SetImpulse /
-SetTargetAngularVelocityDirect), ramps _current_speed and
-_current_angular_velocity toward those targets at the ship's
-MaxAccel / MaxAngularAccel, and integrates the result into the ship's
-world transform.
-
-Mirrors _PlayerControl.apply() in engine/host_loop.py (lines 594-769) —
-same row-vector matrix convention, same Y-forward Z-up frame, same
-linear ramp helper, same IES-fallback (FALLBACK_MAX_ACCEL = 1e9) for
-ships without a populated impulse engine subsystem.
-
-Ships whose setpoints have never been written (both _speed_setpoint
-and _target_angular_velocity_setpoint are None) are skipped entirely —
-the player ship drives its transform via _PlayerControl directly, not
-via setpoints, so this integrator must leave it alone.
+This is the no-op scaffold (Task 1). Tasks 2 (linear motion) and 3
+(angular motion) fill in the integrator body. The public surface
+(`tick_all_ship_motion`) and the helpers (`_ramp_toward`, `_max_accel`,
+`_max_angular_accel`) are in place so the per-tick wiring in
+`engine/core/loop.py` is exercised end-to-end, and the
+no-setpoint guard at the top of `_step_ship_motion` keeps the player
+ship (driven by `engine/host_loop.py:_PlayerControl`) untouched.
 """
 from engine.appc.math import TGMatrix3, TGPoint3
 from engine.appc.objects import PhysicsObjectClass
@@ -65,18 +56,12 @@ def _max_angular_accel(ship) -> float:
 def _step_ship_motion(ship, dt: float) -> None:
     """Advance one ship's transform by one tick.
 
-    Skips entirely if no setpoint has ever been written — preserves the
-    player ship (which drives its transform via _PlayerControl, not
-    setpoints) and freshly-spawned non-AI props.
+    Skips entirely when no setpoint has ever been written so the
+    player ship (driven via `_PlayerControl`, not setpoints) and
+    freshly-spawned non-AI props are left alone.
     """
     sp = getattr(ship, "_speed_setpoint", None)
     av = getattr(ship, "_target_angular_velocity_setpoint", None)
     if sp is None and av is None:
         return
-    # Placeholder for Tasks 2 + 3: zero-setpoint case must be a no-op.
-    # If both setpoints have been written but evaluate to zero, the
-    # current-state ramp toward zero is also zero, so nothing happens.
-    # Tasks 2/3 will replace this body with the real linear + angular
-    # integration. For now, return so the Stay-position-unchanged test
-    # passes.
     return
