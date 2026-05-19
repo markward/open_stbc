@@ -133,7 +133,7 @@ Each new leaf isolates one capability and stops the previous from being where th
 - Headless: pytest-driven smoke tests that spawn a ship with one PlainAI and assert (a) `Update` is invoked at the expected cadence, (b) the ship's velocity/angular setpoints change after Update.
 - After Step 4: PyBullet-backed test that an `Intercept` AI closes on a stationary target inside N seconds.
 - After Step 5 step 6 (Compound BasicAttack): integration test with the player ship and a hostile in the same set — confirm hostile turns toward player, opens fire when in range, and the weapon emitters actually fire (existing [`engine/appc/combat.py`](../../../engine/appc/combat.py) infrastructure).
-- Renderer-side smoke: visible hostile intercepting the player in `build/open_stbc`. Watch for hitches when `AI.Setup.GameInit` preloads all 86 modules at mission start — Setup currently runs but every import is a near-no-op; once scripts have real bodies, loading time matters.
+- Renderer-side smoke: visible hostile intercepting the player in `build/dauntless`. Watch for hitches when `AI.Setup.GameInit` preloads all 86 modules at mission start — Setup currently runs but every import is a near-no-op; once scripts have real bodies, loading time matters.
 
 ## Out of scope / explicitly deferred inside this work
 

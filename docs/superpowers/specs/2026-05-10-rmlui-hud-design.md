@@ -5,7 +5,7 @@
 
 ## Summary
 
-Introduce [RmlUi](https://github.com/mikke89/RmlUi) as the UI framework for open_stbc. The initial deliverable is a simple debug/status HUD overlay in the top-right corner of the renderer window showing the player ship's position, rotation (yaw/pitch/roll), current system (set name), and current ship name.
+Introduce [RmlUi](https://github.com/mikke89/RmlUi) as the UI framework for dauntless. The initial deliverable is a simple debug/status HUD overlay in the top-right corner of the renderer window showing the player ship's position, rotation (yaw/pitch/roll), current system (set name), and current ship name.
 
 This is the **foundation for the game UI**, not a throwaway debug panel. The architecture is designed to be extended.
 

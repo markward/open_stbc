@@ -411,9 +411,9 @@ Now that `engine/shields.py` and the rewritten skin-test read via real getters, 
 
 ```bash
 grep -rn '"SkinShielding"\|"ShieldGlowColor"\|"ShieldGlowDecay"\|_data\[.*SkinShielding\|_data\[.*ShieldGlowColor\|_data\[.*ShieldGlowDecay' \
-  /Users/mward/Documents/Projects/open_stbc/engine \
-  /Users/mward/Documents/Projects/open_stbc/native \
-  /Users/mward/Documents/Projects/open_stbc/tests
+  /Users/mward/Documents/Projects/dauntless/engine \
+  /Users/mward/Documents/Projects/dauntless/native \
+  /Users/mward/Documents/Projects/dauntless/tests
 ```
 
 Expected: only the three writes inside `engine/appc/properties.py` `SetSkinShielding` / `SetShieldGlowDecay` / `SetShieldGlowColor`. No readers.

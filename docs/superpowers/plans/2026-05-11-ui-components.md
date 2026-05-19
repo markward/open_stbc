@@ -100,7 +100,7 @@ Expected: FAIL — `engine.ui` doesn't exist yet.
 
 ```python
 # engine/ui/__init__.py
-"""Reusable UI components for the open_stbc renderer.
+"""Reusable UI components for the dauntless renderer.
 
 See docs/superpowers/specs/2026-05-11-ui-components-design.md for the design.
 """
@@ -770,7 +770,7 @@ class UiButton:
 
 ```python
 # engine/ui/__init__.py
-"""Reusable UI components for the open_stbc renderer.
+"""Reusable UI components for the dauntless renderer.
 
 See docs/superpowers/specs/2026-05-11-ui-components-design.md for the design.
 """
@@ -2325,7 +2325,7 @@ git commit -m "feat(ui): UiSystem hosts PanelDocument instances"
 
 - [ ] **Step 1: Locate the existing `PYBIND11_MODULE` block**
 
-Run: `grep -n "PYBIND11_MODULE\|m.def(" /Users/mward/Documents/Projects/open_stbc/native/src/host/host_bindings.cc | head -30`
+Run: `grep -n "PYBIND11_MODULE\|m.def(" /Users/mward/Documents/Projects/dauntless/native/src/host/host_bindings.cc | head -30`
 
 - [ ] **Step 2: Add the new `m.def` registrations**
 

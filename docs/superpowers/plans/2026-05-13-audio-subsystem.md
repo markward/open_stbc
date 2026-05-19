@@ -1162,7 +1162,7 @@ stubbed; the binding defaults to null and tests drive the command log.
 
 **Files:**
 - Modify: `native/CMakeLists.txt` (FetchContent OpenAL Soft), `native/src/audio/CMakeLists.txt` (link al), `native/src/audio/src/openal_backend.cc` (replace stub from Task 4).
-- No new tests — this backend is exercised by the end-to-end gameplay test in Task 11 and by running `./build/open_stbc` manually.
+- No new tests — this backend is exercised by the end-to-end gameplay test in Task 11 and by running `./build/dauntless` manually.
 
 - [ ] **Step 1: Add OpenAL Soft via FetchContent**
 
@@ -2441,7 +2441,7 @@ This is a manual step, not a test. The full audio test suite is green by now; he
 
 ```bash
 cmake -B build -S . && cmake --build build -j
-./build/open_stbc
+./build/dauntless
 ```
 
 - [ ] **Step 2: Spawn into a tactical scene and verify**

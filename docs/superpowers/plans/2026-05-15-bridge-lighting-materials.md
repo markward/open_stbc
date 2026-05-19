@@ -1508,7 +1508,7 @@ Expected: all PASS.
 - [ ] **Step 5: Visual smoke test (manual)**
 
 ```bash
-./build/open_stbc
+./build/dauntless
 ```
 
 Then in the running binary:
@@ -1882,7 +1882,7 @@ Expected: all PASS.
 - [ ] **Step 5: Visual smoke test + 4th-arg decision**
 
 ```bash
-./build/open_stbc
+./build/dauntless
 ```
 
 Enter bridge mode. Two scenarios are possible:
@@ -1930,7 +1930,7 @@ Expected: PASS.
 - [ ] **Step 7: Visual confirmation — full bridge render**
 
 ```bash
-./build/open_stbc
+./build/dauntless
 ```
 
 Verify:

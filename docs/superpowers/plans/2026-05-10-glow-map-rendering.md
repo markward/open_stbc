@@ -88,7 +88,7 @@ pass; no post-process bloom.
 - [ ] **Step 1.2: Build renderer_tests**
 
   ```bash
-  cmake --build /Users/mward/Documents/Projects/open_stbc/build \
+  cmake --build /Users/mward/Documents/Projects/dauntless/build \
         --target renderer_tests -j$(sysctl -n hw.logicalcpu)
   ```
 
@@ -98,7 +98,7 @@ pass; no post-process bloom.
 
   ```bash
   GALLIUM_DRIVER=llvmpipe \
-  /Users/mward/Documents/Projects/open_stbc/build/native/tests/renderer/renderer_tests \
+  /Users/mward/Documents/Projects/dauntless/build/native/tests/renderer/renderer_tests \
       --gtest_filter=FrameTest.GlowContributesWithZeroAmbient
   ```
 
@@ -201,7 +201,7 @@ pass; no post-process bloom.
 - [ ] **Step 2.2: Run the test and verify it fails**
 
   ```bash
-  cd /Users/mward/Documents/Projects/open_stbc && \
+  cd /Users/mward/Documents/Projects/dauntless && \
   uv run pytest tests/host/test_glow_pass.py::test_glow_contributes_to_unlit_frame -v
   ```
 
@@ -440,7 +440,7 @@ pass; no post-process bloom.
 - [ ] **Step 6.1: Build renderer_tests and _open_stbc_host**
 
   ```bash
-  cmake --build /Users/mward/Documents/Projects/open_stbc/build \
+  cmake --build /Users/mward/Documents/Projects/dauntless/build \
         --target renderer_tests _open_stbc_host -j$(sysctl -n hw.logicalcpu)
   ```
 
@@ -450,7 +450,7 @@ pass; no post-process bloom.
 
   ```bash
   GALLIUM_DRIVER=llvmpipe \
-  /Users/mward/Documents/Projects/open_stbc/build/native/tests/renderer/renderer_tests \
+  /Users/mward/Documents/Projects/dauntless/build/native/tests/renderer/renderer_tests \
       --gtest_filter=FrameTest.*
   ```
 
@@ -465,7 +465,7 @@ pass; no post-process bloom.
 - [ ] **Step 7.1: Run the glow integration test**
 
   ```bash
-  cd /Users/mward/Documents/Projects/open_stbc && \
+  cd /Users/mward/Documents/Projects/dauntless && \
   uv run pytest tests/host/test_glow_pass.py -v
   ```
 
@@ -477,7 +477,7 @@ pass; no post-process bloom.
 - [ ] **Step 7.2: Run the full Python test suite for regressions**
 
   ```bash
-  cd /Users/mward/Documents/Projects/open_stbc && uv run pytest tests/ -x -q
+  cd /Users/mward/Documents/Projects/dauntless && uv run pytest tests/ -x -q
   ```
 
   Expected: no new failures.

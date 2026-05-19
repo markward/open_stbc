@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-`open_stbc` boots into a single hard-coded mission (`SHIP_GATE_MISSION =
+`dauntless` boots into a single hard-coded mission (`SHIP_GATE_MISSION =
 "Custom.Tutorial.Episode.M1Basic.M1Basic"`) and offers no way to switch
 once the renderer is running. To validate Phase 1's "run the SDK
 tutorial missions" goal — and to exercise the in-process reload path the

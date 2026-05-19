@@ -1,4 +1,4 @@
-# open_stbc — Claude Context
+# dauntless — Claude Context
 
 ## What this project is
 
@@ -8,7 +8,7 @@ The original engine is a compiled C++ binary exposed to Python via a SWIG-genera
 
 ## Current stage
 
-**Phase 2 in progress.** Phase 1 (headless Python `App` shim, event system, timers, PyBullet physics, harness running SDK missions) is complete. Active work is the C++ engine + renderer: `native/` builds `build/open_stbc`, with NIF asset loading, the renderer (sun, dust, glow via AddLOD), and the Python host loop driving SDK scripts. The instrumentation tooling in `tools/` remains available for the open Phase 2 questions.
+**Phase 2 in progress.** Phase 1 (headless Python `App` shim, event system, timers, PyBullet physics, harness running SDK missions) is complete. Active work is the C++ engine + renderer: `native/` builds `build/dauntless`, with NIF asset loading, the renderer (sun, dust, glow via AddLOD), and the Python host loop driving SDK scripts. The instrumentation tooling in `tools/` remains available for the open Phase 2 questions.
 
 ## Implementation phases
 
@@ -131,10 +131,10 @@ Add new SDK-name shadows at the root only when needed; keep application code in 
 
 ## Build layout — single source of truth
 
-There is **one** build tree at `<project-root>/build/`. The renderer host binary is at **`build/open_stbc`** and the Python extension module is at **`build/python/_open_stbc_host.cpython-*.so`**. Do not introduce alternate output locations.
+There is **one** build tree at `<project-root>/build/`. The renderer host binary is at **`build/dauntless`** and the Python extension module is at **`build/python/_open_stbc_host.cpython-*.so`**. Do not introduce alternate output locations.
 
 - Build: `cmake -B build -S . && cmake --build build -j`
-- Run:   `./build/open_stbc`
+- Run:   `./build/dauntless`
 
 Hard rules:
 

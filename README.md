@@ -1,4 +1,4 @@
-# open_stbc
+# dauntless
 
 Open reimplementation of the Bridge Commander engine.
 
@@ -25,7 +25,7 @@ Build the renderer host from the project root, then launch the binary directly:
 
 ```bash
 cmake -B build -S . && cmake --build build -j
-./build/open_stbc
+./build/dauntless
 ```
 
 Keys: WASDQE flies the ship · 1-9/0/R throttle · arrow keys orbit the camera · scroll wheel zooms · C resets · F8 toggles the RmlUi debugger overlay · F9 toggles UI visibility.

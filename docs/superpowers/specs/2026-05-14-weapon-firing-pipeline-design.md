@@ -528,7 +528,7 @@ If `GetFireSound()` returns `None`, empty string, or a name `TGSoundManager` has
 ### Manual verification
 
 After this PR lands, the user should be able to:
-1. Launch the game (`./build/open_stbc`).
+1. Launch the game (`./build/dauntless`).
 2. Load a mission.
 3. Shift+3 → RED alert.
 4. Right-click → silently (PR 2b adds the whoosh), but debug panel "Weapons" row briefly shows "FIRE"; tube count visibly decrements.

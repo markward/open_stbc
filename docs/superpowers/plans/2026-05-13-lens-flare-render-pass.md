@@ -1334,7 +1334,7 @@ Append inside the `PYBIND11_MODULE` block, after the existing `m.def("set_suns",
 cmake -B build -S . && cmake --build build -j
 ```
 
-Expected: builds clean. Both `build/open_stbc` and `build/python/_open_stbc_host.cpython-*.so` rebuild.
+Expected: builds clean. Both `build/dauntless` and `build/python/_open_stbc_host.cpython-*.so` rebuild.
 
 - [ ] **Step 6: Commit**
 
@@ -1535,7 +1535,7 @@ git commit -m "feat(host_loop): per-frame lens-flare aggregation + push"
 - [ ] **Step 1: Run the renderer host on E1M1**
 
 ```
-./build/open_stbc
+./build/dauntless
 ```
 
 In the running window, navigate to Maelstrom Episode 1 Mission 1 (Tau Ceti). Confirm visually:

@@ -75,7 +75,7 @@ add_subdirectory(third_party/glfw)
 # Renderer host subtree.
 add_subdirectory(src/host)
 
-option(OPEN_STBC_BUILD_TESTS "Build native tests for open_stbc" ON)
+option(OPEN_STBC_BUILD_TESTS "Build native tests for dauntless" ON)
 if(OPEN_STBC_BUILD_TESTS)
   add_subdirectory(tests)
 endif()
@@ -325,7 +325,7 @@ bool should_close() {
 }  // namespace
 
 PYBIND11_MODULE(_open_stbc_host, m) {
-    m.doc() = "open_stbc renderer host bindings (Phase A: stubs)";
+    m.doc() = "dauntless renderer host bindings (Phase A: stubs)";
     m.def("init", &init, py::arg("width"), py::arg("height"), py::arg("title"),
           "Initialize host (window + GL context in Phase B+).");
     m.def("shutdown", &shutdown, "Tear down host.");
@@ -492,7 +492,7 @@ Py_InitializeEx.
 """
 
 def banner() -> str:
-    return "open_stbc host alive"
+    return "dauntless host alive"
 ```
 
 - [ ] **Step 2: Write the failing pytest test that the host imports engine.bootstrap**
@@ -522,7 +522,7 @@ def test_host_imports_engine_bootstrap():
     assert result.returncode == 0, (
         f"host exited {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     )
-    assert "open_stbc host alive" in result.stdout, (
+    assert "dauntless host alive" in result.stdout, (
         f"banner missing from stdout:\n{result.stdout}"
     )
 ```
@@ -642,7 +642,7 @@ Expected: PASS.
 - [ ] **Step 6: Verify direct binary invocation also works**
 
 Run: `./build/bin/open_stbc_host`
-Expected: stdout contains `open_stbc host alive`. Exit code 0.
+Expected: stdout contains `dauntless host alive`. Exit code 0.
 
 - [ ] **Step 7: Commit**
 
@@ -670,7 +670,7 @@ Update `engine/bootstrap.py`:
 """Bootstrap module loaded by open_stbc_host to verify embedding works."""
 
 def banner() -> str:
-    return "open_stbc host alive"
+    return "dauntless host alive"
 
 
 def smoke_check() -> dict:
@@ -1181,7 +1181,7 @@ void frame() {
 }  // namespace
 
 PYBIND11_MODULE(_open_stbc_host, m) {
-    m.doc() = "open_stbc renderer host bindings (Phase B: window + frame stub)";
+    m.doc() = "dauntless renderer host bindings (Phase B: window + frame stub)";
     m.def("init", &init, py::arg("width"), py::arg("height"), py::arg("title"));
     m.def("shutdown", &shutdown);
     m.def("should_close", &should_close);
@@ -3798,7 +3798,7 @@ def run(mission_name: str = SHIP_GATE_MISSION, max_ticks: Optional[int] = None) 
 
     from tools import gameloop_harness as glh
 
-    r.init(1280, 720, "open_stbc")
+    r.init(1280, 720, "dauntless")
     try:
         if DEFAULT_SKYBOX_NIF:
             sky = r.load_model(DEFAULT_SKYBOX_NIF, DEFAULT_TEXTURE_SEARCH)
@@ -4000,7 +4000,7 @@ Run (on a machine with a display and BC assets in `game/`):
 ```
 
 **Expected:**
-- A 1280×720 window opens titled "open_stbc"
+- A 1280×720 window opens titled "dauntless"
 - The picked mission boots
 - Player ship and any NPC ships render at their game-loop positions
 - If a skybox NIF was set, it renders behind everything

@@ -921,7 +921,7 @@ Expected: build succeeds.
 
 - [ ] **Step 7: Visual verification — dust is rendering**
 
-Run: `./build/open_stbc`
+Run: `./build/dauntless`
 Expected: faint white dots scattered around the camera, visible when stationary. When the ship moves (W key per controls), the dots elongate into short streaks oriented along the motion direction. Ships and planets correctly occlude particles behind them. Close the window when satisfied.
 
 Document the outcome in the next commit message. If dust is not visible: check that `game/data/Textures/spacedust.tga` exists and the working directory is the project root.
@@ -1084,10 +1084,10 @@ In `engine/host_loop.py`, immediately before the `while not r.should_close():` l
 
 - [ ] **Step 3: Run pyflakes/import-sanity by starting the binary**
 
-Run: `./build/open_stbc &` then `sleep 3 && pkill open_stbc` to confirm it boots.
+Run: `./build/dauntless &` then `sleep 3 && pkill dauntless` to confirm it boots.
 Expected: window opens, no Python errors in stderr. The dust is visible by default.
 
-For interactive verification: launch `./build/open_stbc`, press `F7` repeatedly, confirm the dust toggles on and off cleanly with no flicker or hitch. Press `F8` and `F9` to confirm those bindings still work. Close.
+For interactive verification: launch `./build/dauntless`, press `F7` repeatedly, confirm the dust toggles on and off cleanly with no flicker or hitch. Press `F8` and `F9` to confirm those bindings still work. Close.
 
 - [ ] **Step 4: Commit**
 
@@ -1105,7 +1105,7 @@ git commit -m "feat(host): F7 toggles space dust"
 
 - [ ] **Step 1: Run the visual verification checklist**
 
-Run: `./build/open_stbc`
+Run: `./build/dauntless`
 
 Verify, in order, by eye:
 
@@ -1147,4 +1147,4 @@ git commit -m "docs: cross-reference space-dust pass from CLAUDE.md"
 - **Do not skip the visual verification step.** Per project memory, macOS GLFW hidden windows don't reliably present BACK→FRONT swaps, so headless pixel checks would be misleading. The visible binary is the source of truth for "does it look right."
 - **Do not paper over GL errors.** If `glGetError()` reports anything non-zero in a test, find the root cause — don't add `glGetError()` calls to clear queues or wrap things in try/except.
 - **Tunable constants** live in `DustPass` as `static constexpr`. If during visual tuning you want to change `kVolumeRadius`, `kSmearSeconds`, etc., edit them in the header and rebuild. The spec lists initial values; final values are a visual-feel decision.
-- **Do not introduce new file output paths.** Per CLAUDE.md, the build tree is `<project-root>/build/` and the binary is `build/open_stbc`. Don't run cmake from inside `native/`.
+- **Do not introduce new file output paths.** Per CLAUDE.md, the build tree is `<project-root>/build/` and the binary is `build/dauntless`. Don't run cmake from inside `native/`.

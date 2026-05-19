@@ -328,7 +328,7 @@ def test_adjust_ship_for_difficulty_does_not_crash_on_shielded_ship():
     """Pre-fix this raised AttributeError: 'NoneType' has no GetProperty()
     at loadspacehelper.py:246."""
     import sys
-    sdk_root = "/Users/mward/Documents/Projects/open_stbc/sdk/Build/scripts"
+    sdk_root = "/Users/mward/Documents/Projects/dauntless/sdk/Build/scripts"
     if sdk_root not in sys.path:
         sys.path.insert(0, sdk_root)
     import loadspacehelper
@@ -370,7 +370,7 @@ Expected: green.
 - [ ] **Step 4: Manually verify the original launch crash is gone**
 
 ```bash
-./build/open_stbc
+./build/dauntless
 ```
 
 Reach the same M2Objects mission and confirm the original `AttributeError: 'NoneType' object has no attribute 'GetProperty'` no longer appears. If the binary now crashes elsewhere, that's a new bug surfaced by this fix — report it but don't fix here.

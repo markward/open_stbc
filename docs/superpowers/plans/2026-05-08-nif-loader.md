@@ -142,7 +142,7 @@ This project incorporates source code from the following third-party projects.
 `native/third_party/openmw_nif/` contains a verbatim mirror of the NIF parser
 from [OpenMW](https://openmw.org/), specifically the `components/nif/`
 directory. OpenMW is licensed under the GNU General Public License version 3
-(GPLv3), the same license as open_stbc. Original file headers are preserved
+(GPLv3), the same license as dauntless. Original file headers are preserved
 in the mirrored source. The full OpenMW LICENSE is reproduced at
 `native/third_party/openmw_nif/LICENSE`. Upstream commit SHA is recorded in
 `native/third_party/openmw_nif/UPSTREAM_VERSION`.
@@ -151,7 +151,7 @@ in the mirrored source. The full OpenMW LICENSE is reproduced at
 
 [NifSkope](https://github.com/niftools/nifskope) is used as a reference for
 the NIF binary format. Its `nif.xml` schema documents block layouts. NifSkope
-itself is **not** incorporated into open_stbc — it is reference documentation
+itself is **not** incorporated into dauntless — it is reference documentation
 only. NifSkope is licensed under a BSD-style license; see
 https://github.com/niftools/nifskope/blob/develop/LICENSE.md.
 ```
@@ -379,7 +379,7 @@ endif()
 add_subdirectory(src/nif)
 
 # Tests + oracle. Off by default in a release config; on for dev/CI.
-option(OPEN_STBC_BUILD_TESTS "Build native tests for open_stbc" ON)
+option(OPEN_STBC_BUILD_TESTS "Build native tests for dauntless" ON)
 if(OPEN_STBC_BUILD_TESTS)
   enable_testing()
   add_subdirectory(third_party/openmw_nif)

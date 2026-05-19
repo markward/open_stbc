@@ -289,7 +289,7 @@ guard, not a duplicate implementation.
 
 No headless pixel test: on macOS, GLFW hidden windows don't reliably
 present BACK→FRONT swaps and `glReadPixels` on a headless context
-returns garbage. Verification is by eye in `./build/open_stbc`:
+returns garbage. Verification is by eye in `./build/dauntless`:
 
 - Dust visible when stationary as faint static dots.
 - Dust elongates into streaks proportional to ship velocity.

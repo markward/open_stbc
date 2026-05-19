@@ -140,7 +140,7 @@ Total: ~26 new tests on top of the 93 from the previous slice. All headless, det
 
 ### Visible verification
 
-`sdk_overlays/Missions/Test/<name>.py` (new — exact path picked during plan writing based on existing Test mission conventions): spawns the player ship and one AI hostile at +1000 units in front; attaches `PlainAI("GoForward")` with a modest `SetImpulse`. User runs `./build/open_stbc`, picks the mission, watches the hostile drift forward. The mission file is acceptance for both the implementer (must launch cleanly) and the user (must visibly move).
+`sdk_overlays/Missions/Test/<name>.py` (new — exact path picked during plan writing based on existing Test mission conventions): spawns the player ship and one AI hostile at +1000 units in front; attaches `PlainAI("GoForward")` with a modest `SetImpulse`. User runs `./build/dauntless`, picks the mission, watches the hostile drift forward. The mission file is acceptance for both the implementer (must launch cleanly) and the user (must visibly move).
 
 ## File map
 
@@ -170,7 +170,7 @@ Total: ~900 LOC across ~11 files. Roughly comparable to the just-merged Steps 1-
 6. **Order-of-ops test** — `test_loop.py` addition passes.
 7. **GoForward smoke** — `test_ai_goforward_smoke.py` passes end-to-end.
 8. **TurnToOrientation smoke** — `test_ai_turn_to_orientation_smoke.py` passes end-to-end.
-9. **Visible mission + deferred-doc update** — mission script lands; user confirms visibly in `./build/open_stbc`.
+9. **Visible mission + deferred-doc update** — mission script lands; user confirms visibly in `./build/dauntless`.
 
 Each task = one TDD cycle (failing test → minimal implementation → green → commit), same shape as the previous slice.
 
@@ -179,7 +179,7 @@ Each task = one TDD cycle (failing test → minimal implementation → green →
 1. **MaxAngularAccel per-axis vs scalar.** `_PlayerControl` ramps each axis independently using a scalar `MaxAngularAccel`. The integrator follows the same pattern. If a hardpoint somewhere distinguishes per-axis values, that asymmetry won't be modelled here. Action: confirm by reading a representative hardpoint during plan writing; if per-axis, decide whether to model now or accept the simplification.
 2. **Direction-vec ownership.** `SetSpeed` records the direction vector by reference (current stub). The integrator reads it each tick; if a caller mutates the same TGPoint3 after calling, motion changes underneath. Stay/GoForward pass `TGPoint3_GetModelForward()` which is a fresh constant per call — safe — but other call sites may reuse a stack vec. Action: defensively copy the direction vec in `SetSpeed` (mirror the existing copy in `SetTargetAngularVelocityDirect`).
 3. **Test ship without an IES.** Many existing tests construct `ShipClass()` without populating subsystems. The fallback path (`FALLBACK_MAX_ACCEL = 1e9`) snaps to target same-tick. This matches `_PlayerControl` semantics so existing tests should keep passing, but worth a sanity sweep during the integrator task.
-4. **Renderer-host visibility.** The user has to build `./build/open_stbc` to do the visible test. CMake configuration is unchanged by this slice, so a fresh `cmake --build build -j` should suffice — but if shader edits ever land between this and that, the [shader-edits-need-reconfigure](../../../memory/project_shader_edits_need_reconfigure.md) gotcha applies. Action: the visible-test task in the plan should remind the implementer of the build step.
+4. **Renderer-host visibility.** The user has to build `./build/dauntless` to do the visible test. CMake configuration is unchanged by this slice, so a fresh `cmake --build build -j` should suffice — but if shader edits ever land between this and that, the [shader-edits-need-reconfigure](../../../memory/project_shader_edits_need_reconfigure.md) gotcha applies. Action: the visible-test task in the plan should remind the implementer of the build step.
 
 ## What this unlocks
 

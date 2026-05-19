@@ -172,7 +172,7 @@ Run:
 ```bash
 cmake --build build -j
 ```
-Expected: clean build, no errors. The binary at `build/open_stbc` and the extension at `build/python/_open_stbc_host.cpython-*.so` are refreshed.
+Expected: clean build, no errors. The binary at `build/dauntless` and the extension at `build/python/_open_stbc_host.cpython-*.so` are refreshed.
 
 - [ ] **Step 3: Smoke-check the binding is exposed**
 
@@ -616,7 +616,7 @@ Note: per a saved memory, headless-mode pixel reads on macOS are unreliable, so 
 
 Run:
 ```bash
-./build/open_stbc
+./build/dauntless
 ```
 
 Manually verify (the agent should ask the user to do this if the agent can't drive a window):

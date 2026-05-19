@@ -20,7 +20,7 @@ game engine. Hosted on GitHub Pages.
 ## Naming & framing
 
 - **Public name:** "Star Trek: Bridge Commander — Dauntless" (or
-  "Project Dauntless" in copy). The repo name `open_stbc` is treated as
+  "Project Dauntless" in copy). The repo name `dauntless` is treated as
   internal.
 - **Motto:** "May the wind be at our backs" — borrowed from the closing
   line of Lawrence Holland's foreword in the original 2002 manual.

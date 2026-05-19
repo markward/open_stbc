@@ -50,7 +50,7 @@ Key v3.1-specific findings discovered during implementation:
   Read methods capture v3.1 quirks the schema doesn't.
 - **niftools/max_nif_plugin (BSD)** was the user's pointer that led us to
   niflib (it depends on niflib as a submodule). Both are now sibling clones
-  used as algorithmic reference (not built or linked into open_stbc).
+  used as algorithmic reference (not built or linked into dauntless).
 
 ## v3.1 amendment (post-discovery, 2026-05-08)
 
@@ -158,7 +158,7 @@ substitutes to keep block-type variety high.
 
 ### License posture
 
-open_stbc is GPLv3 (root `LICENSE`). OpenMW is GPLv3. NifSkope is reference
+dauntless is GPLv3 (root `LICENSE`). OpenMW is GPLv3. NifSkope is reference
 documentation only — its `nif.xml` schema and tree-view behaviour inform our
 implementation but no NifSkope code is incorporated. Mirroring
 `openmw/components/nif/` into our tree is straightforward: preserve original
@@ -230,7 +230,7 @@ THIRD_PARTY_NOTICES.md            # project-root attribution for mirrored OpenMW
 ### No runtime sibling dependency
 
 The `../openmw` clone is needed only when running `tools/sync_openmw_nif.sh`
-to re-mirror. Build, test, and CI work from a fresh checkout of `open_stbc`
+to re-mirror. Build, test, and CI work from a fresh checkout of `dauntless`
 alone. The first-time mirror is committed as part of the implementation;
 future re-mirrors are explicit, reviewable single commits with the upstream
 SHA in the message.

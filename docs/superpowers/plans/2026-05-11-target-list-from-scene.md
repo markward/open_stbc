@@ -1118,7 +1118,7 @@ Expected: all green. (Integration test added in Task 7.)
 
 - [ ] **Step 5: Run the engine headless to confirm it boots**
 
-Run: `OPEN_STBC_HOST_HEADLESS=1 OPEN_STBC_HOST_VERBOSE=1 timeout 5s ./build/open_stbc 2>&1 | head -40`
+Run: `OPEN_STBC_HOST_HEADLESS=1 OPEN_STBC_HOST_VERBOSE=1 timeout 5s ./build/dauntless 2>&1 | head -40`
 
 Expected output contains:
 - `[host_loop] mission=Custom.Tutorial.Episode.M2Objects.M2Objects`
@@ -1126,7 +1126,7 @@ Expected output contains:
 - No tracebacks
 - Process exits cleanly on timeout
 
-If the binary is missing, build it: `cmake --build build -j` then re-run. Per CLAUDE.md, never run binaries from `native/build/` or `build/bin/` — only `build/open_stbc`.
+If the binary is missing, build it: `cmake --build build -j` then re-run. Per CLAUDE.md, never run binaries from `native/build/` or `build/bin/` — only `build/dauntless`.
 
 - [ ] **Step 6: Commit**
 
@@ -1391,7 +1391,7 @@ Expected: all green.
 
 - [ ] **Step 5: Run the engine headless to spot-check**
 
-Run: `OPEN_STBC_HOST_HEADLESS=1 OPEN_STBC_HOST_VERBOSE=1 timeout 5s ./build/open_stbc 2>&1 | head -40`
+Run: `OPEN_STBC_HOST_HEADLESS=1 OPEN_STBC_HOST_VERBOSE=1 timeout 5s ./build/dauntless 2>&1 | head -40`
 Expected: no tracebacks, mission loads. (Visual confirmation that subsystem buttons render requires a non-headless run with `OPEN_STBC_HOST_HEADLESS` unset; do that manually if a screen is available.)
 
 - [ ] **Step 6: Commit**

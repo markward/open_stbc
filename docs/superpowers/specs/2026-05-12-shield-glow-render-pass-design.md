@@ -137,7 +137,7 @@ Copy `sdk/Build/scripts/ships/Hardpoints/sovereign.py` → `<root>/ships/Hardpoi
 
 Per memory note (`feedback_macos_headless_pixel_tests.md`), macOS GLFW hidden windows don't reliably present BACK→FRONT swaps — `read_pixel` returns garbage. Trust the visible binary, not pixel scans.
 
-Manual checklist via `./build/open_stbc` with F9 debug binding:
+Manual checklist via `./build/dauntless` with F9 debug binding:
 
 - Default ship (e.g. Galaxy player ship): F9 fires hit at ship center → ellipsoid bubble flash sized roughly to ship AABB, fades over ~1 s.
 - Sovereign: F9 → hull-conforming flash silhouette, not ellipsoid.

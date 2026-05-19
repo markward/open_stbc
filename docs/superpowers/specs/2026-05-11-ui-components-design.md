@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-Bridge Commander's HUD is dense with stackable, hierarchical menus: targets, target subsystems, system map, navigation, mission orders, options. The current `open_stbc` build has a static hardcoded HUD (ship/system/pos/rot stats only). To get parity with the original — and to ship the mission-picker that's the immediate motivator — we need two reusable UI primitives:
+Bridge Commander's HUD is dense with stackable, hierarchical menus: targets, target subsystems, system map, navigation, mission orders, options. The current `dauntless` build has a static hardcoded HUD (ship/system/pos/rot stats only). To get parity with the original — and to ship the mission-picker that's the immediate motivator — we need two reusable UI primitives:
 
 - **`UiButton`** — a clickable row with radio-style selection within its parent.
 - **`UiCollapsibleList`** — a header (itself a button) plus an expand/collapse arrow plus a list of child rows. Children can be `UiButton`s or further `UiCollapsibleList`s, nested to arbitrary depth.

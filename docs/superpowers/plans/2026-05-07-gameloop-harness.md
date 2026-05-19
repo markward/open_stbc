@@ -145,7 +145,7 @@ Expected: all tests fail with `ModuleNotFoundError: No module named 'tools.gamel
 
 ```python
 """
-Game-loop harness for open_stbc.
+Game-loop harness for dauntless.
 
 Discovers all SDK mission scripts, calls Initialize(pMission), fires
 ET_MISSION_START, and advances the GameLoop for N ticks.  Reports per-mission
@@ -333,7 +333,7 @@ def main(n_ticks: int = _DEFAULT_TICKS) -> None:
     _mh.setup_sdk()
     missions = _mh.discover_missions()
 
-    print("open_stbc game-loop harness")
+    print("dauntless game-loop harness")
     print("=" * 50)
     print(f"Found {len(missions)} missions, {n_ticks} ticks each (~{n_ticks / 60:.1f}s)\n")
 
@@ -373,7 +373,7 @@ def main(n_ticks: int = _DEFAULT_TICKS) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="open_stbc game-loop harness")
+    parser = argparse.ArgumentParser(description="dauntless game-loop harness")
     parser.add_argument(
         "--ticks", type=int, default=_DEFAULT_TICKS,
         help=f"ticks per mission (default {_DEFAULT_TICKS} = ~5s at 60 Hz)"

@@ -285,7 +285,7 @@ For each flare descriptor:
 | `test_aggregate_lens_flares` | `tests/unit/test_lens_flare.py` | Aggregator returns descriptors with absolute texture paths; skips unbuilt flares, flares with no source, flares whose textures don't resolve |
 | `test_lens_flare_stub_regression` | `tests/unit/test_lens_flare_stub_regression.py` | Run `gameloop_harness(profile=True)`; assert no row starting with `LensFlare_Create` in `_stub_tracker.report()` |
 | `test_wedge_mesh_build` | `native/tests/test_lens_flare_pass.cc` (GoogleTest) | For N ∈ {3, 6, 8, 30}: vertex count = 3N, index count = 3N; outer-edge UVs are `(0,0)` and `(1,0)`; center UVs are `(0.5, 1.0)` |
-| Visual smoke | manual | `./build/open_stbc`, fly Tau Ceti (E1M1) and Cebalrai (red-orange sun); confirm flares appear, disappear when sun is behind ship/planet, animate (amp=0.1 freq=0.5 wobble on rays element) |
+| Visual smoke | manual | `./build/dauntless`, fly Tau Ceti (E1M1) and Cebalrai (red-orange sun); confirm flares appear, disappear when sun is behind ship/planet, animate (amp=0.1 freq=0.5 wobble on rays element) |
 
 ## Risks and notes
 

@@ -1218,7 +1218,7 @@ Expected: all PASS. (Earlier suites had ~903 passing; this should be ~916+ with 
 - [ ] **Step 3: Launch the live binary and verify the bridge interactively**
 
 ```bash
-./build/open_stbc
+./build/dauntless
 ```
 
 Manually verify the following — if the agent can't drive a window, it must ask the user to perform these steps and report the outcome rather than mark this step done:

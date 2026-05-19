@@ -399,7 +399,7 @@ After the existing error-summary block (after the `for msg, count in errors.most
 In the `if __name__ == "__main__":` block, change:
 
 ```python
-    parser = argparse.ArgumentParser(description="open_stbc game-loop harness")
+    parser = argparse.ArgumentParser(description="dauntless game-loop harness")
     parser.add_argument(
         "--ticks", type=int, default=_DEFAULT_TICKS,
         help=f"ticks per mission (default {_DEFAULT_TICKS} = ~5s at 60 Hz)"
@@ -411,7 +411,7 @@ In the `if __name__ == "__main__":` block, change:
 to:
 
 ```python
-    parser = argparse.ArgumentParser(description="open_stbc game-loop harness")
+    parser = argparse.ArgumentParser(description="dauntless game-loop harness")
     parser.add_argument(
         "--ticks", type=int, default=_DEFAULT_TICKS,
         help=f"ticks per mission (default {_DEFAULT_TICKS} = ~5s at 60 Hz)"

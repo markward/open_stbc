@@ -85,7 +85,7 @@ Create `tools/mission_harness.py`:
 
 ```python
 """
-Mission Initialize harness for open_stbc.
+Mission Initialize harness for dauntless.
 
 Discovers all SDK mission scripts and attempts Initialize(pMission) on each,
 reporting a ranked summary of failures.
@@ -364,7 +364,7 @@ def main() -> None:
     setup_sdk()
     missions = discover_missions()
 
-    print("open_stbc mission harness")
+    print("dauntless mission harness")
     print("=" * 50)
     print(f"Found {len(missions)} missions\n")
     print("Running Initialize()...\n")

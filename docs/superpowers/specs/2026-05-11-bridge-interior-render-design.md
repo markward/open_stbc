@@ -321,7 +321,7 @@ C++ binding-level smoke test in a new
 
 Live visual verification:
 
-11. Launch `./build/open_stbc`. Default exterior view unchanged.
+11. Launch `./build/dauntless`. Default exterior view unchanged.
     Press space → bridge interior renders, cursor disappears, mouse
     motion looks around the bridge. Press space again → return to
     exterior, cursor reappears, ship resumes. Engages → ship coasts

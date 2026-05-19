@@ -1136,9 +1136,9 @@ Task 5 wrote into both `self._max_shields[f]` AND `self._data[("MaxShields", (f,
 
 ```bash
 grep -rn '"MaxShields"\|"ShieldChargePerSecond"\|_data\[.*MaxShields\|_data\[.*ShieldChargePerSecond' \
-  /Users/mward/Documents/Projects/open_stbc/engine \
-  /Users/mward/Documents/Projects/open_stbc/native \
-  /Users/mward/Documents/Projects/open_stbc/tests
+  /Users/mward/Documents/Projects/dauntless/engine \
+  /Users/mward/Documents/Projects/dauntless/native \
+  /Users/mward/Documents/Projects/dauntless/tests
 ```
 
 Expected: only the writes in `properties.py` itself, no readers.

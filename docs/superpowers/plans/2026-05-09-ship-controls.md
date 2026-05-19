@@ -47,7 +47,7 @@ TEST(Window, KeyStateReturnsFalseForUnpressedKeys) {
 - [ ] **Step 2: Run test, verify it fails (no method)**
 
 ```bash
-cd /Users/mward/Documents/Projects/open_stbc
+cd /Users/mward/Documents/Projects/dauntless
 cmake --build build --target renderer_tests 2>&1 | tail -8
 ```
 Expected: compile error — `'class renderer::Window' has no member named 'key_state'`.

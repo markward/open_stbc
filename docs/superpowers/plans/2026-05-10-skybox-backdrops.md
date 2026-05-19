@@ -1394,11 +1394,11 @@ add_library(renderer STATIC
 
 These are currently in `assets::detail` namespace. Check `native/src/assets/include/assets/texture.h`:
 
-Run: `grep -n "decode_tga\|upload_image" /Users/mward/Documents/Projects/open_stbc/native/src/assets/include/assets/texture.h`
+Run: `grep -n "decode_tga\|upload_image" /Users/mward/Documents/Projects/dauntless/native/src/assets/include/assets/texture.h`
 
 If they're not in the public header, they need to be promoted. Look at the existing declaration:
 
-Run: `grep -rn "Texture upload_image\|Image decode_tga" /Users/mward/Documents/Projects/open_stbc/native/src/assets/`
+Run: `grep -rn "Texture upload_image\|Image decode_tga" /Users/mward/Documents/Projects/dauntless/native/src/assets/`
 
 Expected output should reveal the namespace and signature. If they're in `assets::detail`, change `backdrop_pass.cc` to use the `assets::detail::` prefix, OR promote the declarations into `assets/texture.h`. Promotion is cleaner — these are already used by `model_build.cc` and the public renderer.
 
@@ -1434,7 +1434,7 @@ Then in `backdrop_pass.cc`, replace the forward-declarations at the top with:
 
 Verify these symbols are still defined where they live in `assets/src/`:
 
-Run: `grep -rn "decode_tga\|upload_image" /Users/mward/Documents/Projects/open_stbc/native/src/assets/src/`
+Run: `grep -rn "decode_tga\|upload_image" /Users/mward/Documents/Projects/dauntless/native/src/assets/src/`
 
 If the `.cc` definitions are in an anonymous namespace inside `assets::detail`, move them out into `assets::` to match the new public header. This may be a multi-line edit in `texture_decode.cc` and `texture_upload.cc`.
 
@@ -1804,7 +1804,7 @@ embed_shader(SHADER_SKYBOX_FS shaders/skybox.frag skybox_fs)
 
 Also check `native/tests/renderer/CMakeLists.txt` and remove `skybox_test.cc` from the `renderer_tests` source list (the file existed in the prior task and was referenced by the test target).
 
-Run: `grep -n "skybox" /Users/mward/Documents/Projects/open_stbc/native/tests/renderer/CMakeLists.txt`
+Run: `grep -n "skybox" /Users/mward/Documents/Projects/dauntless/native/tests/renderer/CMakeLists.txt`
 Expected if present: a `skybox_test.cc` line. Remove it.
 
 - [ ] **Step 6: Remove `skybox_model_` slot from `scenegraph::World`**

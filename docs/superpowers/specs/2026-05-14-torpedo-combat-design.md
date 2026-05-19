@@ -456,7 +456,7 @@ Galaxy and other hardpoints already call `Torpedoes.SetTorpedoScript(0, "Tactica
 
 After merge:
 1. Build (`cmake --build build -j`).
-2. Run (`./build/open_stbc`).
+2. Run (`./build/dauntless`).
 3. Load mission. Shift+3 → RED alert. C-toggle to lock a target.
 4. Right-click → visible torpedo sprite leaves the tube, flies toward the target, impacts. Target ship's condition indicator (debug panel) shows decrement. Audible launch whoosh.
 5. Right-click without target → torpedo flies straight ahead and disappears off into the distance.

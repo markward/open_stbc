@@ -830,7 +830,7 @@ embed_shader(SHADER_SHIELD_FS shaders/shield.frag shield_fs)
 - [ ] **Step 4: Build to verify shaders embed cleanly**
 
 ```
-cmake --build build -j --target open_stbc
+cmake --build build -j --target dauntless
 ```
 Expected: build succeeds. (The headers `embedded_shield_vs.h` / `embedded_shield_fs.h` are generated; they aren't yet referenced by any .cc, so they need no consumer at this step.)
 
@@ -996,7 +996,7 @@ Add `shield_` field + `shield()` accessor in `pipeline.h` matching the existing 
 - [ ] **Step 4: Build**
 
 ```
-cmake --build build -j --target open_stbc
+cmake --build build -j --target dauntless
 ```
 Expected: build succeeds, no test breakage. (Renderer test suite hasn't changed.)
 
@@ -1057,9 +1057,9 @@ Locate the host frame orchestrator (likely `host_bindings.cc` near `m.def("frame
 - [ ] **Step 4: Build**
 
 ```
-cmake --build build -j --target open_stbc
+cmake --build build -j --target dauntless
 ```
-Expected: build succeeds. Running `./build/open_stbc` should still render normally — shield pass does nothing visible yet because `ShieldPass::submit` only ticks.
+Expected: build succeeds. Running `./build/dauntless` should still render normally — shield pass does nothing visible yet because `ShieldPass::submit` only ticks.
 
 - [ ] **Step 5: Commit**
 
@@ -1178,8 +1178,8 @@ void set_int_array(const char* name, const int* values, std::size_t count) {
 - [ ] **Step 4: Build, launch, verify (manual)**
 
 ```
-cmake --build build -j --target open_stbc
-./build/open_stbc
+cmake --build build -j --target dauntless
+./build/dauntless
 ```
 Expected: scene renders unchanged because no hits have been pushed yet. No crashes. No new console warnings. We will exercise the visual path via F9 in Task 10.
 
@@ -1450,7 +1450,7 @@ Expected: all green.
 - [ ] **Step 7: Manual visual check**
 
 ```
-./build/open_stbc
+./build/dauntless
 ```
 Expected: scene renders; press F9 a few times → ellipsoid hex flash appears around the player ship, fading over ~1 s. Rapid presses → brighter, overlapping flashes. (Won't yet honor `ShieldGlowColor` for any specific ship until the registration glue is wired into ship creation, which is Task 13. For now the hit uses default white.)
 
@@ -1680,7 +1680,7 @@ Expected: all green.
 - [ ] **Step 7: Manual check**
 
 ```
-./build/open_stbc
+./build/dauntless
 ```
 F9 → flash now uses the player ship's ShieldGlowColor (Federation blue for Galaxy, etc.).
 
@@ -1921,7 +1921,7 @@ cmake --build build -j
 - [ ] **Step 5: Manual check**
 
 ```
-./build/open_stbc
+./build/dauntless
 ```
 Load a mission where sovereign is the player ship (or spawn one). F9 → hex flash now silhouettes the hull. F9 on a non-sovereign ship still shows ellipsoid.
 
@@ -1972,7 +1972,7 @@ Expected: same pass count as the baseline before this work. The `ShieldProperty.
 
 - [ ] **Step 5: Manual visual checklist**
 
-`./build/open_stbc`:
+`./build/dauntless`:
 - [ ] Galaxy (player default): F9 → ellipsoid bubble flash sized roughly to ship AABB, fades over ~1 s, color = Federation blue from hardpoint.
 - [ ] Sovereign (load via ad-hoc test setup): F9 → hull-conforming flash silhouette, color from sovereign hardpoint.
 - [ ] Rapid F9 (5 presses in 1 s): overlapping flashes brighten additively, each fades independently.

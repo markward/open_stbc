@@ -1949,7 +1949,7 @@ Run:
 
 ```bash
 cmake --build build -j 2>&1 | tail -3
-./build/open_stbc
+./build/dauntless
 ```
 
 Manual checks:

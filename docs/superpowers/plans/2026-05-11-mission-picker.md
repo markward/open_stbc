@@ -955,7 +955,7 @@ Expected: builds cleanly. If a stale binary lives at `native/build/...` or `buil
 
 - [ ] **Step 6.3: Manual smoke (host running)**
 
-Run: `./build/open_stbc` (headed). The host still boots without errors. (The picker isn't wired yet; this just confirms the existing anchors still work.)
+Run: `./build/dauntless` (headed). The host still boots without errors. (The picker isn't wired yet; this just confirms the existing anchors still work.)
 
 - [ ] **Step 6.4: Commit**
 
@@ -1908,7 +1908,7 @@ Run: `cmake --build build -j`
 
 - [ ] **Step 13.2: Launch the host**
 
-Run: `./build/open_stbc`
+Run: `./build/dauntless`
 
 Expected behaviours:
 

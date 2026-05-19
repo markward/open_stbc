@@ -198,7 +198,7 @@ Expected: PASS. The new callback isn't wired by any test, so this is a smoke che
 Launch the host:
 
 ```bash
-./build/open_stbc
+./build/dauntless
 ```
 
 With the cursor over open scene (not over a panel), scroll the mouse wheel. Expected: camera zooms in/out as before. This proves the RmlUi-not-consumed → camera-fallthrough path works.
@@ -264,7 +264,7 @@ Expected: PASS. The `add_scroll_y` test from Task 1 still works (it doesn't rely
 
 ```bash
 cmake --build build -j
-./build/open_stbc
+./build/dauntless
 ```
 
 With the cursor in open scene, scroll. Expected: camera zooms (proves UiSystem's scroll callback is the one wired and that its fallthrough path works).
@@ -401,7 +401,7 @@ Expected: PASS, 3 tests.
 
 ```bash
 cmake --build build -j
-./build/open_stbc
+./build/dauntless
 ```
 
 Load any mission. The targets panel renders as before (no scrollbar visible because content fits). Resize the window vertically to compress the panel below the content height — a vertical scrollbar should appear, styled in the panel's accent colour.
@@ -431,7 +431,7 @@ EOF
 
 ## Task 5: End-to-end manual smoke
 
-This task is checklist-only — no new test files.  Use it to convince yourself the routing matrix is right.  Run the host (`./build/open_stbc`), then exercise the matrix:
+This task is checklist-only — no new test files.  Use it to convince yourself the routing matrix is right.  Run the host (`./build/dauntless`), then exercise the matrix:
 
 | Cursor location | Action | Expected |
 |---|---|---|

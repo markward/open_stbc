@@ -278,6 +278,6 @@ The macOS-headless-pixel memory applies here: don't trust hardware presence in C
 
 ## Acceptance criteria
 
-- Launching `./build/open_stbc` and spawning a federation ship: I can hear engine rumble, attenuated by distance, panned by relative position to the camera.
+- Launching `./build/dauntless` and spawning a federation ship: I can hear engine rumble, attenuated by distance, panned by relative position to the camera.
 - Pressing the red-alert keybind: I hear `redalert.wav` play once. Yellow/green equivalents work.
 - `pytest` passes with no audio device open, and at least two new tests assert the command log for engine-rumble-on-spawn and alert-on-transition.

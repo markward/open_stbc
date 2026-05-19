@@ -16,14 +16,14 @@ set_target_properties(_open_stbc_host PROPERTIES
 
 # Host executable. Statically links the same bindings translation unit, then
 # host_main registers the init function via PyImport_AppendInittab before
-# Py_InitializeEx. Output lands directly at ${CMAKE_BINARY_DIR}/open_stbc so
-# the run command is `./build/open_stbc` from the project root.
-add_executable(open_stbc
+# Py_InitializeEx. Output lands directly at ${CMAKE_BINARY_DIR}/dauntless so
+# the run command is `./build/dauntless` from the project root.
+add_executable(dauntless
     host_main.cc
     ${HOST_BINDINGS_SOURCES}
 )
 
-target_link_libraries(open_stbc
+target_link_libraries(dauntless
     PRIVATE
         Python3::Python
         pybind11::embed
@@ -34,10 +34,10 @@ target_link_libraries(open_stbc
         open_stbc_audio
 )
 
-target_compile_features(open_stbc PRIVATE cxx_std_20)
-target_include_directories(open_stbc PRIVATE .)
+target_compile_features(dauntless PRIVATE cxx_std_20)
+target_include_directories(dauntless PRIVATE .)
 
-set_target_properties(open_stbc PROPERTIES
+set_target_properties(dauntless PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
@@ -50,14 +50,14 @@ set_target_properties(open_stbc PROPERTIES
 if(APPLE)
     target_link_options(_open_stbc_host PRIVATE
         "LINKER:-force_load,$<TARGET_FILE:nif>")
-    target_link_options(open_stbc PRIVATE
+    target_link_options(dauntless PRIVATE
         "LINKER:-force_load,$<TARGET_FILE:nif>")
 elseif(UNIX)
     target_link_options(_open_stbc_host PRIVATE
         "LINKER:--whole-archive"
         "$<TARGET_FILE:nif>"
         "LINKER:--no-whole-archive")
-    target_link_options(open_stbc PRIVATE
+    target_link_options(dauntless PRIVATE
         "LINKER:--whole-archive"
         "$<TARGET_FILE:nif>"
         "LINKER:--no-whole-archive")

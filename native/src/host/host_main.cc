@@ -14,7 +14,7 @@
 namespace {
 
 // Locate the project root from the running binary's path. The binary lives at
-// <root>/build/open_stbc, so root is two parents up from the binary's
+// <root>/build/dauntless, so root is two parents up from the binary's
 // canonical path. This is a build-tree assumption — the binary is not yet
 // meant to be installed system-wide.
 std::filesystem::path discover_project_root(const char* argv0) {

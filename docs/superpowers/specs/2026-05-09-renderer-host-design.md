@@ -60,7 +60,7 @@ implementation plan can be staged and course-corrected mid-flight.
    `build/bin/open_stbc_host` on macOS and Linux.
 
 2. Running `./build/bin/open_stbc_host <mission_name>`:
-   - Opens a 1280×720 window titled "open_stbc"
+   - Opens a 1280×720 window titled "dauntless"
    - Boots the existing Phase 1 engine inside the embedded interpreter
    - Initializes the named mission via the same path `gameloop_harness` uses
    - Renders 60 frames per second, lock-step with the tick
@@ -195,7 +195,7 @@ def run(mission_name: str, *, max_ticks: int | None = None) -> int:
 ```
 
 Internally:
-1. `_open_stbc_host.init(1280, 720, "open_stbc")`
+1. `_open_stbc_host.init(1280, 720, "dauntless")`
 2. Calls existing Phase 1 mission init (same path as `gameloop_harness`):
    `Initialize(pMission)`, `ET_MISSION_START` event fired
 3. Walks the current ship registry, calls `_open_stbc_host.load_model` for

@@ -3130,7 +3130,7 @@ EOF
 ## Manual verification (after merge)
 
 1. Build: `cmake --build build -j`.
-2. Run: `./build/open_stbc`.
+2. Run: `./build/dauntless`.
 3. Load mission, Shift+3 → RED alert, C-toggle to lock a target ship.
 4. Right-click: see torpedo sprite leave the tube, watch it home, see it impact. Debug panel shows target's hull condition decrement.
 5. Right-click without lock: torpedo flies straight ahead, disappears into the distance.
