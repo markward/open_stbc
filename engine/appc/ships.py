@@ -281,6 +281,35 @@ class ShipClass(DamageableObject):
             return float(total_angle / max_av)
         return 0.0
 
+    def TurnTowardLocation(self, target_vec) -> None:
+        """Set the angular velocity setpoint to rotate this ship to face
+        a world-space point.
+
+        Thin wrapper on TurnDirectionsToDirections: compute the unit
+        direction from ship to target, read current world-forward from
+        column 1 of the world rotation (column-vector convention; matches
+        the integrator + SDK), call the solver with (forward, target_dir,
+        zero, zero) so primary alignment runs but no secondary roll
+        constraint applies. If the ship is already at the target (zero
+        distance) this is a no-op so any prior setpoint is preserved
+        and the solver doesn't see a NaN direction.
+
+        Called by AI.PlainAI.Intercept.Update each tick to face the
+        predicted intercept point.
+        """
+        loc = self.GetWorldLocation()
+        diff = TGPoint3(
+            target_vec.x - loc.x,
+            target_vec.y - loc.y,
+            target_vec.z - loc.z,
+        )
+        if diff.Length() < 1e-9:
+            return
+        diff.Unitize()
+        forward = self.GetWorldRotation().GetCol(1)
+        zero = TGPoint3(0.0, 0.0, 0.0)
+        self.TurnDirectionsToDirections(forward, diff, zero, zero)
+
     def SetNetType(self, net_type: int) -> None:
         self._net_type = net_type
 
