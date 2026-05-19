@@ -569,6 +569,13 @@ class ProximityCheck(ObjectClass):
         self._check_types: list = []
         self._ignore_object_size: bool = False
         self._trigger_type: int = self.TT_INSIDE
+        # Per-tick inside-set tracker.  Stored as ids so we don't pin objects
+        # alive past their own lifecycle and so equality follows identity.
+        # Eager init: TGObject.__getattr__ returns a truthy _Stub for missing
+        # attrs (engine/core/ids.py:87), so `getattr(self, "_inside_set", None)`
+        # would silently mis-resolve — see TGPythonInstanceWrapper notes in
+        # engine/appc/events.py for the same hazard.
+        self._inside_set: set = set()
 
     def GetEventType(self) -> int:
         return self._event_type
@@ -628,6 +635,44 @@ class ProximityCheck(ObjectClass):
     def RemoveObjectTypeFromCheckList(self, type_id) -> None:
         tid = int(type_id)
         self._check_types = [(i, t) for i, t in self._check_types if i != tid]
+
+    def Evaluate(self, anchor_obj) -> None:
+        """Per-tick: for each watched object, test whether it's inside
+        the proximity radius around ``anchor_obj`` and fire the configured
+        event type when an inside-transition occurs.
+
+        Called by GameLoop.tick between tick_all_ai and tick_all_ship_motion.
+        Only TT_INSIDE transitions fire events in this slice — TT_OUTSIDE
+        and group/type-based variants land when the proximity subsystem
+        gets full SDK fidelity.
+        """
+        import App
+        from engine.appc.events import TGEvent_Create
+
+        anchor_loc = anchor_obj.GetWorldLocation() if hasattr(anchor_obj, "GetWorldLocation") else None
+        if anchor_loc is None:
+            return
+        r2 = self._proximity_radius * self._proximity_radius
+
+        inside_now = self._inside_set
+        new_inside: set = set()
+        for obj, trigger_type in self._check_objects:
+            loc = obj.GetWorldLocation() if hasattr(obj, "GetWorldLocation") else None
+            if loc is None:
+                continue
+            dx = loc.x - anchor_loc.x
+            dy = loc.y - anchor_loc.y
+            dz = loc.z - anchor_loc.z
+            is_inside = (dx * dx + dy * dy + dz * dz) <= r2
+            if is_inside:
+                new_inside.add(id(obj))
+                if trigger_type == ProximityCheck.TT_INSIDE and id(obj) not in inside_now:
+                    # Outside → inside transition.  Fire.
+                    evt = TGEvent_Create()
+                    evt.SetEventType(self._event_type)
+                    evt.SetDestination(obj)
+                    App.g_kEventManager.AddEvent(evt)
+        self._inside_set = new_inside
 
 
 def ProximityCheck_Create(event_type: int = 0) -> ProximityCheck:

@@ -190,6 +190,10 @@ class ProximityManager:
     def __init__(self, pSet=None):
         self._set = pSet
         self._objects: list = []
+        # Eager init — TGObject.__getattr__ returns a truthy _Stub for
+        # missing attrs, so the lazy `getattr(..., None)` idiom would
+        # mis-resolve.  See engine/appc/events.py TGPythonInstanceWrapper.
+        self._proximity_checks: list = []
 
     def AddObject(self, obj) -> None:
         if obj not in self._objects:
@@ -209,10 +213,21 @@ class ProximityManager:
     def GetNumObjects(self) -> int:
         return len(self._objects)
 
-    def GetNearObjects(self, *args) -> tuple:
-        # Phase 1: returns the full tracked list.  Real distance filtering
-        # against the (point, radius) args is Phase 2 simulation work.
-        return tuple(self._objects)
+    def GetNearObjects(self, point, radius) -> tuple:
+        """Return objects within `radius` world-space units of `point`.
+        Used by SDK conditions (ConditionInRange) to gate on proximity."""
+        r2 = float(radius) * float(radius)
+        result = []
+        for obj in self._objects:
+            loc = obj.GetWorldLocation() if hasattr(obj, "GetWorldLocation") else None
+            if loc is None:
+                continue
+            dx = loc.x - point.x
+            dy = loc.y - point.y
+            dz = loc.z - point.z
+            if dx * dx + dy * dy + dz * dz <= r2:
+                result.append(obj)
+        return tuple(result)
 
     def GetLineIntersectObjects(self, *args) -> tuple:
         return ()
@@ -236,3 +251,26 @@ class ProximityManager:
 
     def DumpCollisions(self) -> None:
         pass
+
+    def AddProximityCheck(self, check, anchor_obj) -> None:
+        """Register a ProximityCheck for per-tick evaluation against an
+        anchor object (typically the ship that owns the check). The
+        anchor's world location is the center of the proximity radius."""
+        entry = (check, anchor_obj)
+        if entry not in self._proximity_checks:
+            self._proximity_checks.append(entry)
+
+
+def evaluate_proximity_checks() -> None:
+    """Walk every live ProximityManager and dispatch each ProximityCheck's
+    per-tick evaluation.  Called from GameLoop.tick between tick_all_ai and
+    tick_all_ship_motion so the SDK conditions see fresh transitions before
+    the motion integrator advances ships further."""
+    import App
+    for pSet in App.g_kSetManager._sets.values():
+        pm = pSet.GetProximityManager() if hasattr(pSet, "GetProximityManager") else None
+        if pm is None:
+            continue
+        checks = getattr(pm, "_proximity_checks", ())
+        for check, anchor in checks:
+            check.Evaluate(anchor)

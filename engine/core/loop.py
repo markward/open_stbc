@@ -27,10 +27,15 @@ class GameLoop:
         from engine.appc.time_slice import g_kAIManager
         from engine.appc.ai_driver import tick_all_ai
         from engine.appc.ship_motion import tick_all_ship_motion
+        from engine.appc.planet import evaluate_proximity_checks
         game_time = App.g_kTimerManager.get_time()
         real_time = App.g_kRealtimeTimerManager.get_time()
         g_kAIManager.tick(game_time=game_time, real_time=real_time)
         tick_all_ai(game_time=game_time)
+        # Per-tick proximity evaluation.  SDK conditions like
+        # ConditionInRange register ProximityChecks; the per-tick sweep
+        # fires events when objects cross the radius boundary.
+        evaluate_proximity_checks()
         tick_all_ship_motion(TICK_DELTA)
 
         for ship in iter_ships():
