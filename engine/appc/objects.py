@@ -573,6 +573,18 @@ def PhysicsObjectClass_Cast(obj) -> "PhysicsObjectClass | None":
     return obj if isinstance(obj, PhysicsObjectClass) else None
 
 
+def DamageableObject_Cast(obj) -> "DamageableObject | None":
+    """Return obj if it is a DamageableObject, else None.
+
+    SDK pattern (AI/Preprocessors.py:1438 — SelectTarget.FindGoodTarget):
+    ``pDam = App.DamageableObject_Cast(pOldTarget)`` then guard with
+    ``if pDam:`` before checking ``pDam.IsDead()`` / ``pDam.IsDying()``.
+    None for non-damageable targets keeps the SDK's truthiness guards
+    correct (the dead/dying skip only applies when the cast succeeds).
+    """
+    return obj if isinstance(obj, DamageableObject) else None
+
+
 def ObjectClass_GetObject(pSet, name) -> "ObjectClass | None":
     """Look up an object by name within a SetClass.
 

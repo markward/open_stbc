@@ -26,7 +26,7 @@ from engine.appc.objects import (
     ObjectClass, PhysicsObjectClass, DamageableObject,
     ObjectGroup, ObjectGroupWithInfo,
     ObjectGroup_ForceToGroup, ObjectGroup_FromModule, ObjectGroupWithInfo_Cast,
-    ObjectClass_Cast, PhysicsObjectClass_Cast,
+    ObjectClass_Cast, PhysicsObjectClass_Cast, DamageableObject_Cast,
     ObjectClass_GetObject, ObjectClass_GetObjectByID,
     IsNull,
 )
